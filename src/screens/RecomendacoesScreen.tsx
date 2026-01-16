@@ -1,83 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Leaf, Search, ChevronDown, Check, X, Plus, Trash2, Beaker, ScrollText } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Mantido)
 // ==========================================
-function SearchableSelect({ label, value, onChange, options = [], placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            <label className="block text-xs font-bold text-gray-700">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            <div 
-                className="relative"
-                onClick={() => { if(!isOpen) setIsOpen(true); }}
-            >
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-green-500 ring-1 ring-green-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                        {value || placeholder}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-green-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-green-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-green-50 flex justify-between items-center ${isSelected ? 'bg-green-50 font-bold text-green-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-green-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+// ==========================================
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
+// ==========================================
 
 // ==========================================
 // TELA PRINCIPAL
@@ -230,10 +163,10 @@ export default function RecomendacoesScreen() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-                <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} />
-                <SearchableSelect label="Culturas" placeholder="Selecione..." options={ativos.culturas} value={header.cultura} onChange={(e:any) => setHeader({ ...header, cultura: e.target.value })} />
+                <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} color="green" />
+                <SearchableSelect label="Culturas" placeholder="Selecione..." options={ativos.culturas} value={header.cultura} onChange={(e:any) => setHeader({ ...header, cultura: e.target.value })} color="green" />
             </div>
-            <SearchableSelect label="Talhões" placeholder="Buscar o Talhão/Pivo... Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} />
+            <SearchableSelect label="Talhões" placeholder="Buscar o Talhão/Pivo... Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
             {header.area && <div className="text-xs text-right text-green-600 font-bold">Área: {header.area} ha</div>}
         </div>
 
@@ -241,11 +174,11 @@ export default function RecomendacoesScreen() {
         <div className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-3">
             <p className="text-xs font-bold text-green-700 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center flex justify-center gap-1"><span className="text-red-500">***</span><Beaker className="w-5 h-5"/>Composição da Calda <span className="text-red-500">***</span></p>
             
-            <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} />
+            <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
             
             <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                    <SearchableSelect label="Produto" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Produto... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} />
+                    <SearchableSelect label="Produto" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Produto... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} color="green" />
                 </div>
                 
                 {/* Campo Dose Manual (Padronizado) */}

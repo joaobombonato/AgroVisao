@@ -1,95 +1,27 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { CloudRain, Search, ChevronDown, Check, Droplets, Calendar, Trash2 } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Visual Ajustado)
 // ==========================================
-function SearchableSelect({ label, value, onChange, options = [], placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            {/* Rótulo Normal (Sem Uppercase) e com Asterisco */}
-            <label className="block text-xs font-bold text-gray-700">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            <div 
-                className="relative"
-                onClick={() => { if(!isOpen) setIsOpen(true); }}
-            >
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-cyan-500 ring-1 ring-cyan-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                        {value || placeholder}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-cyan-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-cyan-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-cyan-50 flex justify-between items-center ${isSelected ? 'bg-cyan-50 font-bold text-cyan-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-cyan-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+// ==========================================
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
+// ==========================================
 
 // ==========================================
 // TELA PRINCIPAL: CHUVAS (PLUVIOMETRIA)
 // ==========================================
 export default function ChuvasScreen() {
-  const { dados, dispatch, setTela, ativos } = useAppContext();
+  const { dados, dispatch, setTela, ativos, genericSave } = useAppContext();
   
   // Estado do Formulário
   const [form, setForm] = useState({ 
       data: U.todayIso(), 
-      estacao: '', 
+      local: '', 
       milimetros: '' 
   });
   
@@ -98,14 +30,26 @@ export default function ChuvasScreen() {
 
   const enviar = (e: any) => {
     e.preventDefault();
-    if (!form.estacao || !form.milimetros) { toast.error("Preencha Estação e Milímetros"); return; }
+    if (!form.local || !form.milimetros) { toast.error("Preencha Local e Milímetros"); return; }
     
     const mm = U.parseDecimal(form.milimetros);
     const novo = { ...form, milimetros: mm, id: U.id('CH-') };
     
-    dispatch({ type: ACTIONS.ADD_RECORD, modulo: 'chuvas', record: novo, osDescricao: `Chuva: ${form.estacao} (${mm}mm)` });
     
-    setForm({ data: U.todayIso(), estacao: '', milimetros: '' });
+    const descOS = `Chuva: ${form.local} (${mm}mm)`;
+    genericSave('chuvas', novo, { type: ACTIONS.ADD_RECORD, modulo: 'chuvas', osDescricao: descOS });
+
+    // 2. Persistência OS
+    genericSave('os', {
+        id: U.id('OS-CH-'),
+        modulo: 'Pluviometria',
+        descricao: descOS,
+        detalhes: { "Local": form.local, "Volume": `${mm} mm` },
+        status: 'Pendente',
+        data: new Date().toISOString()
+    });
+    
+    setForm({ data: U.todayIso(), local: '', milimetros: '' });
     toast.success('Registro de chuva salvo!');
   };
 
@@ -114,7 +58,7 @@ export default function ChuvasScreen() {
   const listFilter = useMemo(() => (dados.chuvas || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
       return (!filterData || i.data === filterData) && 
-             (!filterText || i.estacao.toLowerCase().includes(txt));
+             (!filterText || i.local.toLowerCase().includes(txt));
   }).reverse(), [dados.chuvas, filterData, filterText]);
 
   return (
@@ -143,12 +87,13 @@ export default function ChuvasScreen() {
           </div>
           
           <SearchableSelect 
-              label="Estação / Local" 
-              placeholder="Selecione a estação..." 
-              options={ativos.talhoesChuva} // Lê da lista "Estações - Chuva" das Configurações
-              value={form.estacao} 
-              onChange={(e:any) => setForm({ ...form, estacao: e.target.value })} 
+              label="Local (Pluviômetro)" 
+              placeholder="Onde choveu? Ex: Sede" 
+              options={ativos.locais} 
+              value={form.local} 
+              onChange={(e:any) => setForm({ ...form, local: e.target.value })} 
               required 
+              color="cyan"
           />
           
           <div className="space-y-1">

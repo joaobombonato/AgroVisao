@@ -1,79 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Fuel, Search, ChevronDown, Check, X, Gauge, Truck, Droplet, Plus, Minus, AlertTriangle, ChevronUp, Factory } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, Input, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
+import { Abastecimento } from '../types';
 
 // ==========================================
-// Componente: SELECT PESQUISÁVEL (Vermelho)
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
 // ==========================================
-function SearchableSelect({ label, value, onChange, options = [], placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            <label className="block text-xs font-bold text-gray-700">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            <div className="relative" onClick={() => { if(!isOpen) setIsOpen(true); }}>
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-red-500 ring-1 ring-red-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                        {value || placeholder}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-red-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-red-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-red-50 flex justify-between items-center ${isSelected ? 'bg-red-50 font-bold text-red-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-red-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
 
 // ==========================================
 // MODAL: COMPRA DE COMBUSTÍVEL (Estoque)
@@ -215,7 +150,7 @@ function CompraCombustivelForm({ onClose }: any) {
 // ==========================================
 export default function AbastecimentoScreen() {
   // CORREÇÃO 1: Remover duplicatas e garantir que 'os' (lista de OS) venha do contexto
-  const { dados, os, dispatch, setTela, ativos, buscarUltimaLeitura } = useAppContext();
+  const { dados, os, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
   
   const [form, setForm] = useState({ 
       data: U.todayIso(), 
@@ -310,18 +245,33 @@ export default function AbastecimentoScreen() {
     };
     
     // 1. REGISTRO DO ABASTECIMENTO (e sua OS de registro)
-    dispatch({ 
-        type: ACTIONS.ADD_RECORD, 
-        modulo: 'abastecimentos', 
-        record: novo, 
-        osDescricao: `Abastecimento: ${form.maquina} (${litrosCalculados}L)`,
-        osDetalhes: {
+    // 1. REGISTRO DO ABASTECIMENTO (e sua OS de registro)
+    // Usando genericSave para persistência Híbrida
+    const descOS = `Abastecimento: ${form.maquina} (${litrosCalculados}L)`;
+    const detalhesOS = {
             "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
             "Consumo": `${mediaConsumo} L/h (Média)`,
             "Custo": `R$ ${U.formatValue(custoEstimado)}`,
             "Obs": form.obs || '-'
-        }
+    };
+
+    genericSave('abastecimentos', novo, {
+        type: ACTIONS.ADD_RECORD, 
+        modulo: 'abastecimentos',
+        osDescricao: descOS,
+        osDetalhes: detalhesOS
     });
+
+    // 2. Persistência Silenciosa da OS (Best Effort)
+    const novaOS = {
+        id: U.id('OS-'),
+        modulo: 'Abastecimento',
+        descricao: descOS,
+        detalhes: detalhesOS,
+        status: 'Pendente',
+        data: new Date().toISOString()
+    };
+    genericSave('os', novaOS); // Salva no banco/fila sem afetar UI (já atualizada pelo optimistic acima)
     
     // 2. LÓGICA DE OS AUTOMÁTICA DE ESTOQUE
     const litrosUsados = U.parseDecimal(litrosCalculados);
@@ -334,17 +284,29 @@ export default function AbastecimentoScreen() {
 
         if (!compraPendentes) {
             // Cria a OS de alerta de estoque crítico
-            dispatch({ 
-                type: ACTIONS.ADD_RECORD, 
-                modulo: 'os_alert_estoque', // Módulo fictício para registrar apenas a OS
-                record: {}, 
-                osDescricao: `COMPRA URGENTE DE DIESEL - ESTOQUE CRÍTICO (${U.formatInt(estoqueAposAbastecimento)}L)`,
-                osDetalhes: {
+            // Cria a OS de alerta de estoque crítico
+            const alertaDesc = `COMPRA URGENTE DE DIESEL - ESTOQUE CRÍTICO (${U.formatInt(estoqueAposAbastecimento)}L)`;
+            const alertaDetalhes = {
                     "Alerta": "Automático por Estoque Crítico de Combustível",
                     "Estoque Atual": `${U.formatInt(estoqueAposAbastecimento)} L`,
                     "Mínimo Configurado": `${U.formatInt(estoqueMinimo)} L`,
                     "Prioridade": "URGENTE"
-                }
+            };
+
+            // Salva Localmente (Reducer) e na Fila/Banco
+            genericSave('os', {
+                id: U.id('OS-ALERT-'),
+                modulo: 'Estoque',
+                descricao: alertaDesc,
+                detalhes: alertaDetalhes,
+                status: 'Pendente',
+                data: new Date().toISOString()
+            }, {
+                type: ACTIONS.ADD_RECORD, 
+                modulo: 'os_alert_estoque',
+                record: {}, // Payload dummy para o reducer
+                osDescricao: alertaDesc,
+                osDetalhes: alertaDetalhes
             });
             toast.success('ALERTA! OS de Compra de Diesel criada automaticamente.');
         }
@@ -428,7 +390,8 @@ export default function AbastecimentoScreen() {
               options={ativos.maquinas} 
               value={form.maquina} 
               onChange={handleMaquinaChange} 
-              required 
+              required
+              color="red"
           />
 
           <div>
@@ -561,20 +524,21 @@ export default function AbastecimentoScreen() {
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {items.map(item => (
+                        {items.map((item: Abastecimento) => (
                             <Row key={item.id} onDelete={() => excluir(item.id)}>
                                 <td className="px-2 py-2 text-center text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data).slice(0,5)}</td>
                                 <td className="px-2 py-2 text-center text-gray-700 text-xs">
                                     <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">{item.maquina}</div>
-                                    <div className="text-[9px] text-gray-400">Km: {item.horimetroAtual}</div>
+                                    <div className="text-[9px] text-gray-400">Km: {item.horimetro}</div>
                                 </td>
                                 <td className="px-2 py-2 text-center">
-                                    <div className="font-bold text-red-600 text-xs">{item.qtd}</div>
+                                    <div className="font-bold text-red-600 text-xs">{item.quantidade}</div>
                                 </td>
                                 <td className="px-2 py-2 text-center text-xs font-bold text-gray-700">
-                                    {item.media !== '0.00' ? item.media : '-'}
+                                    {/* @ts-ignore: media nao esta na interface base, mas existe no runtime */}
+                                    {item.media || '-'}
                                 </td>
-                                <td className="px-2 py-2 text-center text-xs text-gray-700">{item.bombaFinal}</td>
+                                <td className="px-2 py-2 text-center text-xs text-gray-700">{/* @ts-ignore */ item.bombaFinal || '-'}</td>
                                 <td className="px-2 py-2 text-center">
                                     <div className="flex justify-center">
                                         {/* Ações como excluir, ver detalhes, etc. */}

@@ -31,7 +31,8 @@ import AuthScreen from './screens/AuthScreen';
 // [1] O componente MainLayout (Layout principal, SÓ PODE SER USADO QUANDO LOGADO)
 const MainLayout = () => {
   // Importando fazendaNome do contexto para o cabeçalho
-  const { tela, setTela, loading, modal, selectedOS, os, dispatch, logout, session, fazendaNome } = useAppContext();
+  // Importando genericUpdate
+  const { tela, setTela, loading, modal, selectedOS, os, dispatch, logout, session, fazendaNome, genericUpdate } = useAppContext();
   const [deferredPrompt, setDeferredPrompt] = useState(null); 
   
   const pendentes = (os || []).filter((o:any) => o.status === 'Pendente').length;
@@ -88,6 +89,39 @@ const MainLayout = () => {
                 </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* SYNC INDICATOR */}
+              <div className="flex items-center">
+                  {(os || []).length > 0 && modal && !loading ? (
+                       <div className="flex flex-col items-end mr-2">
+                           {/* Monitorando syncQueue do Contexto? Precisamos expor no hook. */}
+                           {/* O hook useAppContext retorna ...state, que inclui syncQueue */}
+                       </div>
+                  ) : null}
+                  {/* Como não desestruturei syncQueue no App.tsx, vou adicionar agora */}
+              </div>
+
+               {/* RE-IMPLEMENTANDO BOTAO DE OS E SYNC JUNTOS */}
+               {(() => {
+                   // Acesso direto ao state via useAppContext (já desestruturado em MainLayout, preciso incluir syncQueue)
+                   // Vou assumir que vou adicionar syncQueue na desestruturação na próxima ferramenta, 
+                   // mas aqui vou usar uma lógica inline se possível ou placeholders.
+                   // Melhor fazer direito: Adicionar syncQueue na desestruturação primeiro.
+                   return null; 
+               })()}
+            </div>
+            <div className="flex items-center gap-2">
+               {/* SYNC STATUS ICON */}
+               {(() => {
+                   // @ts-ignore
+                   const queueLength = (useAppContext().syncQueue || []).length;
+                   const hasPending = queueLength > 0;
+                   return (
+                       <div className={`flex items-center justify-center w-8 h-8 rounded-full ${hasPending ? 'bg-orange-100 text-orange-600 animate-pulse' : 'bg-green-100 text-green-600'}`} title={hasPending ? `${queueLength} pendentes` : "Sincronizado"}>
+                           {hasPending ? <CloudRain className="w-5 h-5" /> : <Check className="w-5 h-5" />}
+                       </div>
+                   );
+               })()}
+
               {tela !== 'os' && (<button onClick={() => setTela('os')} className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"><Bell className="w-5 h-5 text-gray-600" />{pendentes > 0 && (<span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">{pendentes}</span>)}</button>)}
               {/* Botão de Limpar/Logout */}
               {session ? (
@@ -112,7 +146,18 @@ const MainLayout = () => {
         )}
         
         {modal.isOpen && (<ConfirmModal message={modal.message} onConfirm={() => { modal.onConfirm(); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); }} onClose={() => dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } })} />)}
-        {selectedOS && <OSDetailsModal os={selectedOS} onClose={() => dispatch({ type: ACTIONS.SET_SELECTED_OS, os: null })} onUpdateStatus={(id: string, status: string) => dispatch({ type: ACTIONS.UPDATE_OS_STATUS, id, status })} />}
+        
+        {/* OFFLINE-FIRST OS UPDATE */}
+        {selectedOS && (
+            <OSDetailsModal 
+                os={selectedOS} 
+                onClose={() => dispatch({ type: ACTIONS.SET_SELECTED_OS, os: null })} 
+                onUpdateStatus={(id: string, status: string) => {
+                    // Usa genericUpdate para atualizar DB e Fila se offline
+                    genericUpdate('os', id, { status }, { type: ACTIONS.UPDATE_OS_STATUS, id, status });
+                }} 
+            />
+        )}
         
         {/* Botão de Instalação PWA */}
         {deferredPrompt && (

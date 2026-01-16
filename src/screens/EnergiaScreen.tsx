@@ -1,93 +1,26 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Zap, Search, ChevronDown, Check, X, History, Calculator } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, Input, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Reutilizado)
 // ==========================================
-function SearchableSelect({ label, value, onChange, options = [], placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            <label className="block text-xs font-bold text-gray-700">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            <div 
-                className="relative"
-                onClick={() => { if(!isOpen) setIsOpen(true); }}
-            >
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-yellow-500 ring-1 ring-yellow-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                        {value || placeholder}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-yellow-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-yellow-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar local..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-yellow-50 flex justify-between items-center ${isSelected ? 'bg-yellow-50 font-bold text-yellow-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-yellow-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+// ==========================================
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
+// ==========================================
 
 // ==========================================
 // TELA PRINCIPAL: ENERGIA
 // ==========================================
 export default function EnergiaScreen() {
-  const { dados, dispatch, setTela, ativos, buscarUltimaLeitura } = useAppContext();
+  const { dados, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
   
   const [form, setForm] = useState({ 
       data: U.todayIso(), 
-      local: '', 
+      ponto: '', 
       medidor: '', 
       leituraAnterior: '', 
       leituraAtual: '' 
@@ -109,20 +42,20 @@ export default function EnergiaScreen() {
       return (kwh * custoMedio).toFixed(2);
   }, [consumo]);
 
-  const handleLocalChange = (e: any) => {
-      const nomeLocal = e.target.value;
+  const handlePontoChange = (e: any) => {
+      const nomePonto = e.target.value;
       
       // 1. Busca o Medidor nas Configurações
-      const localObj = ativos.locaisEnergia.find((l:any) => (l.nome === nomeLocal) || (l === nomeLocal));
-      const medidorAuto = (localObj && typeof localObj === 'object') ? localObj.medidor : '';
+      const pontoObj = ativos.pontosEnergia.find((l:any) => (l.nome === nomePonto) || (l === nomePonto));
+      const medidorAuto = (pontoObj && typeof pontoObj === 'object') ? pontoObj.medidor : '';
 
       // 2. Busca a Última Leitura no Histórico
-      const ultimoRegistro = buscarUltimaLeitura('energia', 'local', nomeLocal);
+      const ultimoRegistro = buscarUltimaLeitura('energia', 'ponto', nomePonto);
       const leituraAntAuto = ultimoRegistro ? ultimoRegistro.leituraAtual : '0';
 
       setForm(prev => ({ 
           ...prev, 
-          local: nomeLocal, 
+          ponto: nomePonto, 
           medidor: medidorAuto || prev.medidor, 
           leituraAnterior: leituraAntAuto 
       }));
@@ -133,9 +66,26 @@ export default function EnergiaScreen() {
     if (U.parseDecimal(consumo) <= 0) { toast.error("Leitura Atual deve ser maior que a Anterior"); return; }
     
     const novo = { ...form, consumo, valorEstimado, id: U.id('EN-') };
-    dispatch({ type: ACTIONS.ADD_RECORD, modulo: 'energia', record: novo, osDescricao: `Energia: ${form.local} (${consumo} kWh)` });
+
     
-    setForm({ data: U.todayIso(), local: '', medidor: '', leituraAnterior: '', leituraAtual: '' });
+    const descOS = `Energia: ${form.ponto} (${consumo} kWh)`;
+    genericSave('energia', novo, { type: ACTIONS.ADD_RECORD, modulo: 'energia', osDescricao: descOS });
+
+    // 2. Persistência OS
+    genericSave('os', {
+        id: U.id('OS-EN-'),
+        modulo: 'Energia',
+        descricao: descOS,
+        detalhes: { 
+            "Ponto": form.ponto, 
+            "Consumo": `${consumo} kWh`,
+            "Estimativa": `R$ ${valorEstimado}`
+        },
+        status: 'Pendente',
+        data: new Date().toISOString()
+    });
+    
+    setForm({ data: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '' });
     toast.success('Leitura de energia registrada!');
   };
 
@@ -144,7 +94,7 @@ export default function EnergiaScreen() {
   const listFilter = useMemo(() => (dados.energia || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
       return (!filterData || i.data === filterData) && 
-             (!filterText || i.local.toLowerCase().includes(txt) || i.medidor.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt));
+             (!filterText || i.ponto.toLowerCase().includes(txt) || i.medidor.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt));
   }).reverse(), [dados.energia, filterData, filterText]);
 
   return (
@@ -171,12 +121,13 @@ export default function EnergiaScreen() {
             </div>
           
           <SearchableSelect 
-              label="Local do Padrão" 
-              placeholder="Selecione o local..." 
-              options={ativos.locaisEnergia} 
-              value={form.local} 
-              onChange={handleLocalChange} 
+              label="Ponto de Energia" 
+              placeholder="Buscar ponto... Ex: Sede" 
+              options={ativos.pontosEnergia} 
+              value={form.ponto} 
+              onChange={handlePontoChange} 
               required 
+              color="yellow"
           />
           
           {/* MEDIDOR AUTOMÁTICO (AMARELO RESTAURADO) */}

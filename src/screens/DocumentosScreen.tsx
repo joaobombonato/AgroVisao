@@ -1,79 +1,22 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, Input, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Roxo)
 // ==========================================
-function SearchableSelect({ label, value, onChange, options, placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setIsOpen(false);
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            <label className="block text-xs font-bold text-gray-700">{label} {required && <span className="text-red-500">*</span>}</label>
-            <div className="relative" onClick={() => !isOpen && setIsOpen(true)}>
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-purple-500 ring-1 ring-purple-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>{value || placeholder}</span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-purple-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-purple-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-purple-50 flex justify-between items-center ${isSelected ? 'bg-purple-50 font-bold text-purple-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-purple-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+// ==========================================
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
+// ==========================================
 
 // ==========================================
 // TELA PRINCIPAL: DOCUMENTOS
 // ==========================================
 export default function DocumentosScreen() {
-  const { dados, dispatch, setTela, ativos } = useAppContext();
+  const { dados, dispatch, setTela, ativos, genericSave } = useAppContext();
   
   // Lista de Setores para Tramitação
   const setores = ['Administrativo', 'Gerência Rural', 'Técnico', 'Financeiro', 'Diretoria', 'Campo (Operacional)'];
@@ -184,11 +127,26 @@ export default function DocumentosScreen() {
         ? `Resposta Doc (${fluxo}): ${form.nome}` 
         : `Envio Doc (${fluxo}): ${form.nome}`;
 
-    dispatch({ 
+    // Table name: 'documents' (CONFIRMED)
+    genericSave('documents', novo, { 
         type: ACTIONS.ADD_RECORD, 
         modulo: 'documentos', 
-        record: novo, 
         osDescricao: descOS 
+    });
+    
+    // 2. Persistência OS
+    genericSave('os', {
+        id: U.id('OS-DOC-'),
+        modulo: 'Documentos',
+        descricao: descOS,
+        detalhes: { 
+           "Documento": form.nome,
+           "Tipo": form.tipo,
+           "Fluxo": fluxo,
+           "Obs": form.obs || '-'
+        },
+        status: 'Pendente',
+        data: new Date().toISOString()
     });
     
     setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', remetente: 'Gerência Rural', destinatario: '', obs: '', parentId: '' });
@@ -248,18 +206,18 @@ export default function DocumentosScreen() {
              <Input label="Código / Barras" placeholder="Auto ou Digite" value={form.codigo} onChange={(e:any) => setForm({ ...form, codigo: e.target.value })} />
           </div>
 
-          <SearchableSelect label="Categoria" placeholder="Ex: Nota Fiscal, Contrato..." options={ativos.tiposDocumento} value={form.tipo} onChange={(e:any) => setForm({ ...form, tipo: e.target.value })} required />
+          <SearchableSelect label="Categoria" placeholder="Ex: Nota Fiscal, Contrato..." options={ativos.tiposDocumento} value={form.tipo} onChange={(e:any) => setForm({ ...form, tipo: e.target.value })} required color="purple" />
           <Input label="Nome do Arquivo / Assunto" placeholder="Descreva o documento" value={form.nome} onChange={(e:any) => setForm({ ...form, nome: e.target.value })} required />
 
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
               <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Send className="w-3 h-3"/> Fluxo de Tramitação</p>
               <div className="flex items-center gap-2">
                   <div className="flex-1">
-                      <SearchableSelect label="De (Remetente)" options={setores} value={form.remetente} onChange={(e:any) => setForm({...form, remetente: e.target.value})} required />
+                      <SearchableSelect label="De (Remetente)" options={setores} value={form.remetente} onChange={(e:any) => setForm({...form, remetente: e.target.value})} required color="purple" />
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-5" />
                   <div className="flex-1">
-                      <SearchableSelect label="Para (Destino)" options={setores} value={form.destinatario} onChange={(e:any) => setForm({...form, destinatario: e.target.value})} required />
+                      <SearchableSelect label="Para (Destino)" options={setores} value={form.destinatario} onChange={(e:any) => setForm({...form, destinatario: e.target.value})} required color="purple" />
                   </div>
               </div>
           </div>

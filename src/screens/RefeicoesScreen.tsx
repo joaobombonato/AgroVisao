@@ -1,91 +1,22 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Utensils, Search, ChevronDown, Check, X, Coffee, Users, DollarSign, Calendar, ChevronRight, ChevronUp } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL
 // ==========================================
-function SearchableSelect({ label, value, onChange, options, placeholder, required = false }: any) {
-    const [isOpen, setIsOpen] = useState(false);
-    const [search, setSearch] = useState('');
-    const wrapperRef = useRef<any>(null);
-
-    useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [wrapperRef]);
-
-    const filteredOptions = options.filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
-        return text.toLowerCase().includes(search.toLowerCase());
-    });
-
-    const handleSelect = (opt: any) => {
-        // Passa o objeto inteiro se for complexo, ou string se for simples
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        // Evento simulado para manter compatibilidade
-        onChange({ target: { value: val, data: opt } }); 
-        setIsOpen(false);
-        setSearch('');
-    };
-
-    return (
-        <div className="space-y-1 relative" ref={wrapperRef}>
-            <label className="block text-xs font-bold text-gray-700">
-                {label} {required && <span className="text-red-500">*</span>}
-            </label>
-            <div 
-                className="relative"
-                onClick={() => { if(!isOpen) setIsOpen(true); }}
-            >
-                <div className={`w-full border-2 rounded-lg px-3 py-3 text-sm flex justify-between items-center bg-white cursor-pointer ${isOpen ? 'border-orange-500 ring-1 ring-orange-200' : 'border-gray-300'}`}>
-                    <span className={value ? 'text-gray-900 font-medium' : 'text-gray-400'}>
-                        {value || placeholder}
-                    </span>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
-                </div>
-
-                {isOpen && (
-                    <div className="absolute z-50 w-full bg-white border-2 border-orange-500 rounded-lg mt-1 shadow-xl max-h-60 overflow-hidden flex flex-col">
-                        <div className="p-2 border-b bg-orange-50 sticky top-0">
-                            <div className="flex items-center bg-white border rounded px-2">
-                                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                                <input autoFocus type="text" className="w-full py-2 text-sm outline-none" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="overflow-y-auto flex-1">
-                            {filteredOptions.length === 0 ? <div className="p-4 text-center text-xs text-gray-500">Nada encontrado</div> : 
-                                filteredOptions.map((opt: any, idx: number) => {
-                                    const text = typeof opt === 'string' ? opt : opt.nome;
-                                    const isSelected = text === value;
-                                    return (
-                                        <button key={idx} type="button" onClick={(e) => { e.stopPropagation(); handleSelect(opt); }} className={`w-full text-left px-4 py-3 text-sm border-b last:border-0 hover:bg-orange-50 flex justify-between items-center ${isSelected ? 'bg-orange-50 font-bold text-orange-800' : 'text-gray-700'}`}>
-                                            {text} {isSelected && <Check className="w-4 h-4 text-orange-600"/>}
-                                        </button>
-                                    );
-                                })
-                            }
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
+// ==========================================
+// SEARCHABLE SELECT: IMPORTADO DO SHARED
+// ==========================================
 
 // ==========================================
 // TELA PRINCIPAL: REFEIÇÕES
 // ==========================================
 export default function RefeicoesScreen() {
-  const { dados, dispatch, setTela, ativos } = useAppContext();
+  const { dados, dispatch, setTela, ativos, genericSave } = useAppContext();
   
   const [form, setForm] = useState({ 
       data: U.todayIso(), 
@@ -158,19 +89,33 @@ export default function RefeicoesScreen() {
         id: U.id('RF-') 
     };
     
-    dispatch({ 
-        type: ACTIONS.ADD_RECORD, 
-        modulo: 'refeicoes', 
-        record: novo, 
-        osDescricao: `Refeição: ${form.tipo} (${form.qtd}x)`,
-        osDetalhes: {
+    
+    const descOS = `Refeição: ${form.tipo} (${form.qtd}x)`;
+    const detalheOS = {
             "Centro de Custo": form.centroCusto,
             "Qtd": form.qtd,
             "Unitário": `R$ ${U.formatValue(vUnit)}`,
             "Total": `R$ ${U.formatValue(vTotal)}`,
             "Obs": form.obs || '-'
-        }
+    };
+
+    genericSave('refeicoes', novo, {
+        type: ACTIONS.ADD_RECORD, 
+        modulo: 'refeicoes', 
+        osDescricao: descOS,
+        osDetalhes: detalheOS
     });
+
+    // 2. Persistência Silenciosa da OS
+    const novaOS = {
+        id: U.id('OS-RF-'),
+        modulo: 'Refeições',
+        descricao: descOS,
+        detalhes: detalheOS,
+        status: 'Pendente',
+        data: new Date().toISOString()
+    };
+    genericSave('os', novaOS);
     
     setForm({ data: U.todayIso(), tipo: '', qtd: '', valorUnitario: '', centroCusto: '', obs: '' });
     setShowObs(false);
@@ -240,6 +185,7 @@ export default function RefeicoesScreen() {
                     value={form.tipo} 
                     onChange={handleTipoChange} 
                     required 
+                    color="orange"
                 />
               </div>
               <div className="w-24 space-y-1">
@@ -262,6 +208,7 @@ export default function RefeicoesScreen() {
               value={form.centroCusto} 
               onChange={(e:any) => setForm({ ...form, centroCusto: e.target.value })} 
               required 
+              color="orange"
           />
           
           {/* OBSERVAÇÃO */}

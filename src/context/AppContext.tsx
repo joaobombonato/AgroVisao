@@ -1,132 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
-import { DADOS_INICIAIS, ATIVOS_INICIAIS } from '../data/constants';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
-import { Session } from '@supabase/supabase-js';
-import { U } from '../data/utils'; // Assumindo que você tem o utils.ts
+import { U } from '../data/utils'; 
+import { dbService, syncService, authService } from '../services'; 
+import { appReducer, INITIAL_STATE, ACTIONS } from './reducer';
+import { ATIVOS_INICIAIS } from '../data/constants';
 
-// Tipos básicos
-type State = {
-  tela: string;
-  os: any[];
-  dados: any;
-  ativos: any;
-  loading: boolean;
-  modal: { isOpen: boolean; message: string; onConfirm: () => void };
-  selectedOS: any;
-  session: Session | null;
-  userProfile: any | null; 
-  fazendaId: string | null; 
-  fazendaNome: string | null;
-  fazendasDisponiveis: any[];
-  dbAssets: { [key: string]: any[] }; 
-};
-
-const INITIAL: State = {
-  tela: 'principal',
-  os: [],
-  dados: DADOS_INICIAIS,
-  ativos: ATIVOS_INICIAIS,
-  loading: true,
-  modal: { isOpen: false, message: '', onConfirm: () => {} },
-  selectedOS: null,
-  session: null, 
-  userProfile: null,
-  fazendaId: null,
-  fazendaNome: 'Fazenda SC (Demo)',
-  fazendasDisponiveis: [],
-  dbAssets: {},
-};
-
-export const ACTIONS = {
-  LOAD: 'LOAD',
-  SET_TELA: 'SET_TELA',
-  ADD_RECORD: 'ADD_RECORD',
-  REMOVE_RECORD: 'REMOVE_RECORD',
-  UPDATE_OS_STATUS: 'UPDATE_OS_STATUS',
-  SET_MODAL: 'SET_MODAL',
-  SET_LOADING: 'SET_LOADING',
-  SET_SELECTED_OS: 'SET_SELECTED_OS',
-  UPDATE_ATIVOS: 'UPDATE_ATIVOS',
-  SET_AUTH: 'SET_AUTH',
-  SET_FAZENDA: 'SET_FAZENDA',
-  SET_DB_ASSETS: 'SET_DB_ASSETS', 
-};
-
-function reducer(state: State, action: any) {
-  switch (action.type) {
-    case ACTIONS.LOAD:
-      return { ...state, ...action.payload, loading: false };
-    case ACTIONS.SET_AUTH:
-        if (action.session) {
-            return { 
-                ...state, 
-                session: action.session, 
-                userProfile: action.profile, 
-                loading: true, 
-                fazendaId: null
-            };
-        }
-        return { ...state, session: null, userProfile: null, loading: false, fazendaId: null, fazendaNome: 'Fazenda SC (Demo)' };
-        
-    case ACTIONS.SET_FAZENDA:
-        return { 
-            ...state, 
-            fazendaId: action.fazendaId, 
-            fazendaNome: action.fazendaNome,
-            fazendasDisponiveis: action.fazendas, 
-            loading: false
-        };
-    case ACTIONS.SET_DB_ASSETS:
-        return { 
-            ...state, 
-            dbAssets: { ...state.dbAssets, [action.table]: action.records } 
-        };
-    case ACTIONS.SET_TELA:
-      return { ...state, tela: action.tela };
-    case ACTIONS.ADD_RECORD: {
-      const { modulo, record, osDescricao, osDetalhes } = action;
-      const newDados = { ...state.dados, [modulo]: [...(state.dados[modulo] || []), record] };
-      
-      let newOs = state.os;
-      if (osDescricao) {
-        const osId = `OS-${new Date().getFullYear()}-${String(state.os.length + 1).padStart(4, '0')}`;
-        const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1);
-        newOs = [...state.os, { 
-            id: osId, 
-            modulo: moduloFormatado, 
-            descricao: osDescricao, 
-            detalhes: osDetalhes || {},
-            status: 'Pendente', 
-            data: new Date().toISOString() 
-        }];
-      }
-      return { ...state, dados: newDados, os: newOs };
-    }
-    case ACTIONS.REMOVE_RECORD: {
-      const { modulo, id } = action;
-      const newDados = { ...state.dados, [modulo]: (state.dados[modulo] || []).filter((r:any) => r.id !== id) };
-      return { ...state, dados: newDados };
-    }
-    case ACTIONS.UPDATE_OS_STATUS: {
-      const { id, status } = action;
-      const newOs = state.os.map(o => o.id === id ? { ...o, status } : o);
-      return { ...state, os: newOs };
-    }
-    case ACTIONS.SET_MODAL:
-      return { ...state, modal: action.modal };
-    case ACTIONS.SET_LOADING:
-      return { ...state, loading: action.loading };
-    case ACTIONS.SET_SELECTED_OS:
-      return { ...state, selectedOS: action.os };
-    case ACTIONS.UPDATE_ATIVOS: { 
-      const { chave, novaLista } = action;
-      return { ...state, ativos: { ...state.ativos, [chave]: novaLista }};
-    }
-    default:
-      return state;
-  }
-}
+// Re-exporta ACTIONS para uso nos componentes
+export { ACTIONS };
 
 const AppContext = createContext<any>(null);
 
@@ -136,69 +17,29 @@ export const useAppContext = () => {
     return context;
 };
 
-// ========================================================
-// FUNÇÃO CORE: Busca os dados de Perfil e Fazenda
-// ========================================================
-const fetchFazendaData = async (userId: string, dispatch: React.Dispatch<any>) => {
-    await new Promise(resolve => setTimeout(resolve, 100)); 
-    
-    const { data: membros, error: membrosError } = await supabase
-        .from('fazenda_membros')
-        .select(`fazenda_id, role, fazendas (nome)`)
-        .eq('user_id', userId);
-        
-    if (membrosError || !membros || membros.length === 0) {
-        toast.error('Nenhuma fazenda encontrada. Contate o suporte.', { duration: 6000 });
-        console.error("Erro ao buscar membros:", membrosError);
-        dispatch({ type: ACTIONS.SET_LOADING, loading: false });
-        return;
-    }
-
-    const fazendas = membros.map(m => ({
-        id: m.fazenda_id,
-        nome: (m.fazendas as any)?.nome || 'Fazenda Desconhecida',
-        role: m.role
-    }));
-    
-    const fazendaAtiva = fazendas[0];
-
-    dispatch({ 
-        type: ACTIONS.SET_FAZENDA, 
-        fazendaId: fazendaAtiva.id, 
-        fazendaNome: fazendaAtiva.nome,
-        fazendas: fazendas
-    });
-
-    toast.success(`Fazenda selecionada: ${fazendaAtiva.nome}!`, { duration: 3000 });
-}
-// ========================================================
-
-
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
-  const [state, dispatch] = useReducer(reducer, INITIAL);
+  const [state, dispatch] = useReducer(appReducer, INITIAL_STATE);
   const { fazendaId } = state; 
   
   const setTela = (t: string) => dispatch({ type: ACTIONS.SET_TELA, tela: t });
   
-  // FUNÇÃO UTILITÁRIA CORRIGIDA: parseNumber (assume U.parseDecimal do utils.ts)
+  // FUNÇÃO UTILITÁRIA: parseNumber
   const parseNumber = useCallback((s: any) => {
-      // Usando o helper do utils.ts para garantir a conversão correta
       if (U && U.parseDecimal) return U.parseDecimal(s);
-
       if (typeof s === 'number') return s;
       if (!s) return 0;
       const clean = String(s).replace(/[^\d.,-]/g, '').replace(',', '.');
       return parseFloat(clean) || 0;
   }, []);
 
-  // FUNÇÃO UTILITÁRIA CORRIGIDA: buscarUltimaLeitura
+  // FUNÇÃO UTILITÁRIA: buscarUltimaLeitura
   const buscarUltimaLeitura = useCallback((modulo: string, filtroChave: string, filtroValor: string) => {
     const lista = state.dados[modulo] || [];
     const listaFiltrada = lista.filter((item:any) => filtroValor === '*' || item[filtroChave] === filtroValor).sort((a:any, b:any) => b.id - a.id);
     return listaFiltrada[0];
   }, [state.dados]);
 
-  // FUNÇÃO UTILITÁRIA CORRIGIDA: estoqueCalculations
+  // FUNÇÃO UTILITÁRIA: estoqueCalculations
   const estoqueCalculations = useMemo(() => {
     const params = state.ativos.parametros?.estoque || ATIVOS_INICIAIS.parametros.estoque;
     
@@ -229,19 +70,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchRecords = useCallback(async (table: string) => {
     if (!fazendaId) return [];
     
-    const { data, error } = await supabase
-      .from(table)
-      .select('*')
-      .eq('fazenda_id', fazendaId) 
-      .order('nome', { ascending: true }); 
+    const { data, error } = await dbService.select(table, fazendaId); 
 
     if (error) {
-      if (error.code === '42501') { 
-        console.error(`RLS bloqueou a leitura de ${table}. Políticas de acesso incorretas.`);
-      } else {
         toast.error(`Erro ao carregar ${table}: ${error.message}`);
-      }
-      return [];
+        return [];
     }
     
     dispatch({ type: ACTIONS.SET_DB_ASSETS, table, records: data });
@@ -253,88 +86,155 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         toast.error('Nenhuma fazenda ativa. Impossível salvar.');
         return false;
     }
-    
-    const dataToSave = { 
-        ...record, 
-        fazenda_id: fazendaId,
-        ...(record.id ? { updated_at: new Date().toISOString() } : { created_at: new Date().toISOString() })
-    };
-
-    let query: any = supabase.from(table);
-    
-    if (record.id) {
-        query = query.update(dataToSave).eq('id', record.id).select().single();
-    } else {
-        query = query.insert(dataToSave).select().single();
-    }
-
-    const { data, error } = await query;
-    
-    if (error) {
-        toast.error(`Erro ao salvar em ${table}: ${error.message}`);
-        console.error(error);
-        return false;
-    }
-
-    toast.success(`Registro salvo com sucesso em ${table}!`);
-    fetchRecords(table);
-    return data;
-  }, [fazendaId, fetchRecords]);
+    // Reutiliza o Generic Save para manter o padrão offline first
+    return genericSave(table, record);
+  }, [fazendaId]); // Dependência circular com genericSave? Não se genericSave for definido antes ou usamos ref.
 
   const deleteRecord = useCallback(async (table: string, id: string) => {
     if (!fazendaId) return false;
-    
-    const { error } = await supabase
-        .from(table)
-        .delete()
-        .eq('id', id)
-        .eq('fazenda_id', fazendaId);
-
-    if (error) {
-        toast.error(`Erro ao excluir em ${table}: ${error.message}`);
-        console.error(error);
-        return false;
-    }
-
-    toast.success(`Registro excluído com sucesso em ${table}!`);
-    fetchRecords(table);
-    return true;
-  }, [fazendaId, fetchRecords]);
+    // Reutiliza o Generic Delete
+    return genericDelete(table, id);
+  }, [fazendaId]);
 
 
   // ========================================================
-  // EFEITOS DE CARREGAMENTO (Ordem corrigida)
+  // OFFLINE-FIRST: SYNC QUEUE SYSTEM
   // ========================================================
+  
+  const addToQueue = useCallback((item: any) => {
+      dispatch({ type: ACTIONS.ADD_TO_QUEUE, payload: item });
+  }, []);
+
+  // GENERIC SAVE (INSERT)
+  const genericSave = useCallback(async (table: string, record: any, optimisticAction?: any) => {
+      const isOffline = !navigator.onLine;
+      const tempid = record.id || U.id('temp-');
+      const recordWithId = { ...record, id: tempid, fazenda_id: fazendaId };
+      const payloadToSend = { ...recordWithId };
+
+      if (optimisticAction) {
+          dispatch({ ...optimisticAction, record: recordWithId });
+      }
+
+      // Online
+      if (!isOffline && fazendaId) {
+          try {
+              const data = await dbService.insert(table, payloadToSend);
+              toast.success(`Salvo: ${table}`);
+              return { success: true, online: true, data };
+          } catch (error) {
+              console.warn("Falha online (INSERT), indo para fila...", error);
+          }
+      }
+
+      // Offline / Falha
+      addToQueue({
+          id: U.id('sync-ins-'),
+          table,
+          payload: payloadToSend,
+          action: 'INSERT',
+          timestamp: Date.now()
+      });
+      toast.success('Salvo no dispositivo (Offline)');
+      return { success: true, online: false, data: recordWithId };
+  }, [fazendaId, addToQueue]);
+
+  // GENERIC UPDATE
+  const genericUpdate = useCallback(async (table: string, id: string, updates: any, optimisticAction?: any) => {
+      const isOffline = !navigator.onLine;
+
+      if (optimisticAction) dispatch(optimisticAction);
+
+      if (!isOffline && fazendaId) {
+          try {
+              await dbService.update(table, id, updates);
+              toast.success(`Atualizado: ${table}`);
+              return { success: true, online: true };
+          } catch (error) {
+              console.warn("Falha online (UPDATE), indo para fila...", error);
+          }
+      }
+
+      addToQueue({
+          id: U.id('sync-upd-'),
+          table,
+          payload: { id, ...updates },
+          action: 'UPDATE',
+          timestamp: Date.now()
+      });
+      toast.success('Atualizado no dispositivo (Offline)');
+      return { success: true, online: false };
+  }, [fazendaId, addToQueue]);
+
+  // GENERIC DELETE
+  const genericDelete = useCallback(async (table: string, id: string, optimisticAction?: any) => {
+      const isOffline = !navigator.onLine;
+
+      if (optimisticAction) dispatch(optimisticAction);
+
+      if (!isOffline && fazendaId) {
+          try {
+              await dbService.delete(table, id);
+              toast.success(`Excluído: ${table}`);
+              return { success: true, online: true };
+          } catch (error) {
+              console.warn("Falha online (DELETE), indo para fila...", error);
+          }
+      }
+
+      addToQueue({
+          id: U.id('sync-del-'),
+          table,
+          payload: { id },
+          action: 'DELETE',
+          timestamp: Date.now()
+      });
+      toast.success('Excluído no dispositivo (Offline)');
+      return { success: true, online: false };
+  }, [fazendaId, addToQueue]);
+
+
+  // ========================================================
+  // EFEITOS DE CARREGAMENTO
+  // ========================================================
+  
+  // EFEITO 1: GERENCIAMENTO DE SESSÃO E AUTH
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-        const isNewSession = session && state.session?.user?.id !== session.user.id;
-        const isLogout = event === 'SIGNED_OUT';
-        
-        if (isNewSession || isLogout) {
-             dispatch({ type: ACTIONS.SET_AUTH, session, profile: session?.user || null });
-        }
-    });
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session && !state.session) {
-             dispatch({ type: ACTIONS.SET_AUTH, session, profile: session.user });
-        } else if (!session && state.loading) {
-             dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+    const subscription = authService.onAuthStateChange((session, user) => {
+        if (state.session?.user?.id !== user?.id) { 
+             dispatch({ type: ACTIONS.SET_AUTH, session, profile: user });
+             if (!session) dispatch({ type: ACTIONS.SET_LOADING, loading: false });
         }
     });
 
     return () => {
-        listener.subscription.unsubscribe();
+        if (subscription && typeof subscription.unsubscribe === 'function') subscription.unsubscribe();
     };
-  }, [state.session]); 
+  }, []); 
 
-  // EFEITO 2: CARREGAMENTO DE FAZENDA 
+  // EFEITO 2: CARREGAMENTO DE FAZENDA
   useEffect(() => {
-    if (state.session?.user?.id && !fazendaId) {
-        fetchFazendaData(state.session.user.id, dispatch);
-    }
+    const loadFazenda = async () => {
+        if (state.session?.user?.id && !fazendaId) {
+            const fazendas = await authService.fetchFazendaMembros(state.session.user.id);
+            
+            if (fazendas && fazendas.length > 0) {
+                const fazendaAtiva = fazendas[0];
+                dispatch({ 
+                    type: ACTIONS.SET_FAZENDA, 
+                    fazendaId: fazendaAtiva.id, 
+                    fazendaNome: fazendaAtiva.nome,
+                    fazendas: fazendas
+                });
+                toast.success(`Fazenda selecionada: ${fazendaAtiva.nome}!`, { duration: 3000 });
+            } else {
+                toast.error('Nenhuma fazenda encontrada. Contate o suporte.', { duration: 6000 });
+                dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+            }
+        }
+    };
+    loadFazenda();
   }, [state.session, fazendaId]);
-
 
   // EFEITO 3: CARREGAMENTO DE ATIVOS 
   useEffect(() => {
@@ -347,46 +247,47 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [fazendaId, fetchRecords]); 
 
-
-  // EFEITO 4: Lógica de carregamento de localStorage (Apenas para modo Demo)
+  // EFEITO 4: Persistência Automática da Fila
   useEffect(() => {
-    if (!state.session && state.loading) {
-        const salvo = localStorage.getItem('sistemaRural');
-        if (salvo) {
-            try {
-                const parsed = JSON.parse(salvo);
-                let loadedAtivos = parsed.ativos || ATIVOS_INICIAIS;
-                const mergedAtivos = { ...ATIVOS_INICIAIS, ...loadedAtivos, parametros: { ...ATIVOS_INICIAIS.parametros, ...(loadedAtivos.parametros || {}) } };
-                dispatch({ type: ACTIONS.LOAD, payload: { os: parsed.os || [], dados: parsed.dados || DADOS_INICIAIS, ativos: mergedAtivos, loading: false } });
-            } catch (e) { 
-                dispatch({ type: ACTIONS.LOAD, payload: { ...INITIAL, loading: false, session: null } }); 
-            }
-        } else {
-            dispatch({ type: ACTIONS.LOAD, payload: { ...INITIAL, loading: false, session: null } });
-        }
-    }
-  }, [state.session, state.loading]); 
+    syncService.saveQueue(state.syncQueue);
+  }, [state.syncQueue]);
 
-  // Salvamento Automático (AGORA SOMENTE NO MODO OFFLINE/DEMO)
-  useEffect(() => { 
-    if (!state.loading && !state.session) { 
-        localStorage.setItem('sistemaRural', JSON.stringify({ os: state.os, dados: state.dados, ativos: state.ativos }));
-    }
-  }, [state.os, state.dados, state.ativos, state.loading, state.session]);
+  // EFEITO 5: Processador de Fila (Sync Robot)
+  useEffect(() => {
+      const processQueue = async () => {
+          if (!navigator.onLine || state.syncQueue.length === 0 || !fazendaId) return;
 
-  // CORREÇÃO DO LOGOUT: Garante o reset local
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut(); 
-    
-    if (error) {
-        toast.error('Erro de conexão ao sair. Fazendo logoff local forçado.', { duration: 3000 });
-        console.error("Erro ao sair:", error);
-    }
-    
-    localStorage.clear();
-    window.location.reload(); 
-  };
+          const item = state.syncQueue[0];
+          console.log(`Syncing ${item.action} on ${item.table}...`);
 
+          try {
+              if (item.action === 'INSERT') {
+                   await dbService.insert(item.table, item.payload);
+              } 
+              else if (item.action === 'UPDATE') {
+                   const { id, ...updates } = item.payload;
+                   await dbService.update(item.table, id, updates);
+              }
+              else if (item.action === 'DELETE') {
+                   await dbService.delete(item.table, item.payload.id);
+              }
+
+              toast.success(`Sincronizado: ${item.action} ${item.table}`, { id: 'sync-ok' });
+              dispatch({ type: ACTIONS.REMOVE_FROM_QUEUE, id: item.id });
+
+          } catch (error: any) {
+              console.error("Erro Sync:", error);
+              dispatch({ type: ACTIONS.REMOVE_FROM_QUEUE, id: item.id });
+              toast.error(`Falha ao sincronizar item (removido da fila).`);
+          }
+      };
+
+      const interval = setInterval(processQueue, 3000); // 3s polling
+      return () => clearInterval(interval);
+  }, [state.syncQueue, fazendaId]);
+
+
+  const logout = () => authService.logout();
 
   const value = useMemo(() => ({ 
       ...state, 
@@ -397,8 +298,11 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       fetchRecords,
       saveRecord,
       deleteRecord,
+      genericSave, 
+      genericUpdate, 
+      genericDelete, 
       ...estoqueCalculations 
-  }), [state, dispatch, setTela, buscarUltimaLeitura, estoqueCalculations, fetchRecords, saveRecord, deleteRecord, logout]);
+  }), [state, dispatch, setTela, buscarUltimaLeitura, estoqueCalculations, fetchRecords, saveRecord, deleteRecord, logout, genericSave, genericUpdate, genericDelete]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
