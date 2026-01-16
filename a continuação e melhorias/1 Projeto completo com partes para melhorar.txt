@@ -1,0 +1,126 @@
+1.	Lançamentos de refeições com valores diversos, com controle por tipo, data, centro de custo, soma automática de gasto mensal e quantidade de refeições solicitadas.
+2.	Lançamentos de abastecimentos e compras de diesel com controle de estoque automático com disparo de alerta com nível baixo(mínimo) e criação de OS automática para compra de diesel urgente, controle por maquinário (controlando horímetro automático), geração de custo hora máquina. *Falta criação de OS automática de registro com alertas para revisões automático*. 
+3.	Lançamentos de receituários (com divisões para cada safra, cada cultura, cada área(talhão ou pivô), classes agronômicas, produtos com dosagem), implemento “tipo carinho de mercado” com fechamento em 1 só OS. *(Essa área ainda sem controle de estoque)*.
+4.	Transferência de documentos em geral (imagem ou PDF) da área rural para o escritório, com diferenciação de categorias. *Falta OCR, leitor de código de barras*
+5.	Lançamento de leituras de relógios rurais com cálculo de consumo e cálculo aproximado de custo financeiro automático. *Falta alerta com e criação de OS automática para coleta de leituras de energia urgente, com data fixa*. 
+6.	Lançamentos de estações diversas pluviométricas. 
+***Tudo com histórico na própria aba, com consulta por filtro de data e diversos.***
+7.	Dashboard com toda geração de lançamentos, com filtro se necessário cada modulo operacional, em forma de os para aprovação, alteração ou exclusão, e análise posterior. 
+8.	Modulo Graficos – Em construção *Geração de gráficos completos usando todas essas informações, com exportação em CSV e PDF.*
+9.	Configurações que alimentam todos os campos necessários para os registros (tipos de refeição, maquinários, safras, áreas,….) tudo personalizável aos nomes de escolha do cliente. 
+
+•	Atualizações pensadas:
+1.	Aba de manutenções com estoque automático.
+2.	Aba atividades de campo, recebendo O.S exclusivamente das recomendações (divididas por talhão), aviso da leitura de energia.
+3.	Banco de dados Supabase ou Firebase, Google Sheets (planilhas).
+4.	Offline-first com Firestore + IndexedDB
+5.	Controle de acesso por função (diretor, administrativo, gerente, técnico).
+6.	Leitura de código de barras, ao detectar código → tentar consultar/gerar em PDF a NF pela chave.
+7.	Cloud Drive gratuito para armazenamento da troca de arquivos com geração de link.
+8.	Inserir previsão do tempo na aba chuvas ou uma aba nova (OpenWeather)
+9.	Aba de imagens de satélite da propriedade.
+10.	Aba de notícias sobre o ramo agrícola, preços das culturas e valor do dólar. (APIs gratuitas)
+11.	Criar painel Looker Studio – Gráficos: 
+11.1	Refeições – Por data, por tipo, por centro de custo/mês.
+11.2	Abastecimento – Consumo por máquina, custo hora máquina, consumo por período, comparação com anos anteriores.
+11.3	Recomendações – Consumo agregado por safra, por safra/área, por classe, por produto.
+11.4	Documentos – Relatório geral com quantidades de cada tipo.
+11.5	Energia - Consumo mensal com todos medidores, comparação entre meses de anos diferentes.
+11.6	Chuvas - Por estação e acumulado do ano (de cada estação e média geral da fazenda).
+12.	Inserir inteligência artificial gratuita para responder rápido analisando a parte do banco de dados nos relatórios. (Usando IA local/embutida → algo tipo Gemini Nano ou LLaMA local → zero custo mensal.
+13.	Envios de notificações push, WhatsApp e e-mail através do Make.com.
+14.	Exportação mensal de relatórios específicos (de cada modulo) e disparado via e-mail com Make.com
+15.	APIs de dados técnicos (talvez a IA para responder rápido)
+16.	Criar alguma opção para várias fazendas no campo do login
+
+O aplicativo é desenvolvido em linguagem React Native e PWA.
+
+
+
+
+________________________________________
+🔹 1. Previsão do tempo (grátis)
+Use a Open-Meteo API:
+•	100% gratuita
+•	Sem necessidade de conta
+•	Sem limite crítico
+•	Sem chave de API
+Exemplo de chamada:
+https://api.open-meteo.com/v1/forecast?latitude=-20&longitude=-50&hourly=temperature_2m
+
+________________________________________
+🔹 2. Preço de soja, milho, boi (quase grátis)
+Opções 100% gratuitas:
+•	CEPEA (via scraping leve ou API indireta)
+•	Agrolink Index (também consultável sem custo)
+•	APIs públicas de commodities que têm endpoints gratuitos
+
+________________________________________
+🔹 3. IA interna para análises rápidas (custo 0)
+Você não precisa pagar por APIs como ChatGPT ou Gemini Pro.
+Use um modelo pequeno rodando no próprio navegador do usuário:
+•	LLaMA 3 8B In-Browser
+•	Gemini Nano (mobile-friendly)
+•	ONNX Runtime Web
+•	WebGPU (quando disponível)
+Benefícios:
+✔ Roda 100% local (zero custo)
+✔ Zero chamada externa
+✔ Sem limite
+✔ Sem risco de travar
+✔ Não gasta seu Firebase
+
+________________________________________
+🔹 4. Múltiplas fazendas por usuário (custo 0)
+No Firebase Firestore você só cria:
+users -> {userId} -> farms -> {farmId} -> registros
+Você não paga nada até passar de 50 mil leituras por dia (bem longe disso).
+
+________________________________________
+🔹 5. Notificações push (grátis)
+Firebase Cloud Messaging (FCM) = 100% gratuito.
+Funciona perfeito em PWAs.
+
+________________________________________
+🔹 6. Envio de e-mail (quase grátis)
+•	Pode usar EmailJS (free tier suficiente)
+•	Ou Resend (100% gratuito para 100 emails/dia)
+•	Ou Firebase Extensions (free tier)
+
+________________________________________
+🔹 7. WhatsApp (aqui é a ÚNICA exceção)
+WhatsApp Oficial → pago.
+Mas você tem 2 opções de custo zero:
+✔ Enviar WhatsApp pelo próprio device via deep link
+Exemplo: https://wa.me/5551999999999?text=Seu relatório está pronto
+→ Não paga a Meta, funciona bem.
+✔ Usar o WhatsApp Web com envio manual
+→ Não é automático, mas resolve.
+
+________________________________________
+🔹 8. Vercel (grátis)
+O plano Free da Vercel te atende tranquilo:
+✔ Deploy ilimitado
+✔ Domínio vercel.app
+✔ Edge functions até 100 mil execuções
+✔ HTTPS automático
+
+________________________________________
+✅ 2. O que é “automações avançadas”?
+Explicação simples:
+São regras automáticas que o sistema executa sozinho, por exemplo:
+Exemplos que VOCÊ JÁ TEM:
+•	gerar uma OS sozinha quando registro é criado
+•	atualizar estoque automático ao abastecer
+Exemplos que você ainda pode adicionar:
+•	alerta automático de revisão por horímetro
+•	criar PDF automaticamente
+•	enviar relatório semanal automático
+•	avisar no WhatsApp/e-mail quando chover X mm
+•	avisar quando um insumo está acabando no estoque
+•	gerar custos automaticamente todo mês
+Na prática, é apenas:
+Cloud Functions + regras de negócios.
+
+________________________________________
+
