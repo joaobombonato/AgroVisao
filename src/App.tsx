@@ -1,6 +1,6 @@
 import React, { useReducer, useEffect, useContext, useMemo, useState, createContext, useCallback } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { Home, Droplet, Zap, FolderOpen, Fuel, Leaf, Utensils, Bell, Settings, TrendingUp, Trash2, Check, X, Plus, X as XClose, Minus, Tractor, FileCog, ChartNoAxesCombined, Loader2, LogOut, ArrowRight } from 'lucide-react';
+import { Home, Droplet, Zap, FolderOpen, Fuel, Leaf, Utensils, Bell, Settings, TrendingUp, Trash2, Check, X, Plus, X as XClose, Minus, Tractor, FileCog, ChartNoAxesCombined, Loader2, LogOut, ArrowRight, CloudRain } from 'lucide-react';
 // IMPORTAÇÕES ESSENCIAIS DO CONTEXTO
 import { useAppContext, ACTIONS, AppProvider } from './context/AppContext'; 
 import { U } from './data/utils';
@@ -38,14 +38,14 @@ const MainLayout = () => {
   const pendentes = (os || []).filter((o:any) => o.status === 'Pendente').length;
 
   const Screens: any = { 
-    principal: PrincipalScreen, home: DashboardScreen, dashboard: DashboardScreen, graficos: GraficosScreen, config: ConfiguracoesScreen, refeicoes: RefeicoesScreen, abastecimento: AbastecimentoScreen, recomendacoes: RecomendacoesScreen, docs: DocumentosScreen, energia: EnergiaScreen, chuvas: ChuvasScreen, os: OsScreen 
+    principal: PrincipalScreen, dashboard: DashboardScreen, graficos: GraficosScreen, config: ConfiguracoesScreen, refeicoes: RefeicoesScreen, abastecimento: AbastecimentoScreen, recomendacoes: RecomendacoesScreen, docs: DocumentosScreen, energia: EnergiaScreen, chuvas: ChuvasScreen, os: OsScreen 
   };
 
   const ScreenComponent = Screens[tela] || PrincipalScreen;
   
   const menusRodape = [
     { id: 'principal', nome: 'Principal', icon: Home, cor: 'bg-blue-500' }, 
-    { id: 'home', nome: 'Dashboard', icon: FileCog, cor: 'bg-indigo-600' }, 
+    { id: 'dashboard', nome: 'Dashboard', icon: FileCog, cor: 'bg-indigo-600' }, 
     { id: 'graficos', nome: 'Gráficos', icon: ChartNoAxesCombined, cor: 'bg-gradient-to-r from-purple-500 to-pink-500' }, 
     { id: 'config', nome: 'Config.', icon: Settings, cor: 'bg-gray-600' }
   ];
@@ -85,7 +85,7 @@ const MainLayout = () => {
                 </div>
                 <div className="min-w-0">
                     <h1 className="text-base font-bold text-gray-800 truncate">{fazendaNome || 'Carregando...'}</h1>
-                    <p className="text-xs text-gray-600 truncate">Gestão Rural v3.4</p>
+                    <p className="text-xs text-gray-600 truncate">AgroDev v3.4</p>
                 </div>
             </div>
             <div className="flex items-center gap-2">

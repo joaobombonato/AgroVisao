@@ -1,35 +1,72 @@
 import React, { useState } from 'react';
 import { Settings, ListPlus, Save, Lock, Sliders, ArrowRight } from 'lucide-react'; 
 import { PageHeader } from '../components/ui/Shared';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext, ACTIONS } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { ASSET_DEFINITIONS } from '../data/assets';
+import { dbService } from '../services'; // Import direto
 import AssetListEditor from '../features/settings/components/AssetListEditor';
+import ParametrosEditor from '../features/settings/components/ParametrosEditor';
 
 // ===========================================
 // 3. Componente Principal de Configurações
 // ===========================================
+// Em ConfiguracoesScreen()
 export default function ConfiguracoesScreen() {
-    const { setTela } = useAppContext();
-    const [view, setView] = useState('principal'); // principal, listas, parametros, editor
-    const [currentAssetKey, setCurrentAssetKey] = useState('');
-
-    const handleOpenEditor = (key: string) => {
-        setCurrentAssetKey(key);
-        setView('editor');
-    }
-
-    if (view === 'editor') {
-        return <AssetListEditor assetKey={currentAssetKey} setView={setView} />;
-    }
+    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis } = useAppContext();
+    const [view, setView] = useState('principal'); // principal, listas, parametros, editors para update
+    
+// ...
 
     if (view === 'parametros') {
-        return (
-            <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
-                <PageHeader setTela={setView} title="Parâmetros Operacionais" icon={Sliders} colorClass="bg-blue-500" backTarget={'principal'} />
-                <p className="text-gray-500 text-sm">Este módulo será atualizado para salvar no banco. Por enquanto, os valores estão salvos localmente.</p>
-            </div>
-        );
+        const params = ativos.parametros || {};
+        const currentFazendaNome = fazendaNome || '';
+
+        const handleSaveParams = async (novaConfig: any) => {
+             // 1. Atualizar Parâmetros (Local/JSON no futuro)
+             dispatch({ 
+                 type: ACTIONS.UPDATE_ATIVOS, 
+                 chave: 'parametros', 
+                 novaLista: novaConfig 
+             });
+
+             // 2. Atualizar Nome da Fazenda (Se mudou)
+             if (novaConfig.fazendaNome && novaConfig.fazendaNome !== currentFazendaNome) {
+                 if (fazendaId) {
+                     try {
+                         await dbService.update('fazendas', fazendaId, { nome: novaConfig.fazendaNome }, fazendaId);
+                         
+                         // Atualiza estado global corretamente mantendo a lista
+                         dispatch({ 
+                             type: ACTIONS.SET_FAZENDA, 
+                             fazendaId, 
+                             fazendaNome: novaConfig.fazendaNome,
+                             fazendas: fazendasDisponiveis.map((f:any) => f.id === fazendaId ? { ...f, nome: novaConfig.fazendaNome } : f)
+                         });
+                    
+                     } catch (e: any) {
+                         console.error(e);
+                         // Se falhar o nome, avisa mas não bloqueia o resto
+                         const isPermission = e.message?.includes('permissão') || e.message?.includes('row-level security');
+                         toast.error(isPermission 
+                            ? 'Nome bloqueado pelo Admin (RLS), mas parâmetros foram salvos!' 
+                            : `Erro no nome: ${e.message}`, 
+                            { duration: 5000 }
+                         );
+                         setView('principal'); // Sai mesmo com erro no nome, pois params foram salvos
+                         return;
+                     }
+                 }
+             }
+
+             toast.success('Configurações salvas com sucesso!');
+             setView('principal');
+        };
+
+        // Passamos 'fazendaNome' dentro do objeto de parâmetros para o editor tratar unificado
+        const paramsWithFazenda = { ...params, fazendaNome: currentFazendaNome };
+
+        return <ParametrosEditor currentParams={paramsWithFazenda} onSave={handleSaveParams} onBack={() => setView('principal')} />;
     }
     
     if (view === 'listas') {
@@ -84,7 +121,7 @@ export default function ConfiguracoesScreen() {
             </div>
             
             <div className="text-center pt-8 opacity-50 text-xs text-gray-400">
-                AgroDev v1.0.1 | Arquiteto: Seu Nome
+                AgroDev v3.4 | Arquiteto: JF Aplicativos
             </div>
         </div>
     );

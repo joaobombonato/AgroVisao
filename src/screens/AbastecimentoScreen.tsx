@@ -160,7 +160,8 @@ export default function AbastecimentoScreen() {
       bombaFinal: '', 
       horimetroAnterior: '', 
       horimetroAtual: '',
-      obs: '' 
+      obs: '',
+      tanqueCheio: true 
   });
   
   const [showCompraForm, setShowCompraForm] = useState(false);
@@ -168,8 +169,7 @@ export default function AbastecimentoScreen() {
   const [filterData, setFilterData] = useState('');
   const [filterText, setFilterText] = useState('');
 
-  // 1. CÁLCULOS DE ESTOQUE (TANQUE) - LOCAL
-  // Definindo aqui para evitar conflito com Contexto e garantir atualização rápida
+  // ... (cálculos de estoque mantidos) ...
   const estoqueInicial = U.parseDecimal(ativos.estoqueDiesel?.inicial || 3000); 
   const estoqueMinimo = U.parseDecimal(ativos.estoqueDiesel?.minimo || 750);
   
@@ -196,14 +196,25 @@ export default function AbastecimentoScreen() {
       }));
   };
 
-  // 3. CÁLCULOS DINÂMICOS
+  // 3. CÁLCULOS DINÂMICOS (COM VIRADA DE BOMBA)
   const litrosCalculados = useMemo(() => {
       const ini = U.parseDecimal(form.bombaInicial);
       const fim = U.parseDecimal(form.bombaFinal);
-      return fim > ini ? (fim - ini).toFixed(2) : '0';
+      
+      if (fim >= ini) {
+          return (fim - ini).toFixed(2);
+      } else {
+          // Virada de Bomba (ex: 99.999.990 -> 00.000.050)
+          // Contador de 8 dígitos vai até 99.999.999, então a virada soma 100.000.000
+          const MODULO = 100000000;
+          return ((MODULO + fim) - ini).toFixed(2);
+      }
   }, [form.bombaInicial, form.bombaFinal]);
 
   const mediaConsumo = useMemo(() => {
+      // Só calcula média se o tanque foi cheio
+      if (!form.tanqueCheio) return 'N/A';
+
       const l = U.parseDecimal(litrosCalculados);
       const hAnt = U.parseDecimal(form.horimetroAnterior);
       const hAtu = U.parseDecimal(form.horimetroAtual);
@@ -211,7 +222,7 @@ export default function AbastecimentoScreen() {
           return (l / (hAtu - hAnt)).toFixed(2);
       }
       return '0.00';
-  }, [litrosCalculados, form.horimetroAnterior, form.horimetroAtual]);
+  }, [litrosCalculados, form.horimetroAnterior, form.horimetroAtual, form.tanqueCheio]);
 
   const precoMedioDiesel = useMemo(() => {
       const compras = dados.compras || [];
@@ -245,15 +256,35 @@ export default function AbastecimentoScreen() {
     };
     
     // 1. REGISTRO DO ABASTECIMENTO (e sua OS de registro)
-    // 1. REGISTRO DO ABASTECIMENTO (e sua OS de registro)
     // Usando genericSave para persistência Híbrida
     const descOS = `Abastecimento: ${form.maquina} (${litrosCalculados}L)`;
-    const detalhesOS = {
+    const detalhesOS: any = {
             "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
             "Consumo": `${mediaConsumo} L/h (Média)`,
             "Custo": `R$ ${U.formatValue(custoEstimado)}`,
             "Obs": form.obs || '-'
     };
+
+    // --- ALERTA DE MANUTENÇÃO ---
+    // Verifica se a máquina excedeu o limite de revisão
+    const maquinaObj = ativos.maquinas.find((m:any) => m.nome === form.maquina);
+    if (maquinaObj && maquinaObj.proximaRevisao) {
+        const horasAtuais = U.parseDecimal(form.horimetroAtual);
+        const horasRevisao = U.parseDecimal(maquinaObj.proximaRevisao);
+        
+        if (horasAtuais >= horasRevisao) {
+            detalhesOS["ALERTA MANUTENÇÃO"] = `VENCIDA! (${horasAtuais}h > ${horasRevisao}h)`;
+            toast((t) => (
+                <div className="flex items-center gap-2 text-red-600 font-bold">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span>ALERTA: Manutenção da {form.maquina} Vencida!</span>
+                </div>
+            ), { duration: 6000, icon: '🔧' });
+            
+            // Opcional: Criar OS Específica de Manutenção aqui
+        }
+    }
+    // ----------------------------
 
     genericSave('abastecimentos', novo, {
         type: ACTIONS.ADD_RECORD, 
@@ -319,7 +350,8 @@ export default function AbastecimentoScreen() {
         bombaFinal: '', 
         horimetroAnterior: '', 
         horimetroAtual: '', 
-        obs: '' 
+        obs: '',
+        tanqueCheio: true 
     }));
     setShowObs(false);
     toast.success('Abastecimento registrado!');
@@ -393,6 +425,19 @@ export default function AbastecimentoScreen() {
               required
               color="red"
           />
+
+          <div className="flex items-center gap-2 p-2 bg-red-50 rounded-lg border border-red-100">
+             <input 
+                type="checkbox" 
+                id="tanqueCheio"
+                checked={form.tanqueCheio}
+                onChange={(e) => setForm({...form, tanqueCheio: e.target.checked})}
+                className="w-5 h-5 text-red-600 rounded focus:ring-red-500 border-gray-300"
+             />
+             <label htmlFor="tanqueCheio" className="text-xs font-bold text-red-800 cursor-pointer">
+                 Tanque foi COMPLETADO? (Para cálculo exato de média)
+             </label>
+          </div>
 
           <div>
             <button type="button" onClick={() => setShowObs(!showObs)} className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 mb-1">

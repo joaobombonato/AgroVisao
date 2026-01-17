@@ -38,9 +38,10 @@ export default function EnergiaScreen() {
 
   const valorEstimado = useMemo(() => {
       const kwh = U.parseDecimal(consumo);
-      const custoMedio = 0.92; // R$ 0,92 por kWh
+      // Lê do parâmetro global ou usa 0.92 como fallback seguro
+      const custoMedio = ativos.parametros?.energia?.custoKwh || 0.92; 
       return (kwh * custoMedio).toFixed(2);
-  }, [consumo]);
+  }, [consumo, ativos.parametros]);
 
   const handlePontoChange = (e: any) => {
       const nomePonto = e.target.value;
@@ -182,14 +183,42 @@ export default function EnergiaScreen() {
           </div>
 
           {/* Card de Resultado */}
-          <div className="flex items-center justify-between bg-gray-800 text-white p-4 rounded-xl shadow-lg mt-2">
-              <div>
-                  <p className="text-xs text-gray-400 uppercase font-bold">Consumo Calculado</p>
-                  <p className="text-2xl font-bold text-yellow-400">{consumo} <span className="text-sm text-gray-300">kWh</span></p>
+          <div className="flex items-center justify-between bg-gray-800 text-white p-4 rounded-xl shadow-lg mt-2 relative overflow-hidden">
+              <div className="relative z-10">
+                  <p className="text-xs text-gray-400 uppercase font-bold mb-1">Consumo Calculado</p>
+                  <p className="text-3xl font-bold text-yellow-400 leading-none">
+                     {consumo} <span className="text-sm text-gray-400 font-normal">kWh</span>
+                  </p>
+                  
+                  {/* Comparativo de Tendência */}
+                  {(() => {
+                      const meta = ativos.parametros?.energia?.metaConsumo || 0;
+                      const valConsumo = U.parseDecimal(consumo);
+                      
+                      if (meta > 0 && valConsumo > 0) {
+                          const isHigh = valConsumo > meta;
+                          const diff = Math.abs(valConsumo - meta);
+                          return (
+                              <div className={`flex items-center gap-1 text-[10px] mt-2 px-2 py-0.5 rounded-full w-fit ${isHigh ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
+                                  {isHigh ? '▲' : '▼'} {diff} kWh da Meta
+                              </div>
+                          );
+                      }
+                      return <div className="text-[10px] text-gray-500 mt-2">Sem meta definida</div>;
+                  })()}
               </div>
-              <div className="text-right">
-                  <p className="text-xs text-gray-400 uppercase font-bold">Estimativa</p>
-                  <p className="text-lg font-bold text-green-400">R$ {valorEstimado}</p>
+
+              <div className="text-right relative z-10">
+                  <p className="text-xs text-gray-400 uppercase font-bold mb-1">Custo Estimado</p>
+                  <p className="text-xl font-bold text-green-400">R$ {valorEstimado}</p>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                      Base: R$ {ativos.parametros?.energia?.custoKwh || 0.92}/kWh
+                  </p>
+              </div>
+              
+              {/* Sparkline Decorativo de Fundo */}
+              <div className="absolute right-0 bottom-0 opacity-10">
+                 <Zap className="w-24 h-24 text-yellow-500 transform rotate-12 translate-x-4 translate-y-4"/>
               </div>
           </div>
 

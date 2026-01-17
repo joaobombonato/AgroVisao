@@ -19,4 +19,17 @@ export const ASSET_DEFINITIONS: any = {
     // Os itens abaixo continuam usando o `ativos` local (para manter a compatibilidade temporariamente)
     safras:        { title: 'Safras', color: 'green', type: 'simple', label: 'Ano Safra', icon: Sprout },
     culturas:      { title: 'Culturas', color: 'green', type: 'simple', label: 'Nome', icon: Leaf },
+    
+    // Configurações Dinâmicas (Complexas)
+    tiposRefeicao: { 
+        title: 'Tipos de Refeição', 
+        color: 'orange', 
+        type: 'complex', 
+        label: 'Tipo', 
+        icon: Users,
+        fields: [
+            { key: 'nome', label: 'Descrição' }, 
+            { key: 'valor', label: 'Valor Unitário (R$)', type: 'number' }
+        ] 
+    },
 };

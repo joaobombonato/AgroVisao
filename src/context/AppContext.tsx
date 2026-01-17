@@ -147,7 +147,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!isOffline && fazendaId) {
           try {
-              await dbService.update(table, id, updates);
+              await dbService.update(table, id, updates, fazendaId);
               toast.success(`Atualizado: ${table}`);
               return { success: true, online: true };
           } catch (error) {
@@ -174,7 +174,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (!isOffline && fazendaId) {
           try {
-              await dbService.delete(table, id);
+              await dbService.delete(table, id, fazendaId);
               toast.success(`Excluído: ${table}`);
               return { success: true, online: true };
           } catch (error) {
@@ -200,10 +200,22 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   
   // EFEITO 1: GERENCIAMENTO DE SESSÃO E AUTH
   useEffect(() => {
+    // Carregar parâmetros locais salvos
+    const savedParams = localStorage.getItem('agrodev_params');
+    if (savedParams) {
+        try {
+            const parsed = JSON.parse(savedParams);
+            dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave: 'parametros', novaLista: parsed });
+        } catch (e) {
+            console.error("Erro ao carregar params locais", e);
+        }
+    }
+
     const subscription = authService.onAuthStateChange((session, user) => {
-        if (state.session?.user?.id !== user?.id) { 
+        // Atualiza se houve mudança OU se ainda está carregando (inicialização)
+        if (state.loading || state.session?.user?.id !== user?.id) { 
              dispatch({ type: ACTIONS.SET_AUTH, session, profile: user });
-             if (!session) dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+             dispatch({ type: ACTIONS.SET_LOADING, loading: false });
         }
     });
 
@@ -211,6 +223,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         if (subscription && typeof subscription.unsubscribe === 'function') subscription.unsubscribe();
     };
   }, []); 
+
+  // EFEITO 1.5: SALVAR PARÂMETROS QUANDO MUDAR
+  useEffect(() => {
+      if (state.ativos.parametros) {
+          localStorage.setItem('agrodev_params', JSON.stringify(state.ativos.parametros));
+      }
+  }, [state.ativos.parametros]); 
 
   // EFEITO 2: CARREGAMENTO DE FAZENDA
   useEffect(() => {
@@ -226,7 +245,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
                     fazendaNome: fazendaAtiva.nome,
                     fazendas: fazendas
                 });
-                toast.success(`Fazenda selecionada: ${fazendaAtiva.nome}!`, { duration: 3000 });
+                toast.success(`Fazenda selecionada: ${fazendaAtiva.nome}!`, { id: 'fazenda-login', duration: 3000 });
             } else {
                 toast.error('Nenhuma fazenda encontrada. Contate o suporte.', { duration: 6000 });
                 dispatch({ type: ACTIONS.SET_LOADING, loading: false });
@@ -266,10 +285,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
               } 
               else if (item.action === 'UPDATE') {
                    const { id, ...updates } = item.payload;
-                   await dbService.update(item.table, id, updates);
+                   await dbService.update(item.table, id, updates, fazendaId);
               }
               else if (item.action === 'DELETE') {
-                   await dbService.delete(item.table, item.payload.id);
+                   await dbService.delete(item.table, item.payload.id, fazendaId);
               }
 
               toast.success(`Sincronizado: ${item.action} ${item.table}`, { id: 'sync-ok' });

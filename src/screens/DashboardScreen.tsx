@@ -1,62 +1,222 @@
-import React, { useState, useMemo } from 'react';
-import { FileCog, Search, Eye, Bell } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { FileCog, Search, Eye, Bell, CloudRain, Fuel, AlertTriangle, TrendingUp, Calendar, ArrowRight, Droplet, Plus, ArrowLeft, Utensils, Leaf, FolderOpen, Zap } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
+import { U } from '../data/utils';
 
 export default function DashboardScreen() { 
-  const { os, setTela, dispatch } = useAppContext();
-  const pendentes = os.filter((o:any) => o.status === 'Pendente').length;
-  const confirmadas = os.filter((o:any) => o.status === 'Confirmado').length;
-  const canceladas = os.filter((o:any) => o.status === 'Cancelado').length;
-  const [filtro, setFiltro] = useState('Pendente');
-  const [search, setSearch] = useState('');
-  
-  const osFiltradas = useMemo(() => {
-    let l = filtro === 'Todas' ? os : os.filter((o:any) => o.status === filtro);
-    if (search) l = l.filter((o:any) => (o.descricao || '').toLowerCase().includes(search.toLowerCase()) || (o.modulo || '').toLowerCase().includes(search.toLowerCase()));
-    return [...l].reverse();
-  }, [os, filtro, search]);
+  const { os, dados, setTela, dispatch, ativos } = useAppContext();
 
-  const getStatusColor = (s:string) => s === 'Pendente' ? 'bg-yellow-500' : s === 'Confirmado' ? 'bg-green-500' : 'bg-red-500';
-  const getCardBorder = (s:string) => s === 'Pendente' ? 'border-yellow-400 bg-yellow-50' : s === 'Confirmado' ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+  // 1. CÁLCULO DE KPIS (RESUMO)
+  const kpis = useMemo(() => {
+      const hoje = U.todayIso();
+      const pendentes = os.filter((o:any) => o.status === 'Pendente').length;
+      
+      // Combustível Hoje
+      const absHoje = (dados.abastecimentos || []).filter((a:any) => a.data === hoje);
+      const litrosHoje = absHoje.reduce((acc:number, item:any) => acc + U.parseDecimal(item.qtd), 0);
+      
+      // Alertas Críticos (Estoque Diesel Baixo)
+      const estoqueDiesel = U.parseDecimal(ativos.estoqueDiesel?.inicial || 3000) 
+                          + (dados.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0)
+                          - (dados.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0);
+      const alertaEstoque = estoqueDiesel <= U.parseDecimal(ativos.estoqueDiesel?.minimo || 750);
+
+      // Refeições Hoje
+      const refeicoesHoje = (dados.refeicoes || []).filter((r:any) => r.data === hoje).length;
+
+      // Recomendações Hoje
+      const recomHoje = (dados.recomendacoes || []).filter((r:any) => r.data === hoje).length;
+
+      // Documentos Hoje
+      const docsHoje = (dados.documentos || []).filter((d:any) => d.data === hoje).length;
+
+      // Energia Hoje
+      const energiaHoje = (dados.energia || []).filter((e:any) => e.data === hoje).length;
+
+      // Chuvas Hoje
+      const chuvasHoje = (dados.chuvas || []).filter((c:any) => c.data === hoje).length;
+      
+      return { pendentes, litrosHoje, alertaEstoque, estoqueDiesel, refeicoesHoje, recomHoje, docsHoje, energiaHoje, chuvasHoje };
+  }, [os, dados, ativos]);
+
+  // 2. TIMELINE UNIFICADA (OS + Abastecimentos + Chuvas)
+  const timeline = useMemo(() => {
+     let items = [];
+     
+     // Adiciona OS Recentes
+     items.push(...os.map((o:any) => ({ 
+         type: 'os', date: o.data || o.created_at, sortDate: new Date(o.data || o.created_at || 0).getTime(),
+         title: `OS: ${o.modulo}`, desc: o.descricao, status: o.status, id: o.id 
+     })));
+
+     // Adiciona Abastecimentos Recentes
+     items.push(...(dados.abastecimentos || []).map((a:any) => ({
+         type: 'fuel', date: a.data, sortDate: new Date(a.data).getTime(),
+         title: `Abastecimento`, desc: `${a.maquina} - ${a.qtd}L`, id: a.id
+     })));
+
+     // Adiciona Chuvas Recentes
+     items.push(...(dados.chuvas || []).map((c:any) => ({
+         type: 'rain', date: c.data, sortDate: new Date(c.data).getTime(),
+         title: `Registro de Chuva`, desc: `${c.local}: ${c.milimetros}mm`, id: c.id
+     })));
+
+     // Ordena por data (mais recente primeiro) e pega top 10
+     return items.sort((a,b) => b.sortDate - a.sortDate).slice(0, 10);
+  }, [os, dados]);
+
+  const cardStyle = "bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between relative overflow-hidden active:scale-95 transition-all";
 
   return (
-    <div className="space-y-4 p-4 pb-24">
-      <div className="flex items-center gap-2 mb-2 pb-2 border-b-2 border-gray-100">
-         <FileCog className="w-7 h-7 text-indigo-600" />
-         <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <button onClick={() => setFiltro('Pendente')} className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm ${getCardBorder('Pendente')} ${filtro === 'Pendente' ? 'ring-2 ring-yellow-500' : ''}`}>
-          <span className="text-xs font-bold text-yellow-700 uppercase">Pendentes</span><span className="text-3xl font-black text-yellow-800">{pendentes}</span>
-        </button>
-        <button onClick={() => setFiltro('Confirmado')} className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm ${getCardBorder('Confirmado')} ${filtro === 'Confirmado' ? 'ring-2 ring-green-500' : ''}`}>
-          <span className="text-xs font-bold text-green-700 uppercase">Confirmadas</span><span className="text-3xl font-black text-green-800">{confirmadas}</span>
-        </button>
-        <button onClick={() => setFiltro('Cancelado')} className={`border-2 rounded-xl p-3 flex flex-col items-center justify-center shadow-sm ${getCardBorder('Cancelado')} ${filtro === 'Cancelado' ? 'ring-2 ring-red-500' : ''}`}>
-          <span className="text-xs font-bold text-red-700 uppercase">Canceladas</span><span className="text-3xl font-black text-red-800">{canceladas}</span>
-        </button>
-      </div>
-      <div className="bg-white rounded-xl border-2 p-4 shadow-sm">
-        <div className="flex justify-between items-center border-b pb-3 mb-3">
-             <h2 className="font-bold text-lg text-gray-700">OS: {filtro}</h2>
-             <span className={`text-xs px-2 py-1 rounded-full text-white font-bold ${getStatusColor(filtro)}`}>{osFiltradas.length}</span>
-        </div>
-        <div className="relative mb-4">
-           <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
-           <input type="text" placeholder="Buscar OS..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-gray-50 focus:bg-white transition-colors" />
-        </div>
-        <div className="space-y-3">
-            {osFiltradas.slice(0, 5).map((item:any) => (
-            <div key={item.id} className="p-3 rounded-lg border hover:shadow-md transition-shadow cursor-pointer bg-gray-50" onClick={() => dispatch({ type: ACTIONS.SET_SELECTED_OS, os: item })}>
-                <div className="flex justify-between items-start mb-1"><p className="font-bold text-xs text-gray-500">{item.id}</p><span className={`w-2 h-2 rounded-full ${getStatusColor(item.status)}`}></span></div>
-                <p className="text-sm font-bold text-gray-800 mb-1">{item.modulo}</p><p className="text-xs text-gray-600 line-clamp-2">{item.descricao}</p>
-                <div className="mt-2 flex justify-end"><button className="text-xs text-indigo-600 font-medium flex items-center gap-1">Ver Detalhes <Eye className="w-3 h-3"/></button></div>
+    <div className="space-y-6 p-4 pb-24 animate-in fade-in duration-500">
+      
+      {/* CABEÇALHO PADRONIZADO (Estilo PageHeader + Data) */}
+      <div className="flex items-center justify-between mb-4 pb-2 border-b">
+          <div>
+            <div className="flex items-center gap-2">
+                <FileCog className="w-7 h-7 text-indigo-600" />
+                <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
             </div>
-            ))}
-            {osFiltradas.length === 0 && <p className="text-gray-400 text-center py-6 italic text-sm">Nenhum registro encontrado.</p>}
-        </div>
+            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wide flex items-center gap-1 ml-9 mt-0.5">
+                <Calendar className="w-3 h-3"/> {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+            </p>
+          </div>
+          <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-indigo-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
+              <ArrowLeft className="w-3 h-3" /> Voltar
+          </button>
       </div>
-      <button onClick={() => setTela('os')} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg hover:bg-indigo-700 active:scale-95 transition-transform"><Bell className="w-5 h-5" /> Confirmações e Cancelamentos / Histórico</button>
+
+      {/* 1. KPIs DESTAQUE */}
+      <div className="grid grid-cols-2 gap-3">
+          {/* OS PENDENTES */}
+          <div className={`${cardStyle} border-l-4 border-l-yellow-400 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('os')}>
+              <div className="flex justify-between items-start">
+                  <div className="p-2 bg-yellow-100 rounded-lg text-yellow-600"><FileCog className="w-5 h-5"/></div>
+                  <span className="text-2xl font-black text-gray-800">{kpis.pendentes}</span>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mt-2">OS Pendentes</p>
+              <p className="text-[10px] text-gray-400">Clique para gerenciar</p>
+          </div>
+
+          {/* REFEIÇÕES HOJE */}
+          <div className={`${cardStyle} border-l-4 border-l-orange-500 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('refeicoes')}>
+              <div className="flex justify-between items-start">
+                  <div className="p-2 bg-orange-100 rounded-lg text-orange-600"><Utensils className="w-5 h-5"/></div>
+                  <span className="text-2xl font-black text-gray-800">{kpis.refeicoesHoje}</span>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mt-2">Refeições Hoje</p>
+              <p className="text-[10px] text-gray-400">Clique para lançar</p>
+          </div>
+
+          {/* COMBUSTÍVEL HOJE */}
+          <div className={`${cardStyle} border-l-4 border-l-red-500 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('abastecimento')}>
+              <div className="flex justify-between items-start">
+                  <div className="p-2 bg-red-100 rounded-lg text-red-600"><Fuel className="w-5 h-5"/></div>
+                  <span className="text-xl font-black text-gray-800">{kpis.litrosHoje}<span className="text-sm text-gray-400 font-normal">L</span></span>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mt-2">Abastecido Hoje</p>
+              <p className="text-[10px] text-gray-400">{kpis.alertaEstoque ? <span className="text-red-600 font-black flex gap-1 items-center"><AlertTriangle className="w-3 h-3"/> EST. CRÍTICO</span> : 'Estoque Normal'}</p>
+          </div>
+
+          {/* RECOMENDAÇÕES HOJE */}
+          <div className={`${cardStyle} border-l-4 border-l-green-500 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('recomendacoes')}>
+              <div className="flex justify-between items-start">
+                  <div className="p-2 bg-green-100 rounded-lg text-green-600"><Leaf className="w-5 h-5"/></div>
+                  <span className="text-2xl font-black text-gray-800">{kpis.recomHoje}</span>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mt-2">Recomendações</p>
+              <p className="text-[10px] text-gray-400">Receituário de hoje</p>
+          </div>
+
+          {/* DOCUMENTOS HOJE (CONDICIONAL) */}
+          {kpis.docsHoje > 0 && (
+            <div className={`${cardStyle} border-l-4 border-l-purple-500 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('docs')}>
+                <div className="flex justify-between items-start">
+                    <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><FolderOpen className="w-5 h-5"/></div>
+                    <span className="text-2xl font-black text-gray-800">{kpis.docsHoje}</span>
+                </div>
+                <p className="text-xs font-bold text-gray-500 mt-2">Novos Docs</p>
+                <p className="text-[10px] text-gray-400">NF e Tramitações</p>
+            </div>
+          )}
+
+          {/* ENERGIA HOJE (CONDICIONAL) */}
+          {kpis.energiaHoje > 0 && (
+            <div className={`${cardStyle} border-l-4 border-l-yellow-600 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('energia')}>
+                <div className="flex justify-between items-start">
+                    <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Zap className="w-5 h-5"/></div>
+                    <span className="text-2xl font-black text-gray-800">{kpis.energiaHoje}</span>
+                </div>
+                <p className="text-xs font-bold text-gray-500 mt-2">Leituras Energia</p>
+                <p className="text-[10px] text-gray-400">Registros do dia</p>
+            </div>
+          )}
+
+          {/* CHUVAS HOJE (CONDICIONAL) */}
+          {kpis.chuvasHoje > 0 && (
+            <div className={`${cardStyle} border-l-4 border-l-sky-400 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('chuvas')}>
+                <div className="flex justify-between items-start">
+                    <div className="p-2 bg-sky-100 rounded-lg text-sky-600"><CloudRain className="w-5 h-5"/></div>
+                    <span className="text-2xl font-black text-gray-800">{kpis.chuvasHoje}</span>
+                </div>
+                <p className="text-xs font-bold text-gray-500 mt-2">Registros de Chuva</p>
+                <p className="text-[10px] text-gray-400">Pluviometria de hoje</p>
+            </div>
+          )}
+      </div>
+
+      {/* 2. TIMELINE DE ATIVIDADES */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-indigo-500"/> Atividades Recentes
+          </h2>
+          
+          <div className="space-y-0 relative border-l-2 border-gray-100 ml-3 pb-2">
+              {timeline.map((item, idx) => (
+                  <div key={`${item.type}-${item.id}`} className="mb-6 ml-6 relative group cursor-pointer" 
+                       onClick={() => {
+                           if (item.type === 'os') { 
+                               const fullOS = os.find((o:any) => o.id === item.id);
+                               if (fullOS) dispatch({ type: ACTIONS.SET_SELECTED_OS, os: fullOS });
+                           }
+                       }}>
+                      {/* Ícone na Linha do Tempo */}
+                      <span className={`absolute -left-[33px] top-0 w-8 h-8 rounded-full border-2 border-white flex items-center justify-center shadow-sm z-10 
+                          ${item.type === 'os' && item.status === 'Pendente' ? 'bg-yellow-100 text-yellow-600' : 
+                            item.type === 'os' ? 'bg-green-100 text-green-600' : 
+                            item.type === 'fuel' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                          {item.type === 'os' ? <FileCog className="w-4 h-4"/> : 
+                           item.type === 'fuel' ? <Fuel className="w-4 h-4"/> : <CloudRain className="w-4 h-4"/>}
+                      </span>
+                      
+                      {/* Conteúdo */}
+                      <div>
+                          <div className="flex justify-between items-center mb-1">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full 
+                                  ${item.type === 'os' ? 'bg-gray-100 text-gray-600' : 
+                                    item.type === 'fuel' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                                  {item.type === 'os' ? item.status : item.type === 'fuel' ? 'Consumo' : 'Clima'}
+                              </span>
+                              <span className="text-[10px] text-gray-400">{item.date ? U.formatDate(item.date).slice(0,5) : ''}</span>
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-800">{item.title}</h3>
+                          <p className="text-xs text-gray-500 line-clamp-1">{item.desc}</p>
+                      </div>
+                  </div>
+              ))}
+              
+              {timeline.length === 0 && (
+                  <div className="ml-6 py-4 text-center">
+                      <p className="text-sm text-gray-400 italic">Nenhuma atividade recente.</p>
+                  </div>
+              )}
+          </div>
+          
+          <button onClick={() => setTela('graficos')} className="w-full py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+              Ver Histórico Completo em Gráficos
+          </button>
+      </div>
+
     </div>
   );
 }

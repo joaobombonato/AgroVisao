@@ -29,13 +29,14 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
     }, [wrapperRef]);
 
     const filteredOptions = (Array.isArray(options) ? options : []).filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : opt.nome || '';
+        const text = typeof opt === 'string' ? opt : (opt.nome || opt.label || '');
         return text.toLowerCase().includes(search.toLowerCase());
     });
 
     const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : opt.nome;
-        onChange({ target: { value: val } });
+        const val = typeof opt === 'string' ? opt : (opt.nome || opt.label);
+        // Passa o valor string E o objeto completo (data)
+        onChange({ target: { value: val, data: opt } });
         setIsOpen(false);
         setSearch('');
     };
@@ -70,7 +71,7 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
                     </div>
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt: any, idx: number) => {
-                            const text = typeof opt === 'string' ? opt : opt.nome;
+                            const text = typeof opt === 'string' ? opt : (opt.nome || opt.label);
                             const isSelected = value === text;
                             return (
                                 <div 

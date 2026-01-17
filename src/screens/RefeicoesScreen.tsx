@@ -32,25 +32,18 @@ export default function RefeicoesScreen() {
   const [filterText, setFilterText] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(U.currentMonthIso());
 
-  // TABELA DE PREÇOS PADRÃO (Caso não venha do Ativo)
-  const valoresPadrao: any = { 'Básica': 15, 'Executiva': 25, 'Especial': 35 };
-
   // Atualiza Valor Unitário ao selecionar o Tipo
   const handleTipoChange = (e: any) => {
       const tipoSelecionado = e.target.value;
-      const objetoAtivo = e.target.data; // Pega o objeto completo vindo do Select (se existir)
+      const objetoAtivo = e.target.data; // Pega o objeto completo vindo do Select
 
       let preco = 0;
       
-      // 1. Tenta pegar do objeto do Configurações (Futuro: { nome: 'Básica', valor: 15 })
+      // 1. Pega do objeto configurado (agora padrão)
       if (objetoAtivo && typeof objetoAtivo === 'object' && objetoAtivo.valor) {
           preco = objetoAtivo.valor;
       } 
-      // 2. Se não achar, tenta pegar da tabela padrão hardcoded
-      else if (valoresPadrao[tipoSelecionado]) {
-          preco = valoresPadrao[tipoSelecionado];
-      }
-
+      
       setForm(prev => ({ 
           ...prev, 
           tipo: tipoSelecionado,

@@ -19,7 +19,8 @@ export const ATIVOS_INICIAIS = {
     },
     energia: {
       diaLeitura: 15,
-      metaConsumo: 500
+      metaConsumo: 500,
+      custoKwh: 0.92 // Valor inicial (será editável)
     },
     manutencao: {
       alertaPreventiva: 50
@@ -32,5 +33,9 @@ export const ATIVOS_INICIAIS = {
   classes: ['Herbicida', 'Inseticida', 'Fungicida', 'Adubo', 'Acaricida'],
   centrosCusto: ['Operacional', 'Administrativo', 'Técnico', 'Diretoria'],
   tiposDocumento: ['Nota Fiscal', 'Boleto', 'Contrato', 'Recibo', 'Outros'],
-  tiposRefeicao: ['Básica', 'Executiva', 'Especial'],
+  tiposRefeicao: [
+      { label: 'Básica', valor: 15.00 },
+      { label: 'Executiva', valor: 25.00 },
+      { label: 'Especial', valor: 35.00 }
+  ],
 };
