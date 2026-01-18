@@ -268,9 +268,9 @@ export default function AbastecimentoScreen() {
     // --- ALERTA DE MANUTENÇÃO ---
     // Verifica se a máquina excedeu o limite de revisão
     const maquinaObj = ativos.maquinas.find((m:any) => m.nome === form.maquina);
-    if (maquinaObj && maquinaObj.proximaRevisao) {
+    if (maquinaObj && maquinaObj.horimetro_revisao) {
         const horasAtuais = U.parseDecimal(form.horimetroAtual);
-        const horasRevisao = U.parseDecimal(maquinaObj.proximaRevisao);
+        const horasRevisao = U.parseDecimal(maquinaObj.horimetro_revisao);
         
         if (horasAtuais >= horasRevisao) {
             detalhesOS["ALERTA MANUTENÇÃO"] = `VENCIDA! (${horasAtuais}h > ${horasRevisao}h)`;

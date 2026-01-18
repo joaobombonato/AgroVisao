@@ -135,6 +135,10 @@ export function appReducer(state: State, action: any) {
       return { ...state, selectedOS: action.os };
     case ACTIONS.UPDATE_ATIVOS: { 
       const { chave, novaLista } = action;
+      if (chave === 'SYNC_FULL') {
+          // Restaura todos os ativos persistidos, mesclando com os atuais
+          return { ...state, ativos: { ...state.ativos, ...novaLista }};
+      }
       return { ...state, ativos: { ...state.ativos, [chave]: novaLista }};
     }
     case ACTIONS.ADD_TO_QUEUE:

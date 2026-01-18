@@ -4,7 +4,18 @@ import { PageHeader, Input } from '../../../components/ui/Shared';
 import { U } from '../../../data/utils';
 
 export default function ParametrosEditor({ currentParams, onSave, onBack }: any) {
-    const [form, setForm] = useState(JSON.parse(JSON.stringify(currentParams)));
+    // Inicialização Defensiva do Estado para evitar crash de undefined
+    const [form, setForm] = useState(() => {
+        const safeParams = currentParams || {};
+        // Se currentParams vier vazio ou incompleto, garantimos a estrutura
+        return {
+            fazendaNome: safeParams.fazendaNome || '',
+            energia: safeParams.energia || { custoKwh: '', metaConsumo: '' },
+            estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '' },
+            manutencao: safeParams.manutencao || { alertaPreventiva: '' },
+            ...safeParams // Sobrescreve com o que existir de verdade
+        };
+    });
 
     const handleChange = (section: string, field: string, value: string) => {
         if (section === 'root') {
@@ -15,10 +26,17 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         setForm((prev: any) => ({
             ...prev,
             [section]: {
-                ...prev[section],
-                [field]: Number(value) // Força número para parâmetros numéricos
+                ...(prev[section] || {}), // Garante que prev[section] existe
+                [field]: value // Mantemos como string durante a edição para melhor UX (limpar campo, etc)
+                               // A conversão para Number pode ser feita no onSave se necessário, mas o Input type="number" já ajuda
             }
         }));
+    };
+    
+    // Função auxiliar para evitar NaN ou Undefined nos values
+    const getVal = (section: string, field: string) => {
+        if (section === 'root') return form[field] ?? '';
+        return form[section]?.[field] ?? '';
     };
 
     return (
@@ -32,7 +50,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 </h3>
                 <Input 
                     label="Nome da Propriedade" 
-                    value={form.fazendaNome || ''} 
+                    value={getVal('root', 'fazendaNome')} 
                     onChange={(e: any) => handleChange('root', 'fazendaNome', e.target.value)}
                     type="text"
                     placeholder="Ex: Fazenda Santa Maria"
@@ -46,14 +64,14 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 </h3>
                 <Input 
                     label="Custo por kWh (R$)" 
-                    value={form.energia?.custoKwh} 
+                    value={getVal('energia', 'custoKwh')} 
                     onChange={(e: any) => handleChange('energia', 'custoKwh', e.target.value)}
                     type="number"
                     step="0.01"
                 />
                 <Input 
                     label="Meta de Consumo Mensal (kWh)" 
-                    value={form.energia?.metaConsumo} 
+                    value={getVal('energia', 'metaConsumo')} 
                     onChange={(e: any) => handleChange('energia', 'metaConsumo', e.target.value)}
                     type="number"
                 />
@@ -66,13 +84,13 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 </h3>
                 <Input 
                     label="Capacidade do Tanque (Litros)" 
-                    value={form.estoque?.capacidadeTanque} 
+                    value={getVal('estoque', 'capacidadeTanque')} 
                     onChange={(e: any) => handleChange('estoque', 'capacidadeTanque', e.target.value)}
                     type="number"
                 />
                 <Input 
                     label="Estoque Mínimo (Alerta)" 
-                    value={form.estoque?.estoqueMinimo} 
+                    value={getVal('estoque', 'estoqueMinimo')} 
                     onChange={(e: any) => handleChange('estoque', 'estoqueMinimo', e.target.value)}
                     type="number"
                 />
@@ -85,7 +103,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 </h3>
                 <Input 
                     label="Alerta Preventivo (Horas Antes)" 
-                    value={form.manutencao?.alertaPreventiva} 
+                    value={getVal('manutencao', 'alertaPreventiva')} 
                     onChange={(e: any) => handleChange('manutencao', 'alertaPreventiva', e.target.value)}
                     type="number"
                     placeholder="Ex: 50"

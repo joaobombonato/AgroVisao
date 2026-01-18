@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { FileCog, Search, Eye, Bell, CloudRain, Fuel, AlertTriangle, TrendingUp, Calendar, ArrowRight, Droplet, Plus, ArrowLeft, Utensils, Leaf, FolderOpen, Zap } from 'lucide-react';
+import { FileCog, Search, Eye, Bell, CloudRain, Fuel, AlertTriangle, TrendingUp, Calendar, ArrowRight, Droplet, Plus, ArrowLeft, Utensils, Leaf, FolderOpen, Zap, Wrench } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { U } from '../data/utils';
 
@@ -36,7 +36,29 @@ export default function DashboardScreen() {
       // Chuvas Hoje
       const chuvasHoje = (dados.chuvas || []).filter((c:any) => c.data === hoje).length;
       
-      return { pendentes, litrosHoje, alertaEstoque, estoqueDiesel, refeicoesHoje, recomHoje, docsHoje, energiaHoje, chuvasHoje };
+      // Alertas de Manutenção
+      const maquinasVencidas = (ativos.maquinas || []).filter((m:any) => {
+          const horimetroRevisao = U.parseDecimal(m.horimetro_revisao);
+          if (!horimetroRevisao) return false;
+          const ultimoAbs = (dados.abastecimentos || []).filter((a:any) => a.maquina === m.nome).sort((a:any, b:any) => b.id - a.id)[0];
+          const horimetroAtual = ultimoAbs ? U.parseDecimal(ultimoAbs.horimetroAtual) : 0;
+          return horimetroAtual >= horimetroRevisao;
+      }).length;
+
+      // Alertas de Documentos (Máquinas ou Pessoas)
+      const hojeData = new Date();
+      const docsVencendo = [
+          ...(ativos.maquinas || []).filter((m:any) => m.vencimento_doc && new Date(m.vencimento_doc) <= hojeData),
+          ...(ativos.pessoas || ativos.centrosCusto || []).filter((p:any) => p.vencimento_cnh && new Date(p.vencimento_cnh) <= hojeData)
+      ].length;
+
+      // Chuva Crítica (24h > 50mm por padrão)
+      const chuvaCritica = (dados.chuvas || []).some((c:any) => c.data === hoje && U.parseDecimal(c.milimetros) >= 50);
+      
+      return { 
+          pendentes, litrosHoje, alertaEstoque, estoqueDiesel, refeicoesHoje, recomHoje, 
+          docsHoje, energiaHoje, chuvasHoje, maquinasVencidas, documentosVencendo: docsVencendo, chuvaCritica 
+      };
   }, [os, dados, ativos]);
 
   // 2. TIMELINE UNIFICADA (OS + Abastecimentos + Chuvas)
@@ -164,6 +186,50 @@ export default function DashboardScreen() {
             </div>
           )}
       </div>
+
+      {/* 1.5 ALERTAS CRÍTICOS (CARDS COLORIDOS) */}
+      {(kpis.maquinasVencidas > 0 || kpis.documentosVencendo > 0 || kpis.chuvaCritica) && (
+        <div className="grid grid-cols-1 gap-3">
+            {kpis.maquinasVencidas > 0 && (
+                <div onClick={() => setTela('manutencao')} className="bg-red-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between animate-pulse cursor-pointer">
+                    <div className="flex items-center gap-3">
+                        <Wrench className="w-6 h-6" />
+                        <div>
+                            <p className="text-xs font-bold uppercase opacity-80">Manutenção Vencida</p>
+                            <p className="text-lg font-black">{kpis.maquinasVencidas} {kpis.maquinasVencidas === 1 ? 'Máquina' : 'Máquinas'}</p>
+                        </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 opacity-50" />
+                </div>
+            )}
+
+            {kpis.documentosVencendo > 0 && (
+                <div onClick={() => setTela('docs')} className="bg-amber-500 text-white p-4 rounded-xl shadow-lg flex items-center justify-between cursor-pointer">
+                    <div className="flex items-center gap-3">
+                        <FolderOpen className="w-6 h-6" />
+                        <div>
+                            <p className="text-xs font-bold uppercase opacity-80">Documentos Vencidos</p>
+                            <p className="text-lg font-black">{kpis.documentosVencendo} Pendências</p>
+                        </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 opacity-50" />
+                </div>
+            )}
+
+            {kpis.chuvaCritica && (
+                <div onClick={() => setTela('chuvas')} className="bg-blue-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <CloudRain className="w-6 h-6" />
+                        <div>
+                            <p className="text-xs font-bold uppercase opacity-80">Volume Crítico de Chuva</p>
+                            <p className="text-lg font-black">Alerta Pluviométrico</p>
+                        </div>
+                    </div>
+                    <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                </div>
+            )}
+        </div>
+      )}
 
       {/* 2. TIMELINE DE ATIVIDADES */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">

@@ -15,17 +15,21 @@ import PrincipalScreen from './screens/PrincipalScreen';
 
 // [3] Entry Point Final: Garante o Provider e o Toaster
 
-import DashboardScreen from './screens/DashboardScreen';
-import RefeicoesScreen from './screens/RefeicoesScreen';
-import AbastecimentoScreen from './screens/AbastecimentoScreen';
-import RecomendacoesScreen from './screens/RecomendacoesScreen';
-import DocumentosScreen from './screens/DocumentosScreen';
-import EnergiaScreen from './screens/EnergiaScreen';
-import ChuvasScreen from './screens/ChuvasScreen';
-import OsScreen from './screens/OsScreen';
-import GraficosScreen from './screens/GraficosScreen';
-import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
-import AuthScreen from './screens/AuthScreen';
+// [2] Importações Dinâmicas (Lazy Loading) para Performance
+const DashboardScreen = React.lazy(() => import('./screens/DashboardScreen'));
+const RefeicoesScreen = React.lazy(() => import('./screens/RefeicoesScreen'));
+const AbastecimentoScreen = React.lazy(() => import('./screens/AbastecimentoScreen'));
+const RecomendacoesScreen = React.lazy(() => import('./screens/RecomendacoesScreen'));
+const DocumentosScreen = React.lazy(() => import('./screens/DocumentosScreen'));
+const EnergiaScreen = React.lazy(() => import('./screens/EnergiaScreen'));
+const ChuvasScreen = React.lazy(() => import('./screens/ChuvasScreen'));
+const OsScreen = React.lazy(() => import('./screens/OsScreen'));
+const GraficosScreen = React.lazy(() => import('./screens/GraficosScreen'));
+const ConfiguracoesScreen = React.lazy(() => import('./screens/ConfiguracoesScreen'));
+const AuthScreen = React.lazy(() => import('./screens/AuthScreen'));
+const ManutencaoScreen = React.lazy(() => import('./screens/ManutencaoScreen'));
+const EstoqueScreen = React.lazy(() => import('./screens/EstoqueScreen'));
+const RelatoriosScreen = React.lazy(() => import('./screens/RelatoriosScreen'));
 
 
 // [1] O componente MainLayout (Layout principal, SÓ PODE SER USADO QUANDO LOGADO)
@@ -38,7 +42,20 @@ const MainLayout = () => {
   const pendentes = (os || []).filter((o:any) => o.status === 'Pendente').length;
 
   const Screens: any = { 
-    principal: PrincipalScreen, dashboard: DashboardScreen, graficos: GraficosScreen, config: ConfiguracoesScreen, refeicoes: RefeicoesScreen, abastecimento: AbastecimentoScreen, recomendacoes: RecomendacoesScreen, docs: DocumentosScreen, energia: EnergiaScreen, chuvas: ChuvasScreen, os: OsScreen 
+    principal: PrincipalScreen, 
+    dashboard: DashboardScreen, 
+    graficos: GraficosScreen, 
+    config: ConfiguracoesScreen, 
+    refeicoes: RefeicoesScreen, 
+    abastecimento: AbastecimentoScreen, 
+    recomendacoes: RecomendacoesScreen, 
+    docs: DocumentosScreen, 
+    energia: EnergiaScreen, 
+    chuvas: ChuvasScreen, 
+    os: OsScreen,
+    manutencao: ManutencaoScreen,
+    estoque: EstoqueScreen,
+    relatorios: RelatoriosScreen
   };
 
   const ScreenComponent = Screens[tela] || PrincipalScreen;
@@ -141,7 +158,9 @@ const MainLayout = () => {
             <div className="flex-1 flex flex-col items-center justify-center text-gray-500"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /><p className="mt-4 font-medium">Carregando dados...</p></div>
         ) : (
             <div className="flex-1 overflow-y-auto no-scrollbar max-w-md mx-auto w-full">
-                <ScreenComponent />
+                <React.Suspense fallback={<div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400"><Loader2 className="w-8 h-8 animate-spin mb-2" /><p className="text-xs">Carregando módulo...</p></div>}>
+                    <ScreenComponent />
+                </React.Suspense>
             </div>
         )}
         

@@ -9,10 +9,20 @@ import { ASSET_DEFINITIONS } from '../../../data/assets';
 // ===========================================
 // Componente de Edição de Listas (Feature Module)
 // ===========================================
+// ===========================================
+// Componente de Edição de Listas (Feature Module)
+// ===========================================
+// ===========================================
+// Componente de Edição de Listas (Feature Module)
+// ===========================================
+// ===========================================
+// Componente de Edição de Listas (Feature Module)
+// ===========================================
 export default function AssetListEditor({ assetKey, setView }: any) {
-    const { ativos, dbAssets, dispatch, genericSave, genericDelete } = useAppContext();
+    const { ativos, dbAssets, dispatch, genericSave, genericDelete, updateAtivos, dados } = useAppContext();
     const { title, table, color, type, label, fields, placeholder, icon: Icon } = ASSET_DEFINITIONS[assetKey];
     
+    // Convertendo para array garantido e clonando para evitar mutação direta
     const list = table ? (dbAssets[table] || []) : (ativos[assetKey] || []);
     
     const [newItemName, setNewItemName] = useState('');
@@ -45,11 +55,8 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             
             await genericSave(table, newRecord, {
                  type: ACTIONS.SET_DB_ASSETS,
-                 key: table, // O reducer já trata de atualizar 'ativos' também se necessário
-                 records: [...list, recordWithId], // CUIDADO: ACTIONS espera 'records' ou 'data'? No reducer estava lendo 'records'. Vou checar.
-                 // Verificando reducer Action SET_DB_ASSETS: usa action.records.
-                 // O código original usava 'data' no optimistic? 
-                 // Vamos padronizar. O reducer usa 'records'.
+                 key: table, 
+                 records: [...list, recordWithId], 
             });
             
             setNewItemName('');
@@ -58,15 +65,117 @@ export default function AssetListEditor({ assetKey, setView }: any) {
         } else {
             const newRecordId = U.id('local-');
             const updatedList = [...list, type === 'simple' ? newItemName.trim() : { id: newRecordId, ...newRecord }];
-            dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave: assetKey, novaLista: updatedList });
+            
+            // USANDO updateAtivos PARA PERSISTÊNCIA
+            updateAtivos(assetKey, updatedList);
+            
             toast.success(`${title} adicionado localmente.`);
             setNewItemName('');
             setNewItemFields({});
         }
     };
 
+    // Função para verificar integridade referencial
+    const checkIntegrity = (item: any) => {
+        const itemId = item.id;
+        const itemNome = type === 'simple' ? item : item.nome;
+
+        // 1. CULTURAS
+        if (assetKey === 'culturas') {
+            const usedInTalhoes = (dbAssets.talhoes || []).some((t: any) => t.cultura === itemNome);
+            if (usedInTalhoes) {
+                toast.error(`Impossível excluir "${itemNome}": Existem talhões vinculados a esta cultura.`);
+                return false;
+            }
+            const usedInPlantio = (dados.plantios || []).some((p: any) => p.cultura === itemNome);
+            if (usedInPlantio) {
+                 toast.error(`Impossível excluir "${itemNome}": Existem registros de plantio.`);
+                 return false;
+            }
+        }
+
+        // 2. MÁQUINAS
+        if (assetKey === 'maquinas') {
+             const usedInAbastecimentos = (dados.abastecimentos || []).some((a: any) => a.veiculo === itemNome || a.maquinaId === itemId);
+             const usedInManutencao = (dados.manutencoes || []).some((m: any) => m.maquinaId === itemId);
+             if (usedInAbastecimentos || usedInManutencao) {
+                toast.error(`Impossível excluir "${itemNome}": Existem registros (abastecimento/manutenção) vinculados.`);
+                return false;
+             }
+        }
+        
+        // 3. SAFRAS
+        if (assetKey === 'safras') {
+             const usedInTalhoes = (dbAssets.talhoes || []).some((t: any) => t.safra === itemNome);
+             if (usedInTalhoes) {
+                toast.error(`Impossível excluir safra "${itemNome}": Existem talhões ativos nesta safra.`);
+                return false;
+             }
+        }
+
+        // 4. PESSOAS / CENTROS DE CUSTO
+        if (assetKey === 'centrosCusto' || assetKey === 'pessoas') {
+             const usedInAbastecimentos = (dados.abastecimentos || []).some((a: any) => a.responsavel === itemNome || a.operador === itemNome);
+             const usedInManutencao = (dados.manutencoes || []).some((m: any) => m.responsavel === itemNome);
+             if (usedInAbastecimentos || usedInManutencao) {
+                 toast.error(`Impossível excluir "${itemNome}": Pessoa vinculada a registros operacionais.`);
+                 return false;
+             }
+        }
+
+        // 5. TALHÕES
+        if (assetKey === 'talhoes') {
+            const usedInPlantios = (dados.plantios || []).some((p: any) => p.talhao === itemNome || p.talhaoId === itemId);
+            const usedInColheitas = (dados.colheitas || []).some((c: any) => c.talhao === itemNome || c.talhaoId === itemId);
+            const usedInAbastecimentos = (dados.abastecimentos || []).some((a: any) => a.talhao === itemNome);
+            
+            if (usedInPlantios || usedInColheitas || usedInAbastecimentos) {
+                toast.error(`Impossível excluir Talhão "${itemNome}": Existem apontamentos (plantio/colheita/diesel) vinculados.`);
+                return false;
+            }
+        }
+
+        // 6. PRODUTOS / INSUMOS
+        if (assetKey === 'produtos') {
+            const usedInCompras = (dados.compras || []).some((c: any) => c.produto === itemNome || c.produtoId === itemId);
+            if (usedInCompras) {
+                toast.error(`Impossível excluir "${itemNome}": Item presente em registros de Compras/Estoque.`);
+                return false;
+            }
+        }
+
+        // 7. LOCAIS (CHUVA / ENERGIA)
+        if (assetKey === 'locaisChuva') {
+            const usedInPrecipitacao = (dados.chuvas || []).some((c: any) => c.local === itemNome);
+            if (usedInPrecipitacao) {
+                toast.error(`Impossível excluir "${itemNome}": Existem leituras pluviométricas para este local.`);
+                return false;
+            }
+        }
+        if (assetKey === 'locaisEnergia') {
+            const usedInLeituras = (dados.energia || []).some((e: any) => e.local === itemNome);
+            if (usedInLeituras) {
+                toast.error(`Impossível excluir "${itemNome}": Existem leituras de energia para este medidor.`);
+                return false;
+            }
+        }
+
+        // 8. TIPOS DE REFEIÇÃO
+        if (assetKey === 'tiposRefeicao') {
+            const usedInRefeicoes = (dados.refeicoes || []).some((r: any) => r.tipo === itemNome || r.refeicao === itemNome);
+            if (usedInRefeicoes) {
+                toast.error(`Impossível excluir "${itemNome}": Existem registros de refeições deste tipo.`);
+                return false;
+            }
+        }
+
+        return true;
+    };
+
     // Função de Exclusão
     const handleDelete = async (item: any) => {
+        if (!checkIntegrity(item)) return; // Bloqueia se estiver em uso
+
         const idToDelete = isDbAsset ? item.id : type === 'simple' ? item : item.id;
 
         if (isDbAsset) {
@@ -74,18 +183,43 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             const newList = list.filter((i:any) => i.id !== idToDelete);
             await genericDelete(table, idToDelete, {
                 type: ACTIONS.SET_DB_ASSETS,
-                table: table, // Reducer usa action.table e action.records
+                table: table, 
                 records: newList
             });
         } else {
             const updatedList = list.filter((i: any) => 
                 isDbAsset ? i.id !== idToDelete : type === 'simple' ? i !== idToDelete : i.id !== idToDelete
             );
-            dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave: assetKey, novaLista: updatedList });
+            // USANDO updateAtivos PARA PERSISTÊNCIA
+            updateAtivos(assetKey, updatedList);
             toast.success(`${title} excluído localmente.`);
         }
     };
     
+    // Função de Movimentação (Reordenação)
+    const handleMove = (index: number, direction: 'up' | 'down') => {
+        const newList = [...list];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+        if (targetIndex < 0 || targetIndex >= newList.length) return;
+
+        // Swap
+        [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
+
+        if (isDbAsset) {
+            // Para DB Assets, atualizamos o estado local para refletir na UI imediatamente via reducer
+            // Nota: Isso não persiste a ordem no banco SQL a menos que haja uma coluna 'idx'
+            // Para esta versão, permitimos a ordenação visual na sessão atual
+             dispatch({
+                 type: ACTIONS.SET_DB_ASSETS, // Reutilizando a action correta para DB
+                 key: table,
+                 records: newList
+             });
+        } else {
+            // Para Ativos Locais (JSON), a ordem SÃO persistida AGORA SIM!
+            updateAtivos(assetKey, newList);
+        }
+    };
 
     const listToRender = isDbAsset ? list : list.map((item: any) => ({ 
         id: type === 'simple' ? item : item.id,
@@ -95,7 +229,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
     }));
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
             <PageHeader setTela={setView} title={title} icon={Icon} colorClass={`bg-${color}-600`} backTarget={'listas'} />
             
             {/* Formulário de Adição */}
@@ -131,8 +265,27 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             {/* Lista de Itens Existentes */}
             <div className="space-y-2 pt-2">
                 <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Itens Cadastrados ({listToRender.length})</h3>
-                {listToRender.map((item: any) => (
-                    <div key={item.id} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border">
+                {listToRender.map((item: any, index: number) => (
+                    <div key={item.id || index} className="flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border group">
+                       <div className="flex flex-col gap-1 mr-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                             <button 
+                                 type="button"
+                                 disabled={index === 0}
+                                 onClick={() => handleMove(index, 'up')}
+                                 className="p-1 hover:bg-gray-100 rounded disabled:opacity-20 text-gray-600"
+                             >
+                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+                             </button>
+                             <button 
+                                 type="button"
+                                 disabled={index === listToRender.length - 1}
+                                 onClick={() => handleMove(index, 'down')}
+                                 className="p-1 hover:bg-gray-100 rounded disabled:opacity-20 text-gray-600"
+                             >
+                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                             </button>
+                        </div>
+
                         <div className="flex-1 min-w-0">
                             <p className="font-medium text-gray-800 truncate">{type === 'simple' ? item.nome : item.nome}</p>
                             {type === 'complex' && fields.filter((f: any) => !f.hidden && f.key !== 'nome').map((f: any) => (
@@ -141,7 +294,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                 </p>
                             ))}
                         </div>
-                        <button onClick={() => handleDelete(item.original || item)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors" title="Excluir">
+                        <button onClick={() => handleDelete(item.original || item)} className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors ml-2" title="Excluir">
                             <Trash2 className="w-5 h-5"/>
                         </button>
                     </div>

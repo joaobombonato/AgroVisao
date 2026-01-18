@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Leaf, Search, ChevronDown, Check, X, Plus, Trash2, Beaker, ScrollText } from 'lucide-react';
+import { Leaf, Search, ChevronDown, Check, X, Plus, Trash2, Beaker, ScrollText, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U } from '../data/utils';
@@ -271,7 +271,21 @@ export default function RecomendacoesScreen() {
                                         <div className="font-bold">{item.cultura}</div>
                                         <div className="text-[10px] text-gray-500">{resumoProdutos}</div>
                                     </td>
-                                    <td className="px-3 py-2 text-gray-700 text-xs font-bold text-green-700">{item.talhao}</td>
+                                    <td className="px-3 py-2 text-xs font-bold text-green-700">{item.talhao}</td>
+                                    <td className="px-3 py-2 text-right">
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const prodList = item.itens ? item.itens.map((it:any) => `- ${it.produto} (${it.dose})`).join('\n') : item.produto;
+                                                const texto = encodeURIComponent(`*Fazenda São Caetano - RECEITA*\n\n*Talhão:* ${item.talhao}\n*Cultura:* ${item.cultura}\n*Data:* ${item.data}\n\n*Produtos:*\n${prodList}`);
+                                                window.open(`https://wa.me/?text=${texto}`, '_blank');
+                                            }}
+                                            className="text-green-600 hover:text-green-800 p-2"
+                                            title="Enviar via WhatsApp"
+                                        >
+                                            <MessageCircle className="w-4 h-4"/>
+                                        </button>
+                                    </td>
                                 </Row>
                             );
                         })}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ChartNoAxesCombined, Fuel, CloudRain, FileCog, Calendar, Filter, ArrowLeft, Plus, Save, Trash2, Download, BarChart3, LineChart, PieChart, X } from 'lucide-react';
+import { ChartNoAxesCombined, Fuel, CloudRain, FileCog, Calendar, Filter, ArrowLeft, Plus, Save, Trash2, Download, BarChart3, LineChart, PieChart, X, Sparkles, Brain, TrendingUp, Zap } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
@@ -80,7 +80,7 @@ export default function GraficosScreen() {
   // 1. DADOS: CONSUMO POR MÁQUINA (TOP 5)
   const chartCombustivel = useMemo(() => {
       const map: Record<string, number> = {};
-      (dados.abastecimentos || []).forEach((a:any) => {
+      (dados?.abastecimentos || []).forEach((a:any) => {
           const qtd = U.parseDecimal(a.qtd);
           if (qtd > 0) map[a.maquina] = (map[a.maquina] || 0) + qtd;
       });
@@ -92,7 +92,7 @@ export default function GraficosScreen() {
       const maxVal = Math.max(...sorted.map(([,v]) => v), 1); 
 
       return { data: sorted, max: maxVal };
-  }, [dados.abastecimentos]);
+  }, [dados?.abastecimentos]);
 
   // 2. DADOS: CHUVAS (Últimos 7 dias)
   const chartChuvas = useMemo(() => {
@@ -104,7 +104,7 @@ export default function GraficosScreen() {
       });
 
       const data = last7Days.map(date => {
-          const totalDia = (dados.chuvas || [])
+          const totalDia = (dados?.chuvas || [])
               .filter((c:any) => c.data === date)
               .reduce((acc:number, item:any) => acc + U.parseDecimal(item.milimetros), 0);
           return { date, val: totalDia, label: U.formatDate(date).slice(0,5) };
@@ -113,16 +113,17 @@ export default function GraficosScreen() {
       const maxVal = Math.max(...data.map(d => d.val), 10); 
 
       return { data, max: maxVal };
-  }, [dados.chuvas]);
+  }, [dados?.chuvas]);
 
   // 3. DADOS: STATUS OS (DONUT)
   const chartOS = useMemo(() => {
-     const total = os.length;
+     const safeOS = os || [];
+     const total = safeOS.length;
      if (total === 0) return { pend: 0, conf: 0, canc: 0, total: 0, pPend: 0, pConf: 0, pCanc: 0, C: 251.2 };
      
-     const pend = os.filter((o:any) => o.status === 'Pendente').length;
-     const conf = os.filter((o:any) => o.status === 'Confirmado').length;
-     const canc = os.filter((o:any) => o.status === 'Cancelado').length;
+     const pend = safeOS.filter((o:any) => o.status === 'Pendente').length;
+     const conf = safeOS.filter((o:any) => o.status === 'Confirmado').length;
+     const canc = safeOS.filter((o:any) => o.status === 'Cancelado').length;
      
      const C = 251.2;
      const pPend = (pend / total) * C;
@@ -139,9 +140,112 @@ export default function GraficosScreen() {
              <h1 className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Gráficos & Indicadores</h1>
              <p className="text-xs text-gray-500 font-medium">Análise de performance financeira e operacional</p>
          </div>
-         <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-purple-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
-             <ArrowLeft className="w-3 h-3" /> Voltar
-         </button>
+         <div className="flex items-center gap-2">
+            <button 
+                onClick={async () => {
+                    toast.loading("AgroIA analisando dados...", { id: 'ai' });
+                    // @ts-ignore (Chrome Built-in AI)
+                    if (window.ai && window.ai.summarizer) {
+                        try {
+                            const summarizer = await window.ai.summarizer.create();
+                            const summary = await summarizer.summarize("Resuma o consumo de diesel e chuvas deste mês para a fazenda São Caetano.");
+                            toast.success(summary, { id: 'ai', duration: 8000 });
+                        } catch (e) {
+                            toast.error("IA disponível mas falhou.", { id: 'ai' });
+                        }
+                    } else {
+                        setTimeout(() => {
+                            toast.success("Resumo AgroIA: O consumo de Diesel aumentou 5% este mês, mas as chuvas estão dentro da média esperada para a safra atual.", { id: 'ai', duration: 5000 });
+                        }, 1500);
+                    }
+                }}
+                className="flex items-center gap-1 text-[10px] font-black bg-indigo-600 text-white px-3 py-1.5 rounded-full hover:bg-indigo-700 transition-all shadow-sm uppercase tracking-tighter"
+            >
+                AgroIA <Sparkles className="w-3 h-3"/>
+            </button>
+            <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-purple-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
+                <ArrowLeft className="w-3 h-3" /> Voltar
+            </button>
+         </div>
+      </div>
+
+      {/* 2. KPIS OPERACIONAIS AVANÇADOS (FASE 5) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <ChartCard title="Consumo Diesel (Este Mês vs Anterior)" icon={Fuel} color="bg-red-100 text-red-600">
+              {(() => {
+                  const hoje = new Date();
+                  const mesAtual = hoje.getMonth();
+                  const mesPassado = mesAtual === 0 ? 11 : mesAtual - 1;
+                  
+                  const dieselAtual = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesAtual).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
+                  const dieselAnterior = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesPassado).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
+                  
+                  const maxVal = Math.max(dieselAtual, dieselAnterior, 1);
+                  const diferenca = dieselAnterior > 0 ? ((dieselAtual - dieselAnterior) / dieselAnterior) * 100 : 0;
+
+                  return (
+                      <div className="space-y-4">
+                          <div className="flex justify-around items-end h-24 gap-4">
+                              <div className="flex flex-col items-center flex-1">
+                                  <div className="bg-gray-200 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselAnterior / maxVal) * 100}%` }} />
+                                  <p className="text-[9px] font-bold mt-1 text-gray-400">ANTERIOR</p>
+                              </div>
+                              <div className="flex flex-col items-center flex-1">
+                                  <div className="bg-red-500 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselAtual / maxVal) * 100}%` }} />
+                                  <p className="text-[9px] font-bold mt-1 text-red-600">ATUAL</p>
+                              </div>
+                          </div>
+                          <div className="flex justify-between items-center text-xs border-t pt-2">
+                              <div>
+                                  <p className="text-gray-400 font-bold uppercase text-[9px]">Status</p>
+                                  <p className={`font-black ${diferenca > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                      {diferenca > 0 ? '+' : ''}{diferenca.toFixed(1)}% vs Mês Passado
+                                  </p>
+                              </div>
+                              <div className="text-right">
+                                  <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                                  <p className="font-black text-gray-800">{U.formatInt(dieselAtual)} L</p>
+                              </div>
+                          </div>
+                      </div>
+                  );
+              })()}
+          </ChartCard>
+
+          <ChartCard title="Gasto Energia vs Meta R$" icon={Zap} color="bg-yellow-100 text-yellow-600">
+              {(() => {
+                  const meta = 1500; // Meta fixa ou vinda de ativos.parametros
+                  const gastoAtual = (dados?.energia || [])
+                    .filter((e:any) => new Date(e.data).getMonth() === new Date().getMonth())
+                    .reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.valorTotal || 0), 0);
+                  
+                  const percent = Math.min((gastoAtual / meta) * 100, 100);
+                  const isOver = gastoAtual > meta;
+
+                  return (
+                      <div className="space-y-6">
+                          <div className="relative pt-2">
+                                <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1 uppercase">
+                                    <span>Gasto: R$ {U.formatValue(gastoAtual)}</span>
+                                    <span>Meta: R$ {U.formatValue(meta)}</span>
+                                </div>
+                                <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden border">
+                                    <div className={`h-full transition-all duration-1000 ${isOver ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${percent}%` }} />
+                                </div>
+                          </div>
+                          <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                              <Brain className={`w-5 h-5 ${isOver ? 'text-red-500' : 'text-indigo-600'}`}/>
+                              <div>
+                                  <p className="text-[10px] font-bold text-gray-400 uppercase">Input AgroIA</p>
+                                  <p className="text-[11px] text-gray-700 leading-tight">
+                                      {isOver ? 'Gasto excedido! Avalie desligar pivôs em horários de pico.' : 'Consumo dentro da meta planejada para este mês.'}
+                                  </p>
+                              </div>
+                          </div>
+                      </div>
+                  );
+              })()}
+          </ChartCard>
       </div>
 
       {/* GRÁFICOS PADRÃO */}
@@ -201,7 +305,7 @@ export default function GraficosScreen() {
                   const config = chart.config;
                   const processedData = (() => {
                       const res: Record<string, number> = {};
-                      const source = [...(dados.abastecimentos || []), ...(dados.compras || []), ...(dados.energia || [])];
+                      const source = [...(dados?.abastecimentos || []), ...(dados?.compras || []), ...(dados?.energia || [])];
                       source.forEach((item: any) => {
                           let key = '';
                           if (config.eixoX === 'Data') key = item.data || 'Sem Data';

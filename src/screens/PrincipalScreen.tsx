@@ -1,5 +1,5 @@
 import React from 'react';
-import { Utensils, Fuel, Leaf, FolderOpen, Zap, CloudRain, Home, AlertTriangle } from 'lucide-react';
+import { Utensils, Fuel, Leaf, FolderOpen, Zap, CloudRain, Home, AlertTriangle, Wrench, ShoppingBag, FileText } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 export default function PrincipalScreen() {
@@ -11,7 +11,10 @@ export default function PrincipalScreen() {
     { id: 'recomendacoes', nome: 'Recomendações', icon: Leaf, cor: 'bg-green-500' },
     { id: 'docs', nome: 'Docs', icon: FolderOpen, cor: 'bg-purple-500', descricao: 'Registro de Documentos' },
     { id: 'energia', nome: 'Energia', icon: Zap, cor: 'bg-yellow-500', descricao: 'Registro de leitura elétrica' },
-    { id: 'chuvas', nome: 'Chuvas', icon: CloudRain, cor: 'bg-cyan-500', descricao: 'Registro de chuvas' }, // Ícone corrigido para CloudRain
+    { id: 'chuvas', nome: 'Chuvas', icon: CloudRain, cor: 'bg-cyan-500', descricao: 'Registro de chuvas' }, 
+    { id: 'manutencao', nome: 'Manutenção', icon: Wrench, cor: 'bg-red-600' },
+    { id: 'estoque', nome: 'Estoque', icon: ShoppingBag, cor: 'bg-blue-600' },
+    { id: 'relatorios', nome: 'Relatórios', icon: FileText, cor: 'bg-indigo-700' },
   ];
 
   return (

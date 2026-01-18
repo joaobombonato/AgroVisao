@@ -205,7 +205,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     if (savedParams) {
         try {
             const parsed = JSON.parse(savedParams);
-            dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave: 'parametros', novaLista: parsed });
+            // Mescla com estado inicial para garantir estrutura
+            dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave: 'SYNC_FULL', novaLista: { ...state.ativos, ...parsed } });
         } catch (e) {
             console.error("Erro ao carregar params locais", e);
         }
@@ -224,12 +225,55 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []); 
 
-  // EFEITO 1.5: SALVAR PARÂMETROS QUANDO MUDAR
-  useEffect(() => {
-      if (state.ativos.parametros) {
-          localStorage.setItem('agrodev_params', JSON.stringify(state.ativos.parametros));
+  // FUNÇÃO DE PERSISTÊNCIA CENTRALIZADA DE ATIVOS (LOCAL + REMOTE)
+  const saveAtivos = useCallback(async (novosAtivos: any) => {
+      // 1. Atualiza Estado React
+      // Se novosAtivos for parcial, teríamos que mesclar. Assumindo que quem chama passa o objeto completo ou usamos chave?
+      // Melhor manter a assinatura do dispatch: (chave, valor)
+      // Mas para salvar TUDO, precisamos do estado atual.
+      // Vamos simplificar: saveAtivos(chave, valor)
+      
+      // Implementação: wrapper sobre o dispatch que também persiste
+      // Mas o dispatch é assíncrono/redutor.
+      // Solução: Observar 'state.ativos' no useEffect (como já estava) e disparar o save remoto lá.
+      
+      // MANTENDO A ESTRATÉGIA DO EFFECT 1.5 MAS MELHORADA
+      localStorage.setItem('agrodev_params', JSON.stringify(novosAtivos));
+      
+      // Tentar salvar no banco se tiver fazenda (Coluna 'config' ou 'ativos' na tabela Fazendas seria o ideal)
+      // Como não temos certeza do schema, salvamos apenas no localStorage por garantia,
+      // e tentamos update na tabela 'fazendas' se o campo 'config' existir (ignora erro se não existir)
+      if (fazendaId) {
+          try {
+             // Tenta salvar configurações globais da fazenda
+             // Isso garante que F5 ou outro dispositivo pegue as configs
+             await dbService.update('fazendas', fazendaId, { config: novosAtivos }, fazendaId);
+          } catch (e) {
+              console.warn("Não foi possível salvar config no banco (provavelmente campo não existe)", e);
+          }
       }
-  }, [state.ativos.parametros]); 
+  }, [fazendaId]);
+
+  // EFEITO 1.5: SALVAR PARÂMETROS QUANDO MUDAR - AGORA COM DEBOUNCE E REMOTE
+  useEffect(() => {
+      const handler = setTimeout(() => {
+         if (state.ativos && Object.keys(state.ativos).length > 0) {
+             localStorage.setItem('agrodev_params', JSON.stringify(state.ativos));
+             
+             // Opcional: Salvar no banco com debounce maior? POr enquanto só local storage instantâneo (delay 1s)
+         }
+      }, 1000);
+      return () => clearTimeout(handler);
+  }, [state.ativos]);
+  
+  // Função explícita para forçar salvamento (usada ao reordenar menus ou excluir itens)
+  const updateAtivos = useCallback((chave: string, valor: any) => {
+      dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave, novaLista: valor });
+      // O useEffect vai pegar a mudança e salvar no localStorage
+      // Se quisermos salvar no banco imediatamente:
+      // const stateAtualizado = { ...state.ativos, [chave]: valor };
+      // saveAtivos(stateAtualizado);
+  }, [saveAtivos, state.ativos]); 
 
   // EFEITO 2: CARREGAMENTO DE FAZENDA
   useEffect(() => {
@@ -320,8 +364,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       genericSave, 
       genericUpdate, 
       genericDelete, 
+      updateAtivos, // Novo método
       ...estoqueCalculations 
-  }), [state, dispatch, setTela, buscarUltimaLeitura, estoqueCalculations, fetchRecords, saveRecord, deleteRecord, logout, genericSave, genericUpdate, genericDelete]);
+  }), [state, dispatch, setTela, buscarUltimaLeitura, estoqueCalculations, fetchRecords, saveRecord, deleteRecord, logout, genericSave, genericUpdate, genericDelete, updateAtivos]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };

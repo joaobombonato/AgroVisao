@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, ListPlus, Save, Lock, Sliders, ArrowRight } from 'lucide-react'; 
 import { PageHeader } from '../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../context/AppContext';
@@ -13,22 +13,62 @@ import ParametrosEditor from '../features/settings/components/ParametrosEditor';
 // ===========================================
 // Em ConfiguracoesScreen()
 export default function ConfiguracoesScreen() {
-    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis } = useAppContext();
+    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis, updateAtivos } = useAppContext();
     const [view, setView] = useState('principal'); // principal, listas, parametros, editors para update
     
-// ...
+    // STATE PARA O EDITOR DE LISTA
+    const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
-    if (view === 'parametros') {
-        const params = ativos.parametros || {};
-        const currentFazendaNome = fazendaNome || '';
+    // GESTÃO DE ORDEM DOS MENUS (Reordenação) - MOVIDO PARA O TOPO
+    const [isReordering, setIsReordering] = useState(false);
+    
+    // Inicializa com Defaults (Constants)
+    const defaultDbOrder = Object.entries(ASSET_DEFINITIONS).filter(([,d]:any) => d.table).map(([k]) => k);
+    const defaultLocalOrder = Object.entries(ASSET_DEFINITIONS).filter(([,d]:any) => !d.table).map(([k]) => k);
 
-        const handleSaveParams = async (novaConfig: any) => {
-             // 1. Atualizar Parâmetros (Local/JSON no futuro)
-             dispatch({ 
-                 type: ACTIONS.UPDATE_ATIVOS, 
-                 chave: 'parametros', 
-                 novaLista: novaConfig 
-             });
+    const [dbOrder, setDbOrder] = useState<string[]>(defaultDbOrder);
+    const [localOrder, setLocalOrder] = useState<string[]>(defaultLocalOrder);
+
+    // Sincroniza com o estado global 'ativos.menuOrder' quando carregado
+    useEffect(() => {
+        if (ativos?.menuOrder) {
+            if (ativos.menuOrder.db) setDbOrder(ativos.menuOrder.db);
+            if (ativos.menuOrder.local) setLocalOrder(ativos.menuOrder.local);
+        }
+    }, [ativos?.menuOrder]);
+
+    const moveMenu = (listType: 'db' | 'local', index: number, direction: 'up' | 'down') => {
+        const isDb = listType === 'db';
+        const currentList = isDb ? dbOrder : localOrder;
+        
+        const newList = [...currentList];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        
+        if (targetIndex < 0 || targetIndex >= newList.length) return;
+        
+        [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
+
+        // 1. Atualiza Visualmente Imediato
+        if (isDb) setDbOrder(newList); else setLocalOrder(newList);
+
+        // 2. Persiste Globalmente (Salva no banco/localstorage)
+        const newFullOrder = {
+            db: isDb ? newList : dbOrder,
+            local: isDb ? localOrder : newList
+        };
+        updateAtivos('menuOrder', newFullOrder);
+    };
+
+    const handleOpenEditor = (key: string) => {
+        setSelectedAsset(key);
+        setView('editor');
+    };
+
+    // HANDLER PARA SALVAR PARÂMETROS
+    const handleSaveParams = async (novaConfig: any) => {
+            const currentFazendaNome = fazendaNome || '';
+             // 1. Atualizar Parâmetros Persistentes
+             updateAtivos('parametros', novaConfig);
 
              // 2. Atualizar Nome da Fazenda (Se mudou)
              if (novaConfig.fazendaNome && novaConfig.fazendaNome !== currentFazendaNome) {
@@ -46,14 +86,13 @@ export default function ConfiguracoesScreen() {
                     
                      } catch (e: any) {
                          console.error(e);
-                         // Se falhar o nome, avisa mas não bloqueia o resto
                          const isPermission = e.message?.includes('permissão') || e.message?.includes('row-level security');
                          toast.error(isPermission 
                             ? 'Nome bloqueado pelo Admin (RLS), mas parâmetros foram salvos!' 
                             : `Erro no nome: ${e.message}`, 
                             { duration: 5000 }
                          );
-                         setView('principal'); // Sai mesmo com erro no nome, pois params foram salvos
+                         setView('principal'); 
                          return;
                      }
                  }
@@ -61,48 +100,92 @@ export default function ConfiguracoesScreen() {
 
              toast.success('Configurações salvas com sucesso!');
              setView('principal');
-        };
+    };
 
+    // --- RENDERIZADORES CONDICIONAIS ---
+
+    if (view === 'parametros') {
+        const params = ativos?.parametros || {};
+        const currentFazendaNome = fazendaNome || '';
         // Passamos 'fazendaNome' dentro do objeto de parâmetros para o editor tratar unificado
         const paramsWithFazenda = { ...params, fazendaNome: currentFazendaNome };
 
         return <ParametrosEditor currentParams={paramsWithFazenda} onSave={handleSaveParams} onBack={() => setView('principal')} />;
     }
     
+    if (view === 'editor' && selectedAsset) {
+        return <AssetListEditor assetKey={selectedAsset} setView={setView} />;
+    }
+    
     if (view === 'listas') {
         return (
             <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
+                {/* Header Normal */}
                 <PageHeader setTela={setView} title="Cadastros & Listas" icon={ListPlus} colorClass="bg-indigo-600" backTarget={'principal'} />
+
                 <div className="space-y-3">
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Ativos Operacionais (Banco)</h2>
-                    {Object.entries(ASSET_DEFINITIONS).filter(([key, def]: any) => def.table).map(([key, def]: any) => (
-                        <MenuButton 
-                            key={key}
-                            icon={def.icon} 
-                            title={def.title} 
-                            desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
-                            onClick={() => handleOpenEditor(key)} 
-                            color={`bg-${def.color}-50`} 
-                        />
-                    ))}
+                    {/* Botão Organizar movido para o cabeçalho da seção */}
+                    <div className="flex justify-between items-center pt-2 px-1">
+                        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Ativos Operacionais (Banco)</h2>
+                        <button 
+                            onClick={() => setIsReordering(!isReordering)}
+                            className={`text-xs font-bold px-3 py-1 rounded-full border transition-all ${isReordering ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-white text-gray-500 border-gray-200'}`}
+                        >
+                            {isReordering ? 'Concluir' : 'Organizar'}
+                        </button>
+                    </div>
+
+                    {dbOrder.map((key: string, index: number) => {
+                        const def: any = ASSET_DEFINITIONS[key];
+                        return (
+                        <div key={key} className="relative group">
+                             {isReordering && (
+                                 <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+                                     <button disabled={index === 0} onClick={() => moveMenu('db', index, 'up')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m18 15-6-6-6 6"/></svg></button>
+                                     <button disabled={index === dbOrder.length - 1} onClick={() => moveMenu('db', index, 'down')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></button>
+                                 </div>
+                             )}
+                             <div className={`transition-all ${isReordering ? 'ml-6' : ''}`}>
+                                <MenuButton 
+                                    icon={def.icon} 
+                                    title={def.title} 
+                                    desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
+                                    onClick={() => !isReordering && handleOpenEditor(key)} 
+                                    color={`bg-${def.color}-50`} 
+                                />
+                             </div>
+                        </div>
+                    )})}
                 </div>
 
                 <div className="space-y-3 pt-4">
                     <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Listas Fixas (Local)</h2>
-                    {Object.entries(ASSET_DEFINITIONS).filter(([key, def]: any) => !def.table).map(([key, def]: any) => (
-                        <MenuButton 
-                            key={key}
-                            icon={def.icon} 
-                            title={def.title} 
-                            desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
-                            onClick={() => handleOpenEditor(key)} 
-                            color={`bg-${def.color}-50`} 
-                        />
-                    ))}
+                    {localOrder.map((key: string, index: number) => {
+                        const def: any = ASSET_DEFINITIONS[key];
+                        return (
+                        <div key={key} className="relative group">
+                             {isReordering && (
+                                 <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
+                                     <button disabled={index === 0} onClick={() => moveMenu('local', index, 'up')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m18 15-6-6-6 6"/></svg></button>
+                                     <button disabled={index === localOrder.length - 1} onClick={() => moveMenu('local', index, 'down')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></button>
+                                 </div>
+                             )}
+                             <div className={`transition-all ${isReordering ? 'ml-6' : ''}`}>
+                                <MenuButton 
+                                    icon={def.icon} 
+                                    title={def.title} 
+                                    desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
+                                    onClick={() => !isReordering && handleOpenEditor(key)} 
+                                    color={`bg-${def.color}-50`} 
+                                />
+                             </div>
+                        </div>
+                    )})}
                 </div>
             </div>
         );
     }
+
 
     return (
         <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">

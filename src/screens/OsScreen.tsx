@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Bell, Search, Eye, Filter } from 'lucide-react';
+import { Bell, Search, Eye, Filter, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
 
@@ -76,8 +76,18 @@ export default function OsScreen() {
                     </div>
                 </div>
                 <p className="text-xs text-gray-600 line-clamp-2 mt-2 bg-white p-2 rounded border border-gray-100 italic">"{item.descricao}"</p>
-                <div className="mt-2 flex justify-end">
-                    <button className="text-[10px] text-gray-400 font-bold flex items-center gap-1 group-hover:text-indigo-600">
+                <div className="mt-2 flex justify-end gap-2 text-[10px] font-bold uppercase">
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const texto = encodeURIComponent(`*Fazenda São Caetano - OS*\n\n*ID:* ${item.id}\n*Módulo:* ${item.modulo}\n*Data:* ${item.data || '-'}\n*Descrição:* ${item.descricao}`);
+                            window.open(`https://wa.me/?text=${texto}`, '_blank');
+                        }}
+                        className="text-green-600 flex items-center gap-1 hover:bg-green-50 p-1 rounded"
+                    >
+                        WhatsApp <MessageCircle className="w-3 h-3"/>
+                    </button>
+                    <button className="text-gray-400 flex items-center gap-1 group-hover:text-indigo-600 p-1 rounded">
                         Abrir Detalhes <Eye className="w-3 h-3"/>
                     </button>
                 </div>
