@@ -1,21 +1,11 @@
-import React, { useReducer, useEffect, useContext, useMemo, useState, createContext, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
-import { Home, Droplet, Zap, FolderOpen, Fuel, Leaf, Utensils, Bell, Settings, TrendingUp, Trash2, Check, X, Plus, X as XClose, Minus, Tractor, FileCog, ChartNoAxesCombined, Loader2, LogOut, ArrowRight, CloudRain } from 'lucide-react';
-// IMPORTAÇÕES ESSENCIAIS DO CONTEXTO
+import { Home, Settings, FileCog, ChartNoAxesCombined, Loader2, Bell, CloudRain, Tractor, LogOut, Check } from 'lucide-react';
 import { useAppContext, ACTIONS, AppProvider } from './context/AppContext'; 
-import { U } from './data/utils';
-import { ATIVOS_INICIAIS, DADOS_INICIAIS } from './data/constants';
-// Seus imports de telas e componentes de UI
 import { GlobalStyles, ConfirmModal, OSDetailsModal } from './components/ui/Shared';
 import ReloadPrompt from './components/ReloadPrompt';
-import PrincipalScreen from './screens/PrincipalScreen';
-// ... (existing imports)
 
-// ... (existing code)
-
-// [3] Entry Point Final: Garante o Provider e o Toaster
-
-// [2] Importações Dinâmicas (Lazy Loading) para Performance
+// -- [Lazy Imports] --
 const DashboardScreen = React.lazy(() => import('./screens/DashboardScreen'));
 const RefeicoesScreen = React.lazy(() => import('./screens/RefeicoesScreen'));
 const AbastecimentoScreen = React.lazy(() => import('./screens/AbastecimentoScreen'));
@@ -26,18 +16,23 @@ const ChuvasScreen = React.lazy(() => import('./screens/ChuvasScreen'));
 const OsScreen = React.lazy(() => import('./screens/OsScreen'));
 const GraficosScreen = React.lazy(() => import('./screens/GraficosScreen'));
 const ConfiguracoesScreen = React.lazy(() => import('./screens/ConfiguracoesScreen'));
-const AuthScreen = React.lazy(() => import('./screens/AuthScreen'));
 const ManutencaoScreen = React.lazy(() => import('./screens/ManutencaoScreen'));
 const EstoqueScreen = React.lazy(() => import('./screens/EstoqueScreen'));
 const RelatoriosScreen = React.lazy(() => import('./screens/RelatoriosScreen'));
+const PrincipalScreen = React.lazy(() => import('./screens/PrincipalScreen'));
+const MapScreen = React.lazy(() => import('./screens/MapScreen'));
 
+// Telas de Auth e Onboarding
+const AuthScreen = React.lazy(() => import('./screens/AuthScreen'));
+const FazendaSelectionScreen = React.lazy(() => import('./screens/FazendaSelectionScreen'));
+const CreateFazendaScreen = React.lazy(() => import('./screens/CreateFazendaScreen'));
 
-// [1] O componente MainLayout (Layout principal, SÓ PODE SER USADO QUANDO LOGADO)
+// -- [MainLayout: Layout para usuários logados com fazenda selecionada] --
 const MainLayout = () => {
-  // Importando fazendaNome do contexto para o cabeçalho
-  // Importando genericUpdate
-  const { tela, setTela, loading, modal, selectedOS, os, dispatch, logout, session, fazendaNome, genericUpdate } = useAppContext();
-  const [deferredPrompt, setDeferredPrompt] = useState(null); 
+  const { tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda } = useAppContext();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showTrocarModal, setShowTrocarModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false); 
   
   const pendentes = (os || []).filter((o:any) => o.status === 'Pendente').length;
 
@@ -55,176 +50,216 @@ const MainLayout = () => {
     os: OsScreen,
     manutencao: ManutencaoScreen,
     estoque: EstoqueScreen,
-    relatorios: RelatoriosScreen
+    relatorios: RelatoriosScreen,
+    mapa: MapScreen
   };
 
-  const ScreenComponent = Screens[tela] || PrincipalScreen;
+  const [screenId, subTab] = tela.split(':');
+  const ScreenComponent = Screens[screenId] || PrincipalScreen;
   
   const menusRodape = [
-    { id: 'principal', nome: 'Principal', icon: Home, cor: 'bg-blue-500' }, 
-    { id: 'dashboard', nome: 'Dashboard', icon: FileCog, cor: 'bg-indigo-600' }, 
-    { id: 'graficos', nome: 'Gráficos', icon: ChartNoAxesCombined, cor: 'bg-gradient-to-r from-purple-500 to-pink-500' }, 
-    { id: 'config', nome: 'Config.', icon: Settings, cor: 'bg-gray-600' }
+    { id: 'principal', nome: 'Principal', icon: Home, activeColor: 'text-blue-600', activeBg: 'bg-blue-600', iconColor: 'text-white' }, 
+    { id: 'dashboard', nome: 'Dashboard', icon: FileCog, activeColor: 'text-yellow-500', activeBg: 'bg-yellow-500', iconColor: 'text-white' }, 
+    { id: 'graficos', nome: 'Gráficos', icon: ChartNoAxesCombined, activeColor: 'text-purple-600', activeBg: 'bg-purple-600', iconColor: 'text-white' }, 
+    { id: 'config', nome: 'Config.', icon: Settings, activeColor: 'text-gray-700', activeBg: 'bg-gray-700', iconColor: 'text-white' }
   ];
 
-  // Lógica para capturar o evento de instalação PWA (Mantida)
+  // PWA Install Prompt
   useEffect(() => {
     const handleBeforeInstallPrompt = (e:any) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
-      (deferredPrompt as any).prompt();
-      const { outcome } = await (deferredPrompt as any).userChoice;
-      if (outcome === 'accepted') {
-        toast.success("App Fazenda SC instalado com sucesso!");
-      }
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') toast.success("Instalação iniciada!");
       setDeferredPrompt(null);
     }
   };
+
+  const irParaNotificacoes = () => setTela('os');
+
+  // Funções de navegação auxiliares
 
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
         {/* <GlobalStyles /> */}
         <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-50">
-          {/* Usando o nome da fazenda do Contexto */}
           <div className="px-4 py-3 flex items-center justify-between max-w-md mx-auto w-full"> 
             <div className="flex items-center gap-2">
-                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
-                    <Tractor className="w-6 h-6 text-white" />
+                <div className="w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center p-0.5 shadow-sm overflow-hidden">
+                   {fazendaSelecionada?.config?.logo_base64 ? (
+                       <img src={fazendaSelecionada.config.logo_base64} alt="Logo" className="w-full h-full object-contain" />
+                   ) : (
+                       <img src="/icon.png" alt="Logo" className="w-full h-full object-contain" />
+                   )}
                 </div>
                 <div className="min-w-0">
-                    <h1 className="text-base font-bold text-gray-800 truncate">{fazendaNome || 'Carregando...'}</h1>
-                    <p className="text-xs text-gray-600 truncate">AgroDev v3.4</p>
+                    <h1 className="text-base font-bold text-gray-800 truncate">
+                        {fazendaSelecionada?.nome || 'AgroVisão'}
+                    </h1>
+                    <p className="text-xs text-gray-600 truncate font-medium">AgroVisão v3.6</p>
                 </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* SYNC INDICATOR */}
-              <div className="flex items-center">
-                  {(os || []).length > 0 && modal && !loading ? (
-                       <div className="flex flex-col items-end mr-2">
-                           {/* Monitorando syncQueue do Contexto? Precisamos expor no hook. */}
-                           {/* O hook useAppContext retorna ...state, que inclui syncQueue */}
-                       </div>
-                  ) : null}
-                  {/* Como não desestruturei syncQueue no App.tsx, vou adicionar agora */}
-              </div>
-
-               {/* RE-IMPLEMENTANDO BOTAO DE OS E SYNC JUNTOS */}
-               {(() => {
-                   // Acesso direto ao state via useAppContext (já desestruturado em MainLayout, preciso incluir syncQueue)
-                   // Vou assumir que vou adicionar syncQueue na desestruturação na próxima ferramenta, 
-                   // mas aqui vou usar uma lógica inline se possível ou placeholders.
-                   // Melhor fazer direito: Adicionar syncQueue na desestruturação primeiro.
-                   return null; 
-               })()}
-            </div>
-            <div className="flex items-center gap-2">
-               {/* SYNC STATUS ICON */}
-               {(() => {
-                   // @ts-ignore
-                   const queueLength = (useAppContext().syncQueue || []).length;
-                   const hasPending = queueLength > 0;
-                   return (
-                       <div className={`flex items-center justify-center w-8 h-8 rounded-full ${hasPending ? 'bg-orange-100 text-orange-600 animate-pulse' : 'bg-green-100 text-green-600'}`} title={hasPending ? `${queueLength} pendentes` : "Sincronizado"}>
-                           {hasPending ? <CloudRain className="w-5 h-5" /> : <Check className="w-5 h-5" />}
-                       </div>
-                   );
-               })()}
-
-              {tela !== 'os' && (<button onClick={() => setTela('os')} className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"><Bell className="w-5 h-5 text-gray-600" />{pendentes > 0 && (<span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">{pendentes}</span>)}</button>)}
-              {/* Botão de Limpar/Logout */}
-              {session ? (
-                  <button onClick={() => dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Deseja realmente sair do sistema?', onConfirm: () => { logout(); } } })} className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded font-medium flex items-center gap-1">
-                      <LogOut className="w-4 h-4"/> Sair
-                  </button>
-              ) : (
-                  <button onClick={() => dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Limpar dados locais (MVP)?', onConfirm: () => { localStorage.clear(); window.location.reload(); } } })} className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded font-medium flex items-center gap-1">
-                      <Trash2 className="w-4 h-4"/> Limpar
-                  </button>
-              )}
+            <div className="flex items-center gap-1">
+               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isOnline ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`} title={isOnline ? 'Online' : 'Offline'}>
+                   <Check className="w-5 h-5" strokeWidth={3} />
+               </div>
+               <button onClick={irParaNotificacoes} className="p-2 text-gray-400 hover:text-gray-600 relative" title="Notificações">
+                  <Bell className="w-6 h-6" />
+                  {pendentes > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />}
+               </button>
+               <button 
+                  onClick={() => setShowTrocarModal(true)} 
+                  className="p-2 text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+                  title="Trocar Fazenda"
+               >
+                   <Tractor className="w-6 h-6" />
+               </button>
+               <button 
+                  onClick={() => setShowLogoutModal(true)} 
+                  className="flex items-center gap-1 px-2 py-1.5 text-red-500 hover:bg-red-50 rounded-lg font-bold text-sm"
+                  title="Sair do Sistema"
+               >
+                   <LogOut className="w-5 h-5" />
+                   <span className="hidden xs:inline">Sair</span>
+               </button>
             </div>
           </div>
         </header>
 
-        {loading ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-500"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /><p className="mt-4 font-medium">Carregando dados...</p></div>
-        ) : (
-            <div className="flex-1 overflow-y-auto no-scrollbar max-w-md mx-auto w-full">
-                <React.Suspense fallback={<div className="flex-1 flex flex-col items-center justify-center py-20 text-gray-400"><Loader2 className="w-8 h-8 animate-spin mb-2" /><p className="text-xs">Carregando módulo...</p></div>}>
-                    <ScreenComponent />
+        <main className="flex-1 overflow-y-auto pb-24 scroll-smooth">
+             <div className="max-w-md mx-auto w-full">
+                <React.Suspense fallback={
+                    <div className="flex items-center justify-center h-64">
+                         <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+                    </div>
+                }>
+                    <ScreenComponent initialTab={subTab} />
                 </React.Suspense>
-            </div>
-        )}
-        
-        {modal.isOpen && (<ConfirmModal message={modal.message} onConfirm={() => { modal.onConfirm(); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); }} onClose={() => dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } })} />)}
-        
-        {/* OFFLINE-FIRST OS UPDATE */}
-        {selectedOS && (
-            <OSDetailsModal 
-                os={selectedOS} 
-                onClose={() => dispatch({ type: ACTIONS.SET_SELECTED_OS, os: null })} 
-                onUpdateStatus={(id: string, status: string) => {
-                    // Usa genericUpdate para atualizar DB e Fila se offline
-                    genericUpdate('os', id, { status }, { type: ACTIONS.UPDATE_OS_STATUS, id, status });
-                }} 
-            />
-        )}
-        
-        {/* Botão de Instalação PWA */}
-        {deferredPrompt && (
-          <div className="fixed bottom-20 left-0 right-0 z-50 flex justify-center p-2">
-            <button onClick={handleInstallClick} className="bg-green-600 text-white font-bold px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 hover:bg-green-700 transition-colors">
-              <Plus className="w-5 h-5"/> Instalar App Fazenda SC
-            </button>
-          </div>
-        )}
+             </div>
+        </main>
 
-        {/* Barra de Navegação */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 z-50">
-          <div className="grid grid-cols-4 gap-1 p-2 max-w-md mx-auto"> 
-            {menusRodape.map(menu => {
-              const Icon = menu.icon; const ativo = tela === menu.id;
-              const activeClass = menu.id === 'graficos' && ativo ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : ativo ? `${menu.cor} text-white` : 'text-gray-600 hover:bg-gray-100';
-              return (<button key={menu.id} onClick={() => setTela(menu.id)} className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg ${activeClass}`}><div className="flex items-center justify-center gap-1"><Icon className="w-5 h-5" /></div><span className="text-xs font-medium">{menu.nome}</span></button>);
-            })}
-          </div>
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50">
+           <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
+              {menusRodape.map(menu => {
+                  const isActive = tela === menu.id;
+                  const Icon = menu.icon;
+                  // As cores agora são explícitas para o Tailwind detectar
+                  
+                  return (
+                      <button 
+                        key={menu.id}
+                        onClick={() => setTela(menu.id)}
+                        className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-200 ${isActive ? `${menu.activeColor} -translate-y-1` : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                          <div className={`px-4 py-1.5 rounded-xl transition-all ${isActive ? `${menu.activeBg} ${menu.iconColor}` : 'bg-transparent'}`}>
+                             <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
+                          </div>
+                          <span className="text-[10px] font-bold">{menu.nome}</span>
+                      </button>
+                  )
+              })}
+           </div>
         </nav>
-      </div>
+
+        {modal.open && (
+           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+              {modal.type === 'confirm' && <ConfirmModal {...modal.props} />}
+              {modal.type === 'os-details' && (
+                  <OSDetailsModal 
+                    os={selectedOS} 
+                    onClose={() => dispatch({ type: ACTIONS.CLOSE_MODAL })} 
+                    onUpdate={(updatedOS:any) => genericUpdate('manutencoes', updatedOS.id, updatedOS)} 
+                  />
+              )}
+           </div>
+        )}
+
+        {/* Trocar Fazenda Modal */}
+        <ConfirmModal
+          isOpen={showTrocarModal}
+          onClose={() => setShowTrocarModal(false)}
+          onConfirm={() => trocarFazenda()}
+          title="Trocar de Fazenda"
+          message="Deseja trocar para outra fazenda? Você será redirecionado para a tela de seleção."
+          confirmText="Trocar"
+          cancelText="Cancelar"
+          variant="info"
+          icon="tractor"
+        />
+
+        {/* Logout Modal */}
+        <ConfirmModal
+          isOpen={showLogoutModal}
+          onClose={() => setShowLogoutModal(false)}
+          onConfirm={() => logout()}
+          title="Sair do Sistema"
+          message="Tem certeza que deseja sair? Você precisará fazer login novamente."
+          confirmText="Sair"
+          cancelText="Cancelar"
+          variant="danger"
+          icon="logout"
+        />
+    </div>
   );
-}
+};
 
-// [2] Componente que consome o contexto e faz o roteamento
-const AppWrapper = () => {
-    const { session, loading } = useAppContext(); 
-    let content = null;
+// -- [AppContent: Gerenciador de Rotas Globais] --
+const AppContent = () => {
+    const { tela } = useAppContext();
 
-    if (loading) {
-        content = (<div className="flex-1 flex flex-col items-center justify-center text-gray-500 h-screen"><Loader2 className="w-8 h-8 animate-spin text-green-500" /><p className="mt-4 font-medium">Verificando sessão...</p></div>);
-    } else if (!session) {
-        content = <AuthScreen />;
-    } else {
-        content = <MainLayout />;
+    if (tela === 'loading') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
+                <Loader2 className="w-10 h-10 text-green-600 animate-spin" />
+                <p className="text-gray-500 font-medium animate-pulse">Iniciando AgroVisão...</p>
+            </div>
+        );
     }
 
-    return content; 
-}
+    if (tela === 'auth') {
+        return (
+            <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+                <AuthScreen />
+            </React.Suspense>
+        );
+    }
 
-// [3] Entry Point Final: Garante o Provider e o Toaster
+    if (tela === 'fazenda_selection') {
+        return (
+            <React.Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8 text-green-600"/></div>}>
+                <FazendaSelectionScreen />
+            </React.Suspense>
+        );
+    }
+
+    if (tela === 'create_fazenda') {
+        return (
+            <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
+                <CreateFazendaScreen />
+            </React.Suspense>
+        );
+    }
+
+    // Default: App Logado
+    return <MainLayout />;
+};
+
+// -- [Root Component] --
 export default function App() {
   return (
-    <>
-        <Toaster position="top-center" /> 
-        <AppProvider>
-            <AppWrapper />
-        </AppProvider>
-    </>
+    <AppProvider> 
+      <Toaster position="top-center" reverseOrder={false} />
+      <ReloadPrompt />
+      <AppContent />
+    </AppProvider>
   );
 }

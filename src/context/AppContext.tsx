@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo, useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { U } from '../data/utils'; 
@@ -20,8 +20,6 @@ export const useAppContext = () => {
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, dispatch] = useReducer(appReducer, INITIAL_STATE);
   const { fazendaId } = state; 
-  
-  const setTela = (t: string) => dispatch({ type: ACTIONS.SET_TELA, tela: t });
   
   // FUNÇÃO UTILITÁRIA: parseNumber
   const parseNumber = useCallback((s: any) => {
@@ -275,29 +273,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       // saveAtivos(stateAtualizado);
   }, [saveAtivos, state.ativos]); 
 
-  // EFEITO 2: CARREGAMENTO DE FAZENDA
-  useEffect(() => {
-    const loadFazenda = async () => {
-        if (state.session?.user?.id && !fazendaId) {
-            const fazendas = await authService.fetchFazendaMembros(state.session.user.id);
-            
-            if (fazendas && fazendas.length > 0) {
-                const fazendaAtiva = fazendas[0];
-                dispatch({ 
-                    type: ACTIONS.SET_FAZENDA, 
-                    fazendaId: fazendaAtiva.id, 
-                    fazendaNome: fazendaAtiva.nome,
-                    fazendas: fazendas
-                });
-                toast.success(`Fazenda selecionada: ${fazendaAtiva.nome}!`, { id: 'fazenda-login', duration: 3000 });
-            } else {
-                toast.error('Nenhuma fazenda encontrada. Contate o suporte.', { duration: 6000 });
-                dispatch({ type: ACTIONS.SET_LOADING, loading: false });
-            }
-        }
-    };
-    loadFazenda();
-  }, [state.session, fazendaId]);
+  // EFEITO 2: Removido (Lógica consolidada no checkSession abaixo)
+
 
   // EFEITO 3: CARREGAMENTO DE ATIVOS 
   useEffect(() => {
@@ -350,23 +327,152 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   }, [state.syncQueue, fazendaId]);
 
 
-  const logout = () => authService.logout();
 
-  const value = useMemo(() => ({ 
-      ...state, 
-      dispatch, 
-      setTela, 
-      buscarUltimaLeitura,
-      logout,
-      fetchRecords,
-      saveRecord,
-      deleteRecord,
-      genericSave, 
-      genericUpdate, 
-      genericDelete, 
-      updateAtivos, // Novo método
-      ...estoqueCalculations 
-  }), [state, dispatch, setTela, buscarUltimaLeitura, estoqueCalculations, fetchRecords, saveRecord, deleteRecord, logout, genericSave, genericUpdate, genericDelete, updateAtivos]);
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+    // Estado para controlar a navegação "fora" das rotas principais (ex: Seleção de Fazenda)
+    const [tela, setTela] = useState('loading'); // 'loading', 'auth', 'fazenda_selection', 'create_fazenda', 'dashboard'
+    const [fazendaSelecionada, setFazendaSelecionada] = useState<any>(null);
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const handleStatusChange = () => {
+            setIsOnline(navigator.onLine);
+        };
+        window.addEventListener('online', handleStatusChange);
+        window.addEventListener('offline', handleStatusChange);
+        return () => {
+            window.removeEventListener('online', handleStatusChange);
+            window.removeEventListener('offline', handleStatusChange);
+        };
+    }, []);
+
+    // Efeito para checar sessão e fazenda salva
+    useEffect(() => {
+        const checkSession = async (session: any) => {
+            if (!session) {
+                setTela('auth');
+                return;
+            }
+
+            // Se o usuário acabou de logar e estamos na tela de auth ou loading, precisamos decidir pra onde ir
+            // Verificamos se já existe uma fazenda no state ou storage
+            if (!session?.user?.id) {
+                setTela('auth');
+                return;
+            }
+
+            const lastFazendaId = localStorage.getItem('last_fazenda_id');
+            
+            if (lastFazendaId) {
+                 const { data, error } = await supabase.from('fazendas').select('*').eq('id', lastFazendaId).single();
+                 if (data && !error) {
+                     setFazendaSelecionada(data);
+                     dispatch({ 
+                        type: ACTIONS.SET_FAZENDA, 
+                        fazendaId: data.id, 
+                        fazendaNome: data.nome 
+                     });
+                     setTela('principal'); 
+                     return;
+                 }
+            }
+
+            // Se não tem fazenda salva, vai para tela de seleção
+            setTela('fazenda_selection');
+            dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+        };
+
+        // Check inicial
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            checkSession(session);
+        });
+
+        // Listener de Mudanças
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || !session) {
+                setTela('auth');
+                setFazendaSelecionada(null);
+                localStorage.removeItem('last_fazenda_id');
+                // Limpa dados sensíveis do estado se necessário
+            } else if (event === 'SIGNED_IN') {
+                 // Login aconteceu. Verificar fazenda.
+                 checkSession(session);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    // Atualiza o Título do Navegador dinamicamente
+    useEffect(() => {
+        if (fazendaSelecionada?.nome) {
+            document.title = `${fazendaSelecionada.nome} | AgroVisão`;
+        } else {
+            document.title = 'AgroVisão - Gestão Rural Inteligente';
+        }
+        
+        // Se tiver favicon customizado, poderíamos atualizar aqui também, mas é mais complexo.
+        // Por enquanto, ficamos com o título.
+    }, [fazendaSelecionada]);
+
+    const logout = async () => {
+        await supabase.auth.signOut();
+        setTela('auth');
+        setFazendaSelecionada(null);
+        localStorage.removeItem('last_fazenda_id');
+    };
+
+    const trocarFazenda = () => {
+        setFazendaSelecionada(null);
+        localStorage.removeItem('last_fazenda_id');
+        setTela('fazenda_selection');
+    };
+
+    const value = useMemo(() => ({
+        state,
+        dispatch,
+        saveRecord,
+        genericSave,
+        genericDelete,
+        genericUpdate,
+        fetchRecords,
+        deleteRecord,
+        syncQueue: state.syncQueue,
+        isOnline, 
+        updateAtivos,
+        ...estoqueCalculations,
+        // Novos exports
+        session: state.session,
+        tela,
+        setTela,
+        fazendaSelecionada,
+        setFazendaSelecionada,
+        logout,
+        trocarFazenda,
+        modal: state.modal,
+        os: state.os,
+        dados: state.dados,
+        ativos: state.ativos,
+        dbAssets: state.dbAssets,
+        buscarUltimaLeitura,
+        parseNumber
+    }), [
+        state, 
+        dispatch, 
+        tela, 
+        fazendaSelecionada, 
+        saveRecord, 
+        genericSave, 
+        genericDelete, 
+        genericUpdate,
+        fetchRecords,
+        deleteRecord, 
+        estoqueCalculations,
+        isOnline,
+        buscarUltimaLeitura,
+        parseNumber,
+        trocarFazenda
+    ]);
+
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
