@@ -44,6 +44,7 @@ export const ACTIONS = {
   REMOVE_RECORD: 'REMOVE_RECORD',
   UPDATE_OS_STATUS: 'UPDATE_OS_STATUS',
   SET_MODAL: 'SET_MODAL',
+  CLOSE_MODAL: 'CLOSE_MODAL',
   SET_LOADING: 'SET_LOADING',
   SET_SELECTED_OS: 'SET_SELECTED_OS',
   UPDATE_ATIVOS: 'UPDATE_ATIVOS',
@@ -129,6 +130,8 @@ export function appReducer(state: State, action: any) {
     }
     case ACTIONS.SET_MODAL:
       return { ...state, modal: action.modal };
+    case ACTIONS.CLOSE_MODAL:
+      return { ...state, modal: { isOpen: false, message: '', onConfirm: () => {} } };
     case ACTIONS.SET_LOADING:
       return { ...state, loading: action.loading };
     case ACTIONS.SET_SELECTED_OS:

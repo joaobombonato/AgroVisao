@@ -67,5 +67,19 @@ export default defineConfig({
   ],
   server: {
     port: 3000,
+    proxy: {
+      '/copernicus-auth': {
+        target: 'https://identity.dataspace.copernicus.eu',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/copernicus-auth/, '/auth/realms/CDSE/protocol/openid-connect/token'),
+        secure: false
+      },
+      '/copernicus-api': {
+        target: 'https://sh.dataspace.copernicus.eu',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/copernicus-api/, '/api/v1'),
+        secure: false
+      }
+    }
   },
 })

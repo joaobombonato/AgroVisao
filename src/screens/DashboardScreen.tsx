@@ -16,10 +16,10 @@ export default function DashboardScreen() {
       const litrosHoje = absHoje.reduce((acc:number, item:any) => acc + U.parseDecimal(item.qtd), 0);
       
       // Alertas Críticos (Estoque Diesel Baixo)
-      const estoqueDiesel = U.parseDecimal(ativos.estoqueDiesel?.inicial || 3000) 
+      const estoqueDiesel = U.parseDecimal(ativos.estoqueDiesel?.inicial || 0) 
                           + (dados.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0)
                           - (dados.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0);
-      const alertaEstoque = estoqueDiesel <= U.parseDecimal(ativos.estoqueDiesel?.minimo || 750);
+      const alertaEstoque = estoqueDiesel <= U.parseDecimal(ativos.estoqueDiesel?.minimo || 0);
 
       // Refeições Hoje
       const refeicoesHoje = (dados.refeicoes || []).filter((r:any) => r.data === hoje).length;
@@ -96,14 +96,14 @@ export default function DashboardScreen() {
       <div className="flex items-center justify-between mb-4 pb-2 border-b">
           <div>
             <div className="flex items-center gap-2">
-                <FileCog className="w-7 h-7 text-indigo-600" />
+                <FileCog className="w-7 h-7 text-yellow-500" />
                 <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
             </div>
             <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wide flex items-center gap-1 ml-9 mt-0.5">
                 <Calendar className="w-3 h-3"/> {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
             </p>
           </div>
-          <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-indigo-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
+          <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-yellow-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
               <ArrowLeft className="w-3 h-3" /> Voltar
           </button>
       </div>
@@ -111,7 +111,7 @@ export default function DashboardScreen() {
       {/* 1. KPIs DESTAQUE */}
       <div className="grid grid-cols-2 gap-3">
           {/* OS PENDENTES */}
-          <div className={`${cardStyle} border-l-4 border-l-yellow-400 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('os')}>
+          <div className={`${cardStyle} border-l-4 border-l-yellow-300 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('os')}>
               <div className="flex justify-between items-start">
                   <div className="p-2 bg-yellow-100 rounded-lg text-yellow-600"><FileCog className="w-5 h-5"/></div>
                   <span className="text-2xl font-black text-gray-800">{kpis.pendentes}</span>
@@ -164,9 +164,9 @@ export default function DashboardScreen() {
 
           {/* ENERGIA HOJE (CONDICIONAL) */}
           {kpis.energiaHoje > 0 && (
-            <div className={`${cardStyle} border-l-4 border-l-yellow-600 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('energia')}>
+            <div className={`${cardStyle} border-l-4 border-l-yellow-300 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('energia')}>
                 <div className="flex justify-between items-start">
-                    <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Zap className="w-5 h-5"/></div>
+                    <div className="p-2 bg-yellow-100 rounded-lg text-yellow-500"><Zap className="w-5 h-5"/></div>
                     <span className="text-2xl font-black text-gray-800">{kpis.energiaHoje}</span>
                 </div>
                 <p className="text-xs font-bold text-gray-500 mt-2">Leituras Energia</p>
@@ -185,6 +185,16 @@ export default function DashboardScreen() {
                 <p className="text-[10px] text-gray-400">Pluviometria de hoje</p>
             </div>
           )}
+
+          {/* CLIMA & PREVISÃO */}
+          <div className={`${cardStyle} border-l-4 border-l-blue-400 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('chuvas:previsao')}>
+              <div className="flex justify-between items-start">
+                  <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><CloudRain className="w-5 h-5"/></div>
+                  <span className="text-xl font-black text-gray-800">Previsão</span>
+              </div>
+              <p className="text-xs font-bold text-gray-500 mt-2">Clima & Consenso</p>
+              <p className="text-[10px] text-gray-400 italic">Ver próximos 14 dias</p>
+          </div>
       </div>
 
       {/* 1.5 ALERTAS CRÍTICOS (CARDS COLORIDOS) */}
@@ -234,7 +244,7 @@ export default function DashboardScreen() {
       {/* 2. TIMELINE DE ATIVIDADES */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-indigo-500"/> Atividades Recentes
+              <TrendingUp className="w-4 h-4 text-yellow-500"/> Atividades Recentes
           </h2>
           
           <div className="space-y-0 relative border-l-2 border-gray-100 ml-3 pb-2">
@@ -278,7 +288,7 @@ export default function DashboardScreen() {
               )}
           </div>
           
-          <button onClick={() => setTela('graficos')} className="w-full py-2 text-xs font-bold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+          <button onClick={() => setTela('graficos')} className="w-full py-2 text-xs font-bold text-yellow-600 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors">
               Ver Histórico Completo em Gráficos
           </button>
       </div>

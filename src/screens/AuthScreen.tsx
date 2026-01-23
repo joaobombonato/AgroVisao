@@ -1,27 +1,19 @@
 import React, { useState } from 'react';
-import { Mail, Lock, UserPlus, LogIn, Tractor, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { Mail, Lock, LogIn, Loader2, Sprout, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import AuthCadastroScreen from './AuthCadastroScreen';
 
-// Componente simples para a tela de autenticação
 export default function AuthScreen() {
-    const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    // Estado para rastrear se um cadastro foi enviado (para mostrar a mensagem dinâmica)
-    const [signupSent, setSignupSent] = useState(false); 
+    const [view, setView] = useState<'login' | 'register'>('login');
+    const [showPassword, setShowPassword] = useState(false);
 
-    const title = isLogin ? 'Acessar AgroDev' : 'Criar Conta';
-    
-    // MUDANÇA DE COR E TEXTO DO BOTÃO BASEADO NO ESTADO
-    const actionText = isLogin ? 'Entrar' : 'Cadastrar e Confirmar';
-    const buttonColor = isLogin ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700';
-
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setSignupSent(false); // Reseta ao tentar submeter
 
         if (!email || !password) {
             toast.error("Preencha e-mail e senha.");
@@ -29,100 +21,162 @@ export default function AuthScreen() {
             return;
         }
 
-        let error = null;
-
-        if (isLogin) {
-            const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-            error = loginError;
-        } else {
-            const { error: signupError } = await supabase.auth.signUp({ email, password });
-            error = signupError;
-        }
-
-        setLoading(false);
-
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        // Se der erro, mostra toast. Se sucesso, o App.tsx detecta mudança de sessão automaticamente.
         if (error) {
             toast.error(`Erro: ${error.message}`);
+            setLoading(false);
         } else {
-            if (isLogin) {
-                toast.success("Login realizado. Entrando no sistema...", { duration: 2000 });
-            } else {
-                // FEEDBACK VISUAL NO CADASTRO (Notificação de longa duração)
-                setSignupSent(true); 
-                toast.success(
-                    "E-mail de confirmação enviado! Verifique sua caixa de entrada.", 
-                    { duration: 6000 }
-                );
-            }
+            toast.success("Login realizado. Entrando...", { duration: 2000 });
+            // Loading fica true até o componente desmontar
         }
     };
 
+    // Sub-rota para cadastro
+    if (view === 'register') {
+        return <AuthCadastroScreen onBack={() => setView('login')} />;
+    }
+
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="w-full max-w-sm bg-white p-8 rounded-xl shadow-2xl space-y-6">
-                
-                <div className="flex flex-col items-center">
-                    <Tractor className="w-10 h-10 text-green-600 mb-2"/>
-                    <h1 className="text-3xl font-bold text-gray-800">{title}</h1>
-                    <p className="text-sm text-gray-500 mt-1">Gestão Rural Inteligente</p>
-                </div>
+        <div className="min-h-screen bg-white flex">
+            {/* LADO ESQUERDO - BANNER VISUAL (Escondido em Mobile) */}
+            <div className="hidden lg:flex lg:w-1/2 bg-gray-900 relative overflow-hidden items-center justify-center">
+                 {/* Imagem de Fundo com Overlay */}
+                 <div 
+                    className="absolute inset-0 opacity-40 bg-cover bg-center"
+                    style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1625246333195-5819acf424d6?q=80&w=2070&auto=format&fit=crop")' }} 
+                 />
+                 <div className="absolute inset-0 bg-gradient-to-br from-green-900/90 to-gray-900/90" />
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="relative z-10 text-white p-12 max-w-lg">
+                    <div className="flex flex-col items-start gap-6 mb-6 animate-fade-in-up">
+                        <img src="/logo-full.png" alt="AgroVisão Logo" className="h-24 object-contain brightness-0 invert" /> 
+                    </div>
+                    
+                    <h2 className="text-3xl font-light leading-snug mb-6 text-gray-200">
+                        A revolução na gestão da sua<br/> 
+                        <span className="font-bold text-white">propriedade rural</span>.
+                    </h2>
+                    
+                    <div className="space-y-4 text-gray-400 text-sm">
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                            <span>Controle total de maquinário e abastecimentos</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                            <span>Gestão financeira e centros de custo</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full" />
+                            <span>Dashboards inteligentes e suporte offline</span>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+            {/* LADO DIREITO - LOGIN FORM */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white overflow-y-auto">
+                <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-right-8 duration-700">
+                    
+                    {/* Header Mobile Opcional */}
+                    <div className="lg:hidden flex justify-center mb-8">
+                        <img src="/logo-full.png" alt="AgroVisão" className="h-16 object-contain" />
+                    </div>
+
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900">Bem-vindo de volta</h2>
+                        <p className="mt-2 text-sm text-gray-500">
+                            Acesse sua conta para gerenciar sua fazenda.
+                        </p>
+                    </div>
+
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">E-mail Corporativo</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Mail className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                </div>
+                                <input
+                                    type="email"
+                                    required
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
+                                    placeholder="usuario@fazenda.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                             <div className="flex items-center justify-between ml-1">
+                                <label className="text-xs font-bold text-gray-600 uppercase">Senha</label>
+                                <a href="#" className="text-xs font-medium text-green-600 hover:text-green-500">Esqueceu a senha?</a>
+                            </div>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                </div>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {loading ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <span className="flex items-center gap-2">Entrar na Plataforma <ArrowRight className="w-4 h-4"/></span>
+                            )}
+                        </button>
+                    </form>
+
                     <div className="relative">
-                        <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400"/>
-                        <input
-                            type="email"
-                            placeholder="E-mail"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 outline-none transition-colors"
-                            required
-                        />
-                    </div>
-                    <div className="relative">
-                        <Lock className="absolute left-3 top-3 w-5 h-5 text-gray-400"/>
-                        <input
-                            type="password"
-                            placeholder="Senha"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 outline-none transition-colors"
-                            required
-                        />
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-200" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-white text-gray-500">Novo no AgroVisão?</span>
+                        </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className={`w-full text-white font-bold py-3 rounded-xl shadow-md ${buttonColor} transition-colors flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed`}
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin"/> : isLogin ? <LogIn className="w-5 h-5"/> : <UserPlus className="w-5 h-5"/>}
-                        {loading ? 'Processando...' : actionText}
-                    </button>
-                </form>
+                    <div className="mt-6 text-center">
+                         <button
+                            onClick={() => setView('register')}
+                            className="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-gray-600 hover:border-green-500 hover:text-green-600 hover:bg-green-50/50 transition-all flex items-center justify-center gap-2"
+                        >
+                            Criar Nova Conta de Produtor
+                        </button>
+                    </div>
 
-                <div className="text-center">
-                    <button
-                        onClick={() => { setIsLogin(!isLogin); setSignupSent(false); }} // Reseta o estado ao trocar
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
-                    >
-                        {isLogin ? 'Não tem conta? Crie uma agora!' : 'Já tenho conta. Fazer Login'}
-                    </button>
+                    <div className="mt-8 text-center">
+                         <p className="text-xs text-gray-400">© 2026 AgroVisão Systems. v3.6 Stable</p>
+                         
+                         <div className="mt-6 flex flex-col items-center justify-center opacity-80">
+                            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-2">Desenvolvido por</span>
+                            <img src="/logo-full-praticoapp.png" alt="PraticoAPP" className="h-8 object-contain transition-all hover:scale-105 cursor-pointer" onClick={() => window.open('https://praticoapp.com.br', '_blank')}/>
+                         </div>
+                    </div>
                 </div>
-                
-                {/* MENSAGEM DINÂMICA: Só aparece se estiver em Cadastro E já tiver tentado enviar */}
-                {!isLogin && signupSent && (
-                    <div className="flex items-center gap-2 p-3 text-xs text-orange-700 bg-orange-100 rounded-lg animate-in fade-in duration-300">
-                        <AlertTriangle className="w-4 h-4"/>Verifique a caixa de entrada (e spam) para confirmar seu e-mail.
-                    </div>
-                )}
-                {/* MENSAGEM DE AJUDA: Mostra uma dica de cadastro se estiver na tela de cadastro e não tiver submetido */}
-                {!isLogin && !signupSent && (
-                    <div className="text-center text-xs text-gray-400">
-                        A senha deve ter no mínimo 6 caracteres.
-                    </div>
-                )}
-
             </div>
         </div>
     );

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Settings, ListPlus, Save, Lock, Sliders, ArrowRight } from 'lucide-react'; 
+import { Settings, ListPlus, Save, Lock, Sliders, ArrowRight, Building2 } from 'lucide-react'; 
 import { PageHeader } from '../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
@@ -7,14 +8,15 @@ import { ASSET_DEFINITIONS } from '../data/assets';
 import { dbService } from '../services'; // Import direto
 import AssetListEditor from '../features/settings/components/AssetListEditor';
 import ParametrosEditor from '../features/settings/components/ParametrosEditor';
+import FazendaPerfilEditor from '../features/settings/components/FazendaPerfilEditor';
 
 // ===========================================
 // 3. Componente Principal de Configurações
 // ===========================================
 // Em ConfiguracoesScreen()
 export default function ConfiguracoesScreen() {
-    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis, updateAtivos } = useAppContext();
-    const [view, setView] = useState('principal'); // principal, listas, parametros, editors para update
+    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis, updateAtivos, fazendaSelecionada } = useAppContext();
+    const [view, setView] = useState('principal'); // principal, listas, parametros, perfil, editor, editor-lista
     
     // STATE PARA O EDITOR DE LISTA
     const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
@@ -61,7 +63,7 @@ export default function ConfiguracoesScreen() {
 
     const handleOpenEditor = (key: string) => {
         setSelectedAsset(key);
-        setView('editor');
+        setView('editor-lista');
     };
 
     // HANDLER PARA SALVAR PARÂMETROS
@@ -105,16 +107,32 @@ export default function ConfiguracoesScreen() {
     // --- RENDERIZADORES CONDICIONAIS ---
 
     if (view === 'parametros') {
-        const params = ativos?.parametros || {};
-        const currentFazendaNome = fazendaNome || '';
-        // Passamos 'fazendaNome' dentro do objeto de parâmetros para o editor tratar unificado
-        const paramsWithFazenda = { ...params, fazendaNome: currentFazendaNome };
+        const currentParams = {
+            ...ativos?.parametros,
+            fazendaNome: ativos?.parametros?.fazendaNome || fazendaSelecionada?.nome || ''
+        };
+        return <ParametrosEditor 
+                    currentParams={currentParams} 
+                    onSave={handleSaveParams} 
+                    onBack={() => setView('principal')} 
+                />;
+    }
 
-        return <ParametrosEditor currentParams={paramsWithFazenda} onSave={handleSaveParams} onBack={() => setView('principal')} />;
+    if (view === 'perfil') {
+        return (
+            <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
+                 <PageHeader setTela={() => setView('principal')} title="Perfil da Propriedade" icon={Building2} colorClass="bg-green-600" backTarget="principal" isSubScreen />
+                 <FazendaPerfilEditor />
+            </div>
+        );
     }
     
-    if (view === 'editor' && selectedAsset) {
-        return <AssetListEditor assetKey={selectedAsset} setView={setView} />;
+    if (view === 'editor-lista' && selectedAsset) {
+         return <AssetListEditor 
+                    assetKey={selectedAsset} 
+                    setView={setView}
+                    onBack={() => setView('principal')} 
+                />;
     }
     
     if (view === 'listas') {
@@ -193,7 +211,7 @@ export default function ConfiguracoesScreen() {
             
             <div className="space-y-3">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Sistema</h2>
-                <MenuButton icon={Sliders} title="Parâmetros Operacionais" desc="Estoque, Preços, Alertas e Metas" onClick={() => setView('parametros')} color="bg-blue-50" />
+                <MenuButton icon={Sliders} title="Parâmetros Globais" desc="Estoque, Preços, Alertas e Metas" onClick={() => setView('parametros')} color="bg-blue-50" />
                 <MenuButton icon={ListPlus} title="Cadastros & Listas" desc="Máquinas, Produtos, Talhões..." onClick={() => setView('listas')} color="bg-indigo-50" />
             </div>
 
@@ -203,8 +221,21 @@ export default function ConfiguracoesScreen() {
                 <MenuButton icon={Lock} title="Permissões" desc="Controle de Usuários" onClick={() => toast("Em breve: Módulo Usuários")} />
             </div>
             
-            <div className="text-center pt-8 opacity-50 text-xs text-gray-400">
-                AgroDev v3.4 | Arquiteto: JF Aplicativos
+        <div className="mt-8 flex flex-col items-center justify-center opacity-80">
+        <img 
+            src="/logo-full.png" 
+            alt="AgroVisão" 
+            className="h-20 object-contain hover:scale-105 transition-transform cursor-pointer" 
+         />
+            </div>
+        <div className="mt-8 flex flex-col items-center justify-center opacity-80">
+         <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Desenvolvido por</span>
+         <img 
+            src="/marca-praticoapp.png" 
+            alt="PraticoAPP" 
+            className="h-20 object-contain hover:scale-105 transition-transform cursor-pointer" 
+            onClick={() => window.open('https://praticoapp.com.br', '_blank')}
+         />
             </div>
         </div>
     );

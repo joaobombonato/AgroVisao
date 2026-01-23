@@ -53,7 +53,7 @@ function CompraCombustivelForm({ onClose }: any) {
     onClose();
   };
 
-  const ultimasCompras = (dados.compras || []).slice(-5).reverse();
+  const ultimasCompras = (dados?.compras || []).slice(-5).reverse();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -170,11 +170,12 @@ export default function AbastecimentoScreen() {
   const [filterText, setFilterText] = useState('');
 
   // ... (cálculos de estoque mantidos) ...
-  const estoqueInicial = U.parseDecimal(ativos.estoqueDiesel?.inicial || 3000); 
-  const estoqueMinimo = U.parseDecimal(ativos.estoqueDiesel?.minimo || 750);
+  // ... (cálculos de estoque mantidos) ...
+  const estoqueInicial = U.parseDecimal(ativos?.estoqueDiesel?.inicial || 0); 
+  const estoqueMinimo = U.parseDecimal(ativos?.estoqueDiesel?.minimo || 0);
   
-  const totalComprado = useMemo(() => (dados.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0), [dados.compras]);
-  const totalUsado = useMemo(() => (dados.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0), [dados.abastecimentos]);
+  const totalComprado = useMemo(() => (dados?.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0), [dados?.compras]);
+  const totalUsado = useMemo(() => (dados?.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0), [dados?.abastecimentos]);
   
   const estoqueAtual = (estoqueInicial + totalComprado - totalUsado);
   const percentualTanque = Math.min(((estoqueAtual / 15000) * 100), 100).toFixed(0); 
@@ -182,9 +183,11 @@ export default function AbastecimentoScreen() {
 
   // 2. LÓGICA DE BOMBA E MÁQUINA
   useEffect(() => {
-     const ultimaBomba = buscarUltimaLeitura('abastecimentos', 'bombaFinal', '*');
-     setForm(prev => ({ ...prev, bombaInicial: ultimaBomba ? ultimaBomba.bombaFinal : '0' }));
-  }, [dados.abastecimentos, buscarUltimaLeitura]);
+     if (typeof buscarUltimaLeitura === 'function') {
+         const ultimaBomba = buscarUltimaLeitura('abastecimentos', 'bombaFinal', '*');
+         setForm(prev => ({ ...prev, bombaInicial: ultimaBomba ? ultimaBomba.bombaFinal : '0' }));
+     }
+  }, [dados?.abastecimentos, buscarUltimaLeitura]);
 
   const handleMaquinaChange = (e: any) => {
       const maq = e.target.value;
@@ -267,7 +270,7 @@ export default function AbastecimentoScreen() {
 
     // --- ALERTA DE MANUTENÇÃO ---
     // Verifica se a máquina excedeu o limite de revisão
-    const maquinaObj = ativos.maquinas.find((m:any) => m.nome === form.maquina);
+    const maquinaObj = (ativos?.maquinas || []).find((m:any) => m.nome === form.maquina);
     if (maquinaObj && maquinaObj.horimetro_revisao) {
         const horasAtuais = U.parseDecimal(form.horimetroAtual);
         const horasRevisao = U.parseDecimal(maquinaObj.horimetro_revisao);
@@ -359,11 +362,11 @@ export default function AbastecimentoScreen() {
 
   const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir registro? O estoque será corrigido.', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'abastecimentos', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
   
-  const listFilter = useMemo(() => (dados.abastecimentos || []).filter((i:any) => {
-      const txt = filterText.toLowerCase();
+  const listFilter = useMemo(() => (dados?.abastecimentos || []).filter((i:any) => {
+      const txt = (filterText || '').toLowerCase();
       return (!filterData || i.data === filterData) && 
-             (!filterText || i.maquina.toLowerCase().includes(txt));
-  }).reverse(), [dados.abastecimentos, filterData, filterText]);
+             (!filterText || (i.maquina || '').toLowerCase().includes(txt));
+  }).reverse(), [dados?.abastecimentos, filterData, filterText]);
 
   return (
     <div className="space-y-4 p-4 pb-24">
@@ -419,7 +422,7 @@ export default function AbastecimentoScreen() {
           <SearchableSelect 
               label="Máquina / Veículo" 
               placeholder="Buscar o Maquinas... Ex: Trator" 
-              options={ativos.maquinas} 
+              options={ativos?.maquinas || []} 
               value={form.maquina} 
               onChange={handleMaquinaChange} 
               required
@@ -583,7 +586,7 @@ export default function AbastecimentoScreen() {
                                     {/* @ts-ignore: media nao esta na interface base, mas existe no runtime */}
                                     {item.media || '-'}
                                 </td>
-                                <td className="px-2 py-2 text-center text-xs text-gray-700">{/* @ts-ignore */ item.bombaFinal || '-'}</td>
+                                <td className="px-2 py-2 text-center text-xs text-gray-700">{(item as any).bombaFinal || '-'}</td>
                                 <td className="px-2 py-2 text-center">
                                     <div className="flex justify-center">
                                         {/* Ações como excluir, ver detalhes, etc. */}

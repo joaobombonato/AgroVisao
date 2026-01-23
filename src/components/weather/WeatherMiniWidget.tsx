@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { CloudRain, Thermometer, Wind, Loader2, ArrowRight } from 'lucide-react';
+import { CloudRain, Thermometer, Wind, Loader2, ArrowRight, Droplets } from 'lucide-react';
 import { fetchWeatherForecast, getWeatherInfo, isToday, type WeatherData } from '../../services/weatherService';
 import { fetchMultiSourceWeather, type DailyForecast } from '../../services/multiSourceWeather';
 
 interface WeatherMiniWidgetProps {
   latitude: number;
   longitude: number;
+  farmName?: string;
   onClick: () => void;
 }
 
-export default function WeatherMiniWidget({ latitude, longitude, onClick }: WeatherMiniWidgetProps) {
+export default function WeatherMiniWidget({ latitude, longitude, farmName, onClick }: WeatherMiniWidgetProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -28,20 +29,30 @@ export default function WeatherMiniWidget({ latitude, longitude, onClick }: Weat
             tempMin: basic.daily.temperature_2m_min[0],
             tempMax: basic.daily.temperature_2m_max[0],
             precipitation: basic.daily.precipitation_sum[0],
+            windSpeed: basic.daily.windspeed_10m_max[0],
             condition: getWeatherInfo(basic.daily.weathercode[0]).description,
             icon: getWeatherInfo(basic.daily.weathercode[0]).icon,
             precipProbability: basic.daily.precipitation_probability_max[0]
         };
 
         if (sources.length > 0) {
-            const allToday = sources.map(s => s.daily[0]);
-            const tempsMin = [today.tempMin, ...allToday.map(f => f.tempMin)].filter(v => v !== undefined);
-            const tempsMax = [today.tempMax, ...allToday.map(f => f.tempMax)].filter(v => v !== undefined);
-            const precips = [today.precipitation, ...allToday.map(f => f.precipitation)].filter(v => v !== undefined);
+            // Filter only sources that provide FULL 24h data for today's consensus
+            const fullDaySources = sources.filter(s => !s.daily[0].isPartial);
             
-            today.tempMin = Math.min(...tempsMin);
-            today.tempMax = Math.max(...tempsMax);
-            today.precipitation = precips.reduce((a, b) => a + b, 0) / (precips.length);
+            if (fullDaySources.length > 0) {
+                const allToday = fullDaySources.map(s => s.daily[0]);
+                const tempsMin = [today.tempMin, ...allToday.map(f => f.tempMin)].filter(v => v !== undefined);
+                const tempsMax = [today.tempMax, ...allToday.map(f => f.tempMax)].filter(v => v !== undefined);
+                const precips = [today.precipitation, ...allToday.map(f => f.precipitation)].filter(v => v !== undefined);
+                const winds = [today.windSpeed, ...allToday.map(f => f.windSpeed)].filter(v => (v !== undefined && v !== null));
+                
+                today.tempMin = Math.min(...tempsMin);
+                today.tempMax = Math.max(...tempsMax);
+                today.precipitation = precips.reduce((a, b) => a + b, 0) / (precips.length);
+                if (winds.length > 0) {
+                    today.windSpeed = winds.reduce((a, b) => a + b, 0) / (winds.length);
+                }
+            }
         }
 
         setData(today);
@@ -76,37 +87,45 @@ export default function WeatherMiniWidget({ latitude, longitude, onClick }: Weat
         <div className="flex items-center gap-2">
           <span className="text-2xl">{data.icon}</span>
           <div>
-            <h3 className="text-sm font-bold leading-tight">Clima Hoje</h3>
+            <h3 className="text-sm font-bold leading-tight">
+                Clima Dia Todo {farmName ? `· ${farmName}` : ''}
+            </h3>
             <p className="text-[10px] text-blue-100 uppercase font-medium">Consenso Multi-Fonte</p>
           </div>
         </div>
         <ArrowRight className="w-4 h-4 text-blue-200 group-hover:translate-x-1 transition-transform" />
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-1 sm:gap-2">
         <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-1 uppercase font-bold">
+          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
             <Thermometer className="w-2.5 h-2.5" /> Temp
           </span>
-          <span className="text-sm font-bold">{Math.round(data.tempMin)}°/{Math.round(data.tempMax)}°</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{Math.round(data.tempMin)}°/{Math.round(data.tempMax)}°</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-1 uppercase font-bold">
+          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
+            <Wind className="w-2.5 h-2.5" /> Vento
+          </span>
+          <span className="text-sm font-semibold whitespace-nowrap">{Math.round(data.windSpeed || 0)} <small className="text-[10px] font-normal">km/h</small></span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
             <CloudRain className="w-2.5 h-2.5" /> Chuva
           </span>
-          <span className="text-sm font-bold">{data.precipitation.toFixed(1)}mm</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{data.precipitation.toFixed(1)}<small className="text-[10px] font-normal">mm</small></span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-1 uppercase font-bold">
-            <Wind className="w-2.5 h-2.5" /> Prob.
+          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
+             <Droplets className="w-2.5 h-2.5" /> Prob.
           </span>
-          <span className="text-sm font-bold">{data.precipProbability}%</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{data.precipProbability}%</span>
         </div>
       </div>
       
-      <div className="mt-2 pt-2 border-t border-white/20 text-[10px] flex justify-between items-center italic text-blue-50">
-        <span>{data.condition}</span>
-        <span className="font-bold underline">Ver Previsão 14 Dias</span>
+      <div className="mt-3 pt-2 border-t border-white/20 text-[11px] flex justify-between items-center italic text-blue-50">
+        <span className="font-normal opacity-90">{data.condition}</span>
+        <span className="font-semibold underline uppercase tracking-tight">Ver Detalhes</span>
       </div>
     </div>
   );

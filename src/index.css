@@ -1,8 +1,19 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Se precisar de algum estilo global extra, coloque aqui */
 body {
-    background-color: #f9fafb; /* gray-50 */
+  background-color: #f9fafb; /* gray-50 */
+}
+
+/* Leaflet map fixes */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
 }

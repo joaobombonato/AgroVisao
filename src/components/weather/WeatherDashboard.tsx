@@ -62,6 +62,9 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
       if (data) {
         setWeather(data);
         
+        // Prepare comparison dates (14 days)
+        const comparisonDates = data.daily.time.slice(0, 14);
+
         // Load multi-source comparison
         setLoadingMulti(true);
         const multiData = await fetchMultiSourceWeather(latitude, longitude);
@@ -97,7 +100,7 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
         const sorted = combined.sort((a, b) => {
           const orderA = WEATHER_SOURCES.findIndex(s => s.name === a.sourceName);
           const orderB = WEATHER_SOURCES.findIndex(s => s.name === b.sourceName);
-          return orderA - orderB;
+          return (orderA === -1 ? 99 : orderA) - (orderB === -1 ? 99 : orderB);
         });
         
         setMultiSource(sorted);
@@ -105,28 +108,40 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
         // Calculate Consensus (Daily average/min/max from all sources)
         try {
           const consensusData: DailyForecast[] = comparisonDates.map((date, dayIdx) => {
-            const sourcesForDay = sorted.filter(s => s.daily && s.daily[dayIdx]);
+            // Find all sources that have data for THIS specific day/date
+            const sourcesForDay = sorted.filter(s => {
+              if (!s.daily) return false;
+              const dayData = s.daily.find(d => d.date === date);
+              // For Today (dayIdx 0), only use sources that provide the FULL 24h data for consensus
+              if (dayIdx === 0 && dayData?.isPartial) return false;
+              return !!dayData;
+            });
+
             if (sourcesForDay.length === 0) return openMeteoDays[dayIdx];
 
-            const dayForecasts = sourcesForDay.map(s => s.daily[dayIdx]);
-            const tempsMin = dayForecasts.map(f => f.tempMin).filter(v => v !== undefined && !isNaN(v));
-            const tempsMax = dayForecasts.map(f => f.tempMax).filter(v => v !== undefined && !isNaN(v));
-            const precips = dayForecasts.map(f => f.precipitation).filter(v => v !== undefined && !isNaN(v));
-            const probs = dayForecasts.map(f => f.precipProbability || 0).filter(v => v !== undefined && !isNaN(v));
+            const dayForecasts = sourcesForDay.map(s => s.daily.find(d => d.date === date)!).filter(Boolean);
+            
+            const tempsMin = dayForecasts.map(f => f.tempMin).filter(v => v !== undefined && v !== null && !isNaN(v));
+            const tempsMax = dayForecasts.map(f => f.tempMax).filter(v => v !== undefined && v !== null && !isNaN(v));
+            const precips = dayForecasts.map(f => f.precipitation).filter(v => v !== undefined && v !== null && !isNaN(v));
+            const probs = dayForecasts.map(f => f.precipProbability || 0).filter(v => v !== undefined && v !== null && !isNaN(v));
+
+            // Use Open-Meteo as fallback for specific fields if no consensus possible
+            const omDay = openMeteoDays[dayIdx];
 
             return {
               date,
-              precipitation: precips.length > 0 ? precips.reduce((a, b) => a + b, 0) / precips.length : 0,
-              precipProbability: probs.length > 0 ? Math.round(probs.reduce((a, b) => a + b, 0) / probs.length) : 0,
-              tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : openMeteoDays[dayIdx].tempMin,
-              tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : openMeteoDays[dayIdx].tempMax,
-              avgTempMin: tempsMin.length > 0 ? tempsMin.reduce((a, b) => a + b, 0) / tempsMin.length : openMeteoDays[dayIdx].tempMin,
-              avgTempMax: tempsMax.length > 0 ? tempsMax.reduce((a, b) => a + b, 0) / tempsMax.length : openMeteoDays[dayIdx].tempMax,
-              humidity: dayForecasts[0]?.humidity || 0,
+              precipitation: precips.length > 0 ? precips.reduce((a, b) => a + b, 0) / precips.length : omDay.precipitation,
+              precipProbability: probs.length > 0 ? Math.round(probs.reduce((a, b) => a + b, 0) / probs.length) : omDay.precipProbability,
+              tempMin: tempsMin.length > 0 ? Math.min(...tempsMin) : omDay.tempMin,
+              tempMax: tempsMax.length > 0 ? Math.max(...tempsMax) : omDay.tempMax,
+              avgTempMin: tempsMin.length > 0 ? tempsMin.reduce((a, b) => a + b, 0) / tempsMin.length : omDay.tempMin,
+              avgTempMax: tempsMax.length > 0 ? tempsMax.reduce((a, b) => a + b, 0) / tempsMax.length : omDay.tempMax,
+              humidity: dayForecasts[0]?.humidity || omDay.humidity,
               windSpeed: dayForecasts.reduce((a, b) => a + (b.windSpeed || 0), 0) / dayForecasts.length,
-              windDir: dayForecasts[0]?.windDir || '',
-              condition: dayForecasts[0]?.condition || '',
-              icon: dayForecasts[0]?.icon || ''
+              windDir: dayForecasts[0]?.windDir || omDay.windDir,
+              condition: dayForecasts[0]?.condition || omDay.condition,
+              icon: dayForecasts[0]?.icon || omDay.icon
             } as DailyForecast & { avgTempMin: number, avgTempMax: number };
           });
           setConsensus(consensusData);
@@ -185,53 +200,67 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
   return (
     <div className="space-y-4 pb-24">
       {/* Header with current conditions */}
-      <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <div className="flex items-center gap-2 text-blue-100 text-sm mb-1">
-              <MapPin className="w-4 h-4" />
-              {farmName || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`}
-            </div>
-            <div className="text-5xl font-light mb-1">
-              {Math.round(weather.current.temperature)}°C
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{currentInfo.icon}</span>
-              <span className="text-blue-100">{currentInfo.description}</span>
-            </div>
+      <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+        {/* Top bar: Farm and Refresh */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5 text-blue-100 text-xs font-normal">
+            <MapPin className="w-3.5 h-3.5" />
+            {farmName || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`}
           </div>
           <button 
             onClick={loadWeather}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-1 hover:bg-white/10 rounded-lg transition-colors"
             title="Atualizar"
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className="w-4 h-4 opacity-75" />
           </button>
         </div>
 
+        {/* Temperature & Condition Row */}
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <div className="text-5xl font-light tracking-tighter leading-none mb-1">
+              {Math.round(weather.current.temperature)}°C
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xl">{currentInfo.icon}</span>
+              <span className="text-sm font-medium opacity-90">{currentInfo.description}</span>
+            </div>
+          </div>
+          
+          {/* Source Box - Legible and clean */}
+          <div className="bg-white/95 px-2.5 py-2 rounded-xl text-[8px] font-medium uppercase tracking-wider text-blue-900 flex flex-col items-center justify-center leading-tight shadow-md">
+            <div className="flex items-center gap-1 mb-0.5 text-green-600">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              TEMPO REAL
+            </div>
+            <span className="text-gray-500 lowercase opacity-80 italic text-[7.5px]">exclusivo open-meteo</span>
+          </div>
+        </div>
+
         {/* Current metrics */}
-        <div className="grid grid-cols-4 gap-2 pt-4 border-t border-white/20">
+        <div className="grid grid-cols-4 gap-0.5 pt-3 border-t border-white/10">
           <div className="text-center">
             <Droplets className="w-4 h-4 mx-auto mb-1 text-blue-200" />
-            <div className="text-base font-semibold">{weather.current.humidity}%</div>
-            <div className="text-[10px] text-blue-200">Umidade</div>
+            <div className="text-sm font-medium">{weather.current.humidity}%</div>
+            <div className="text-[10px] text-blue-200 uppercase tracking-tighter">Umidade</div>
           </div>
           <div className="text-center">
             <Wind className="w-4 h-4 mx-auto mb-1 text-blue-200" />
-            <div className="text-base font-semibold">{Math.round(weather.current.windspeed)}</div>
-            <div className="text-[10px] text-blue-200">km/h {getWindDirection(weather.current.winddirection)}</div>
+            <div className="text-sm font-medium">{Math.round(weather.current.windspeed)}</div>
+            <div className="text-[10px] text-blue-200 uppercase tracking-tighter">km/h {getWindDirection(weather.current.winddirection)}</div>
           </div>
           <div className="text-center">
             <CloudRain className="w-4 h-4 mx-auto mb-1 text-blue-200" />
-            <div className="text-base font-semibold">{weather.current.precipitation}</div>
-            <div className="text-[10px] text-blue-200">mm</div>
+            <div className="text-sm font-medium">{weather.current.precipitation}</div>
+            <div className="text-[10px] text-blue-200 uppercase tracking-tighter">mm</div>
           </div>
           <div className="text-center">
             <Thermometer className="w-4 h-4 mx-auto mb-1 text-blue-200" />
-            <div className="text-base font-semibold">
+            <div className="text-sm font-medium">
               {Math.round(weather.daily.temperature_2m_max[0])}°/{Math.round(weather.daily.temperature_2m_min[0])}°
             </div>
-            <div className="text-[10px] text-blue-200">Máx/Mín</div>
+            <div className="text-[10px] text-blue-200 uppercase tracking-tighter">Máx/Mín</div>
           </div>
         </div>
       </div>
@@ -515,7 +544,8 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
               </thead>
               <tbody>
                 {multiSource.map((source, i) => {
-                  const dayData = source.daily[selectedDay];
+                  const targetDate = comparisonDates[selectedDay];
+                  const dayData = source.daily.find(d => d.date === targetDate);
                   const hasData = dayData !== undefined;
                   if (!hasData) return null;
                   
@@ -535,6 +565,7 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
                             <span className="text-base">{source.icon}</span>
                           )}
                           <span className="font-medium text-gray-700 text-[11px]">{source.sourceName}</span>
+                          {dayData.isPartial && <span className="text-amber-500 font-bold ml-0.5" title="Previsão parcial (apenas restante do dia)">*</span>}
                         </div>
                       </td>
                       <td className={`text-center py-2 px-1 ${
@@ -567,13 +598,20 @@ export default function WeatherDashboard({ latitude, longitude, farmName }: Weat
               </tbody>
             </table>
             
-            {/* Legend */}
-            <div className="mt-3 pt-2 border-t flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
-              <span>🌧️ Chuva (mm)</span>
-              <span>🌡️ Temp (°C)</span>
-              <span>💨 Vento (km/h)</span>
-              <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-green-500" /> Confiável</span>
-            </div>
+             {/* Legend */}
+             <div className="mt-3 pt-2 border-t flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-400">
+               <span>🌧️ Chuva (mm)</span>
+               <span>🌡️ Temp (°C)</span>
+               <span>💨 Vento (km/h)</span>
+               <span className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-green-500" /> Confiável</span>
+               {multiSource.some(s => {
+                 const targetDate = comparisonDates[selectedDay];
+                 const dayData = s.daily.find(d => d.date === targetDate);
+                 return dayData?.isPartial;
+               }) && (
+                 <span className="text-amber-600 font-medium ml-auto">* Previsão apenas do período restante (Hoje)</span>
+               )}
+             </div>
           </div>
         ) : (
           <p className="text-sm text-gray-500 text-center py-4">

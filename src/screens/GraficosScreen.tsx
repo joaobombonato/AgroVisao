@@ -137,8 +137,8 @@ export default function GraficosScreen() {
     <div className="space-y-6 p-4 pb-24 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6 pb-2 border-b">
          <div>
-             <h1 className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Gráficos & Indicadores</h1>
-             <p className="text-xs text-gray-500 font-medium">Análise de performance financeira e operacional</p>
+             <ChartNoAxesCombined className="w-7 h-7 text-purple-600" />
+             <h1 className="text-xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Gráficos</h1>
          </div>
          <div className="flex items-center gap-2">
             <button 
@@ -164,7 +164,7 @@ export default function GraficosScreen() {
                 AgroIA <Sparkles className="w-3 h-3"/>
             </button>
             <button onClick={() => setTela('principal')} className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-purple-600 bg-gray-100 px-3 py-1.5 rounded-full transition-colors active:scale-95 shadow-sm">
-                <ArrowLeft className="w-3 h-3" /> Voltar
+                <ArrowLeft className="w-4 h-4 ml-1" /> Voltar
             </button>
          </div>
       </div>
