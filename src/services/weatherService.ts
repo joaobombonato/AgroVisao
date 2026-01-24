@@ -87,8 +87,26 @@ export function getWindDirection(degrees: number): string {
   return directions[index];
 }
 
+// Cache Configuration (30 minutes)
+const CACHE_TTL = 30 * 60 * 1000;
+
 // Fetch weather forecast from Open-Meteo
 export async function fetchWeatherForecast(lat: number, lng: number): Promise<WeatherData | null> {
+  const cacheKey = `openmeteo_cache_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  
+  // 1. Try Cache
+  try {
+    const cachedStr = localStorage.getItem(cacheKey);
+    if (cachedStr) {
+      const cached = JSON.parse(cachedStr);
+      if (Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+      }
+    }
+  } catch (err) {
+    console.warn('OpenMeteo Cache error:', err);
+  }
+
   try {
     const params = new URLSearchParams({
       latitude: lat.toString(),
@@ -109,7 +127,7 @@ export async function fetchWeatherForecast(lat: number, lng: number): Promise<We
     const data = await response.json();
 
     // Transform to our interface
-    return {
+    const result: WeatherData = {
       latitude: data.latitude,
       longitude: data.longitude,
       timezone: data.timezone,
@@ -148,6 +166,18 @@ export async function fetchWeatherForecast(lat: number, lng: number): Promise<We
         sunset: data.daily.sunset
       }
     };
+
+    // 2. Save Cache
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({
+        timestamp: Date.now(),
+        data: result
+      }));
+    } catch (err) {
+      console.warn('OpenMeteo Cache save error:', err);
+    }
+
+    return result;
   } catch (error) {
     console.error('Error fetching weather data:', error);
     return null;

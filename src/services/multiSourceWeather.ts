@@ -9,6 +9,9 @@ const WEATHERAPI_KEY = '0aac2f689aa54d0891e211705262001';
 const TOMORROW_API_KEY = 'GBkWjn9jdhGinof0aOFIdgIZZfui8Q3N';
 const METEOBLUE_API_KEY = 'YcqeR6nfZgNHGbX0';
 
+// Cache Configuration (45 minutes)
+const CACHE_TTL = 45 * 60 * 1000;
+
 export interface DailyForecast {
   date: string;
   precipitation: number;
@@ -407,6 +410,24 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
 
 // Fetch all sources with individual error handling and timeouts
 export async function fetchMultiSourceWeather(lat: number, lng: number): Promise<MultiSourceWeather[]> {
+  const cacheKey = `weather_cache_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  
+  // 1. Try to load from cache
+  try {
+    const cachedStr = localStorage.getItem(cacheKey);
+    if (cachedStr) {
+      const cached = JSON.parse(cachedStr);
+      const isExpired = Date.now() - cached.timestamp > CACHE_TTL;
+      
+      if (!isExpired && cached.data && cached.data.length > 0) {
+        console.log(`[Cache] Usando dados climáticos memorizados para ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
+        return cached.data;
+      }
+    }
+  } catch (err) {
+    console.warn('Falha ao ler cache de clima:', err);
+  }
+
   const providers = [
     { name: 'YR.no', fetch: () => fetchYrNo(lat, lng) },
     { name: 'WeatherAPI', fetch: () => fetchWeatherAPI(lat, lng) },
@@ -429,7 +450,21 @@ export async function fetchMultiSourceWeather(lat: number, lng: number): Promise
     })
   );
   
-  return results.filter((r): r is MultiSourceWeather => r !== null);
+  const finalData = results.filter((r): r is MultiSourceWeather => r !== null);
+
+  // 2. Save to cache if we have results
+  if (finalData.length > 0) {
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({
+        timestamp: Date.now(),
+        data: finalData
+      }));
+    } catch (err) {
+      console.warn('Falha ao salvar cache de clima:', err);
+    }
+  }
+  
+  return finalData;
 }
 
 // Helper: Convert English wind direction to Portuguese

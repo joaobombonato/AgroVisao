@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CloudRain, Thermometer, Wind, Loader2, ArrowRight, Droplets } from 'lucide-react';
-import { fetchWeatherForecast, getWeatherInfo, isToday, type WeatherData } from '../../services/weatherService';
-import { fetchMultiSourceWeather, type DailyForecast } from '../../services/multiSourceWeather';
+import { CloudRain, Thermometer, Wind, Loader2, ArrowRight, Droplets, Waves, Sprout, AlertTriangle } from 'lucide-react';
+import { fetchWeatherForecast, getWeatherInfo, type WeatherData } from '../../services/weatherService';
+import { fetchMultiSourceWeather } from '../../services/multiSourceWeather';
+import { fetchAgronomicData, type AgronomicResult } from '../../services/agronomicService';
 
 interface WeatherMiniWidgetProps {
   latitude: number;
@@ -12,19 +13,26 @@ interface WeatherMiniWidgetProps {
 
 export default function WeatherMiniWidget({ latitude, longitude, farmName, onClick }: WeatherMiniWidgetProps) {
   const [data, setData] = useState<any>(null);
+  const [agronomic, setAgronomic] = useState<AgronomicResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadSummary = async () => {
+    const loadData = async () => {
       try {
-        const basic = await fetchWeatherForecast(latitude, longitude);
-        if (!basic) return;
+        setLoading(true);
+        // Load weather and agronomic data in parallel
+        const [basic, agro] = await Promise.all([
+          fetchWeatherForecast(latitude, longitude),
+          fetchAgronomicData(latitude, longitude)
+        ]);
 
-        // Try to get multi-source for today's consensus if possible, but keep it fast
+        if (!basic) return;
+        setAgronomic(agro);
+
+        // Consensus logic for weather
         const multi = await fetchMultiSourceWeather(latitude, longitude);
-        
-        // Simple consensus for today (Day 0)
         const sources = multi.filter(s => s.daily && s.daily[0]);
+        
         let today: any = {
             tempMin: basic.daily.temperature_2m_min[0],
             tempMax: basic.daily.temperature_2m_max[0],
@@ -36,22 +44,12 @@ export default function WeatherMiniWidget({ latitude, longitude, farmName, onCli
         };
 
         if (sources.length > 0) {
-            // Filter only sources that provide FULL 24h data for today's consensus
             const fullDaySources = sources.filter(s => !s.daily[0].isPartial);
-            
             if (fullDaySources.length > 0) {
                 const allToday = fullDaySources.map(s => s.daily[0]);
-                const tempsMin = [today.tempMin, ...allToday.map(f => f.tempMin)].filter(v => v !== undefined);
-                const tempsMax = [today.tempMax, ...allToday.map(f => f.tempMax)].filter(v => v !== undefined);
-                const precips = [today.precipitation, ...allToday.map(f => f.precipitation)].filter(v => v !== undefined);
-                const winds = [today.windSpeed, ...allToday.map(f => f.windSpeed)].filter(v => (v !== undefined && v !== null));
-                
-                today.tempMin = Math.min(...tempsMin);
-                today.tempMax = Math.max(...tempsMax);
-                today.precipitation = precips.reduce((a, b) => a + b, 0) / (precips.length);
-                if (winds.length > 0) {
-                    today.windSpeed = winds.reduce((a, b) => a + b, 0) / (winds.length);
-                }
+                today.tempMin = Math.min(...allToday.map(f => f.tempMin || today.tempMin));
+                today.tempMax = Math.max(...allToday.map(f => f.tempMax || today.tempMax));
+                today.precipitation = allToday.reduce((a, b) => a + (b.precipitation || 0), 0) / (allToday.length);
             }
         }
 
@@ -64,7 +62,7 @@ export default function WeatherMiniWidget({ latitude, longitude, farmName, onCli
     };
 
     if (latitude && longitude) {
-      loadSummary();
+      loadData();
     }
   }, [latitude, longitude]);
 
@@ -78,54 +76,90 @@ export default function WeatherMiniWidget({ latitude, longitude, farmName, onCli
 
   if (!data) return null;
 
+  const vpdStress = agronomic ? agronomic.current.vpd > 1.5 : false;
+
   return (
     <div 
       onClick={onClick}
-      className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all active:scale-95 group"
+      className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-4 text-white shadow-lg cursor-pointer hover:shadow-xl transition-all active:scale-95 group relative overflow-hidden"
     >
-      <div className="flex justify-between items-start mb-2">
+      {/* Decorative background intensity based on stress */}
+      {vpdStress && (
+        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500 opacity-10 blur-3xl -mr-10 -mt-10 animate-pulse" />
+      )}
+
+      <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{data.icon}</span>
+          <span className="text-2xl drop-shadow-md">{data.icon}</span>
           <div>
-            <h3 className="text-sm font-bold leading-tight">
-                Clima Dia Todo {farmName ? `· ${farmName}` : ''}
+            <h3 className="text-sm font-black leading-tight tracking-tight uppercase">
+                {farmName || 'Fazenda AgroVisão'}
             </h3>
-            <p className="text-[10px] text-blue-100 uppercase font-medium">Consenso Multi-Fonte</p>
+            <p className="text-[10px] text-blue-100 uppercase font-bold tracking-widest opacity-80">Painel Operacional 24h</p>
           </div>
         </div>
         <ArrowRight className="w-4 h-4 text-blue-200 group-hover:translate-x-1 transition-transform" />
       </div>
 
-      <div className="grid grid-cols-4 gap-1 sm:gap-2">
-        <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
-            <Thermometer className="w-2.5 h-2.5" /> Temp
-          </span>
-          <span className="text-sm font-semibold whitespace-nowrap">{Math.round(data.tempMin)}°/{Math.round(data.tempMax)}°</span>
+      <div className="space-y-3">
+        {/* Weather Grid */}
+        <div className="grid grid-cols-4 gap-2">
+          <div className="flex flex-col">
+            <span className="text-[8px] text-blue-100 flex items-center gap-0.5 uppercase font-black tracking-tighter">
+              <Thermometer className="w-2 h-2 text-red-300" /> Temp
+            </span>
+            <span className="text-xs font-bold whitespace-nowrap">{Math.round(data.tempMin)}°/{Math.round(data.tempMax)}°</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[8px] text-blue-100 flex items-center gap-0.5 uppercase font-black tracking-tighter">
+              <CloudRain className="w-2 h-2 text-blue-300" /> Chuva
+            </span>
+            <span className="text-xs font-bold whitespace-nowrap">{data.precipitation.toFixed(1)}mm</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[8px] text-blue-100 flex items-center gap-0.5 uppercase font-black tracking-tighter">
+              <Wind className="w-2 h-2 text-gray-300" /> Vento
+            </span>
+            <span className="text-xs font-bold whitespace-nowrap">{Math.round(data.windSpeed || 0)}<small className="text-[8px] ml-0.5 opacity-80">km/h</small></span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[8px] text-blue-100 flex items-center gap-0.5 uppercase font-black tracking-tighter">
+               <Droplets className="w-2 h-2 text-blue-200" /> Prob.
+            </span>
+            <span className="text-xs font-bold whitespace-nowrap">{data.precipProbability}%</span>
+          </div>
         </div>
-        <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
-            <Wind className="w-2.5 h-2.5" /> Vento
-          </span>
-          <span className="text-sm font-semibold whitespace-nowrap">{Math.round(data.windSpeed || 0)} <small className="text-[10px] font-normal">km/h</small></span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
-            <CloudRain className="w-2.5 h-2.5" /> Chuva
-          </span>
-          <span className="text-sm font-semibold whitespace-nowrap">{data.precipitation.toFixed(1)}<small className="text-[10px] font-normal">mm</small></span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[9px] text-blue-100 flex items-center gap-0.5 uppercase font-medium">
-             <Droplets className="w-2.5 h-2.5" /> Prob.
-          </span>
-          <span className="text-sm font-semibold whitespace-nowrap">{data.precipProbability}%</span>
-        </div>
+
+        {/* Agronomic Quick Insights */}
+        {agronomic && (
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+            <div className="bg-white/10 rounded-lg py-1 px-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                <Droplets className="w-3 h-3 text-cyan-300 shrink-0" />
+                <span className="text-[8px] font-black uppercase tracking-tighter text-blue-50">Trend 21d</span>
+              </div>
+              <span className="text-[10px] font-black leading-none">
+                {agronomic.periodSummary.finalBalance > 0 ? '+' : ''}{agronomic.periodSummary.finalBalance.toFixed(1)}<small className="text-[8px] ml-0.5">mm</small>
+              </span>
+            </div>
+            <div className={`rounded-lg py-1 px-2 flex items-center justify-between transition-colors ${vpdStress ? 'bg-orange-500/20' : 'bg-green-500/20'}`}>
+              <div className="flex items-center gap-1.5 overflow-hidden">
+                {vpdStress ? (
+                  <AlertTriangle className="w-3 h-3 text-orange-400 shrink-0" />
+                ) : (
+                  <Sprout className="w-3 h-3 text-green-300 shrink-0" />
+                )}
+                <span className="text-[8px] font-black uppercase tracking-tighter text-blue-50">Bioclima</span>
+              </div>
+              <span className="text-[9px] font-black leading-none uppercase">{vpdStress ? 'Atenção' : 'Ideal'}</span>
+            </div>
+          </div>
+        )}
       </div>
       
-      <div className="mt-3 pt-2 border-t border-white/20 text-[11px] flex justify-between items-center italic text-blue-50">
-        <span className="font-normal opacity-90">{data.condition}</span>
-        <span className="font-semibold underline uppercase tracking-tight">Ver Detalhes</span>
+      <div className="mt-3 pt-2 border-t border-white/20 text-[10px] flex justify-between items-center italic text-blue-100/80 font-medium">
+        <span className="truncate max-w-[70%]">{data.condition}</span>
+        <span className="font-black uppercase tracking-tighter flex items-center gap-0.5">Detalhes <ArrowRight className="w-2.5 h-2.5" /></span>
       </div>
     </div>
   );
