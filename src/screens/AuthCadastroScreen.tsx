@@ -8,12 +8,16 @@ import {
   CheckCircle2,
   AlertTriangle,
   Sprout,
+  User,
+  Shield,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { supabase } from "../supabaseClient";
 
 export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [funcao, setFuncao] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,8 +27,8 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
     e.preventDefault();
     setLoading(true);
 
-    if (!email || !password) {
-      toast.error("Preencha todos os campos.");
+    if (!email || !password || !fullName || !funcao) {
+      toast.error("Preencha todos os campos obrigatórios.");
       setLoading(false);
       return;
     }
@@ -41,7 +45,16 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          funcao: funcao
+        }
+      }
+    });
 
     setLoading(false);
 
@@ -118,6 +131,40 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
               placeholder="nome@exemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-gray-600 uppercase ml-1">
+            Nome Completo
+          </label>
+          <div className="relative">
+            <User className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Seu nome oficial"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-gray-600 uppercase ml-1">
+            Sua Função
+          </label>
+          <div className="relative">
+            <Shield className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Ex: Proprietário, Gerente, Operador"
+              value={funcao}
+              onChange={(e) => setFuncao(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
               required
             />

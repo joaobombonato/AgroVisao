@@ -12,7 +12,9 @@ const WeatherDashboard = React.lazy(() => import('../components/weather/WeatherD
 // TELA PRINCIPAL: CHUVAS (PLUVIOMETRIA)
 // ==========================================
 export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?: 'registro' | 'previsao' }) {
-  const { dados, dispatch, setTela, ativos, genericSave, fazendaSelecionada } = useAppContext();
+  const { state, dados, dispatch, setTela, ativos, genericSave, fazendaSelecionada } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   // Estado do Formulário
   const [form, setForm] = useState({ 
@@ -104,56 +106,58 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
       {/* Tab Content */}
       {activeTab === 'registro' ? (
         <>
-          <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
-            <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-cyan-500"/> Novo Registro
-            </h2>
-            
-            <form onSubmit={enviar} className="space-y-4">
-              {/* Campo Data Manual */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-700">Data da Coleta <span className="text-red-500">*</span></label>
-                <div className="relative">
-                    <input 
-                        type="date" 
-                        value={form.data} 
-                        onChange={(e) => setForm({ ...form, data: e.target.value })} 
-                        className="w-full pl-3 pr-3 py-3 border-2 border-gray-300 rounded-lg text-sm focus:border-cyan-500 focus:outline-none"
-                        required
-                    />
+          {rolePermissions?.actions?.chuvas_registro !== false && (
+            <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+              <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-cyan-500"/> Novo Registro
+              </h2>
+              
+              <form onSubmit={enviar} className="space-y-4">
+                {/* Campo Data Manual */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-gray-700">Data da Coleta <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                      <input 
+                          type="date" 
+                          value={form.data} 
+                          onChange={(e) => setForm({ ...form, data: e.target.value })} 
+                          className="w-full pl-3 pr-3 py-3 border-2 border-gray-300 rounded-lg text-sm focus:border-cyan-500 focus:outline-none"
+                          required
+                      />
+                  </div>
                 </div>
-              </div>
-              
-              <SearchableSelect 
-                  label="Local (Pluviômetro)" 
-                  placeholder="Onde choveu? Ex: Sede" 
-                  options={ativos.locais} 
-                  value={form.local} 
-                  onChange={(e:any) => setForm({ ...form, local: e.target.value })} 
-                  required 
-                  color="cyan"
-              />
-              
-              <div className="space-y-1">
-                 <label className="block text-xs font-bold text-gray-700">Volume (mm) <span className="text-red-500">*</span></label>
-                 <div className="relative">
-                     <input 
-                        type="number" 
-                        value={form.milimetros} 
-                        onChange={(e) => setForm({...form, milimetros: e.target.value})}
-                        className="w-full px-3 py-3 border-2 border-cyan-400 rounded-lg text-lg font-bold text-gray-900 focus:ring-2 focus:ring-cyan-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="Preencher..."
-                        required
-                     />
-                     <span className="absolute right-4 top-4 text-sm font-bold text-gray-400">mm</span>
-                 </div>
-              </div>
-
-              <button type="submit" className="w-full bg-cyan-500 text-white py-3 rounded-lg font-bold hover:bg-cyan-600 transition-colors shadow-md flex items-center justify-center gap-2">
-                  <Check className="w-5 h-5" /> Registrar Chuva
-              </button>
-            </form>
-          </div>
+                
+                <SearchableSelect 
+                    label="Local (Pluviômetro)" 
+                    placeholder="Onde choveu? Ex: Sede" 
+                    options={ativos.locais} 
+                    value={form.local} 
+                    onChange={(e:any) => setForm({ ...form, local: e.target.value })} 
+                    required 
+                    color="cyan"
+                />
+                
+                <div className="space-y-1">
+                   <label className="block text-xs font-bold text-gray-700">Volume (mm) <span className="text-red-500">*</span></label>
+                   <div className="relative">
+                       <input 
+                          type="number" 
+                          value={form.milimetros} 
+                          onChange={(e) => setForm({...form, milimetros: e.target.value})}
+                          className="w-full px-3 py-3 border-2 border-cyan-400 rounded-lg text-lg font-bold text-gray-900 focus:ring-2 focus:ring-cyan-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="Preencher..."
+                          required
+                       />
+                       <span className="absolute right-4 top-4 text-sm font-bold text-gray-400">mm</span>
+                   </div>
+                </div>
+  
+                <button type="submit" className="w-full bg-cyan-500 text-white py-3 rounded-lg font-bold hover:bg-cyan-600 transition-colors shadow-md flex items-center justify-center gap-2">
+                    <Check className="w-5 h-5" /> Registrar Chuva
+                </button>
+              </form>
+            </div>
+          )}
 
           <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
             <div className="p-3 border-b bg-gray-50">

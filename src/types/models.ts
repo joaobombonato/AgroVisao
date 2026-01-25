@@ -19,9 +19,8 @@ export interface Talhao extends BaseRecord {
     area_ha?: number;
 }
 
-export interface Pessoa extends BaseRecord {
+export interface CentroCusto extends BaseRecord {
     nome: string;
-    funcao?: string;
 }
 
 export interface Produto extends BaseRecord {
@@ -44,10 +43,11 @@ export interface Abastecimento extends BaseRecord {
 
 export interface Refeicao extends BaseRecord {
     data: string;
-    tipo: 'Café' | 'Almoço' | 'Jantar' | 'Marmita';
+    tipo: string;
     quantidade: number;
-    setor: string;
-    responsavel?: string;
+    centroCusto: string;
+    valorUnitario: number;
+    valorTotal: number;
     obs?: string;
 }
 
@@ -101,7 +101,7 @@ export interface AppState {
     ativos: {
         maquinas: Maquina[] | string[];
         talhoes: Talhao[];
-        pessoas: Pessoa[] | string[];
+        centros_custos: CentroCusto[] | string[];
         produtos: Produto[] | string[];
         locais: any[];
         pontosEnergia: any[];

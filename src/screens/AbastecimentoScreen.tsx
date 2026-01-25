@@ -150,7 +150,9 @@ function CompraCombustivelForm({ onClose }: any) {
 // ==========================================
 export default function AbastecimentoScreen() {
   // CORREÇÃO 1: Remover duplicatas e garantir que 'os' (lista de OS) venha do contexto
-  const { dados, os, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
+  const { state, dados, os, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   const [form, setForm] = useState({ 
       data: U.todayIso(), 
@@ -395,17 +397,19 @@ export default function AbastecimentoScreen() {
       {showCompraForm && <CompraCombustivelForm onClose={() => setShowCompraForm(false)} />}
 
       {/* ÁREA DE CONTROLE DE ESTOQUE (Estilo Original) */}
-      <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
-         <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 text-center uppercase text-sm flex items-center justify-center gap-2">
-            <Factory className="w-5 h-5 text-gray-600" /> Controle de Estoque
-         </h2>
-         <button 
-            onClick={() => setShowCompraForm(true)} 
-            className="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 active:scale-95 flex items-center justify-center gap-2 text-sm"
-         >
-            <Plus className="w-4 h-4" /> Nova Compra de Diesel
-         </button>
-      </div>
+      {rolePermissions?.actions?.abastecimento_compra !== false && (
+          <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+             <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 text-center uppercase text-sm flex items-center justify-center gap-2">
+                <Factory className="w-5 h-5 text-gray-600" /> Controle de Estoque
+             </h2>
+             <button 
+                onClick={() => setShowCompraForm(true)} 
+                className="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 active:scale-95 flex items-center justify-center gap-2 text-sm"
+             >
+                <Plus className="w-4 h-4" /> Nova Compra de Diesel
+             </button>
+          </div>
+      )}
 
       <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
         <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 flex items-center gap-2">

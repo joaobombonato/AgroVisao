@@ -1,14 +1,14 @@
 # 🚀 PLANO MESTRE - FASE 6: Identidade & Onboarding
 
-Fase dedicada a profissionalizar a "cara" do AgroDev e permitir que um usuário gerencie múltiplas fazendas ou seja convidado para outras.
+Fase dedicada a profissionalizar a "cara" do AgroVisão e permitir que um usuário gerencie múltiplas fazendas ou seja convidado para outras.
 
 ---
 
-## 🎨 6.1 Identidade Visual (Branding AgroDev)
+## 🎨 6.1 Identidade Visual (Branding AgroVisão)
 
-- **Objetivo:** Diferenciar "AgroDev" (Solução) de "Fazenda São Caetano" (Cliente).
+- **Objetivo:** Diferenciar "AgroVisão" (Solução) de "Fazenda São Caetano" (Cliente).
 - **Ações:**
-  - [ ] Criar Logo Oficial **AgroDev** (Tech + Agro).
+  - [ ] Criar Logo Oficial **AgroVisão** (Tech + Agro).
   - [ ] **Redesign da Tela de Login (`AuthScreen`):**
     - Layout profissional (Screen Split ou Card Central Moderno).
     - Fundo com imagem de alta qualidade (lavoura/tecnologia).

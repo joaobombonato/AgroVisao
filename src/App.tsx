@@ -3,6 +3,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Home, Settings, FileCog, ChartNoAxesCombined, Loader2, Bell, CloudRain, Tractor, LogOut, Check } from 'lucide-react';
 import { useAppContext, ACTIONS, AppProvider } from './context/AppContext'; 
 import { GlobalStyles, ConfirmModal, OSDetailsModal } from './components/ui/Shared';
+import { APP_VERSION } from './data/constants';
 import ReloadPrompt from './components/ReloadPrompt';
 
 // -- [Lazy Imports] --
@@ -27,9 +28,30 @@ const AuthScreen = React.lazy(() => import('./screens/AuthScreen'));
 const FazendaSelectionScreen = React.lazy(() => import('./screens/FazendaSelectionScreen'));
 const CreateFazendaScreen = React.lazy(() => import('./screens/CreateFazendaScreen'));
 
+// -- [RestrictedScreen: Quando usuário não tem permissão] --
+const RestrictedScreen = ({ onBackHome }: { onBackHome: () => void }) => (
+    <div className="flex flex-col items-center justify-center h-[70vh] px-8 text-center animate-in fade-in zoom-in-95">
+        <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+            <Tractor className="w-10 h-10 text-amber-500" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Acesso Restrito</h2>
+        <p className="text-sm text-gray-500 mb-8 leading-relaxed">
+            Seu nível de acesso (**Operador**) não permite visualizar esta tela. 
+            Entre em contato com o administrador da fazenda se precisar de permissão.
+        </p>
+        <button 
+            onClick={onBackHome}
+            className="bg-blue-600 text-white font-bold py-3 px-8 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all"
+        >
+            Voltar para o Início
+        </button>
+    </div>
+);
+
 // -- [MainLayout: Layout para usuários logados com fazenda selecionada] --
 const MainLayout = () => {
-  const { tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda } = useAppContext();
+  const { state, tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda } = useAppContext();
+  const { userRole } = state;
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showTrocarModal, setShowTrocarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
@@ -55,14 +77,25 @@ const MainLayout = () => {
   };
 
   const [screenId, subTab] = tela.split(':');
-  const ScreenComponent = Screens[screenId] || PrincipalScreen;
+
+  // Bloqueio Dinâmico via Permissões
+  const { permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador']; // Fallback seguro
+  
+  const isRestrito = rolePermissions?.screens?.[screenId] === false;
+  
+  const ScreenComponent = isRestrito ? () => <RestrictedScreen onBackHome={() => setTela('principal')} /> : (Screens[screenId] || PrincipalScreen);
   
   const menusRodape = [
     { id: 'principal', nome: 'Principal', icon: Home, activeColor: 'text-blue-600', activeBg: 'bg-blue-600', iconColor: 'text-white' }, 
     { id: 'dashboard', nome: 'Dashboard', icon: FileCog, activeColor: 'text-yellow-500', activeBg: 'bg-yellow-500', iconColor: 'text-white' }, 
     { id: 'graficos', nome: 'Gráficos', icon: ChartNoAxesCombined, activeColor: 'text-purple-600', activeBg: 'bg-purple-600', iconColor: 'text-white' }, 
     { id: 'config', nome: 'Config.', icon: Settings, activeColor: 'text-gray-700', activeBg: 'bg-gray-700', iconColor: 'text-white' }
-  ];
+  ].filter(m => {
+    const screenBaseId = m.id.split(':')[0];
+    if (rolePermissions?.screens?.[screenBaseId] === false) return false;
+    return true;
+  });
 
   // PWA Install Prompt
   useEffect(() => {
@@ -95,17 +128,13 @@ const MainLayout = () => {
           <div className="px-4 py-3 flex items-center justify-between max-w-md mx-auto w-full"> 
             <div className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center p-0.5 shadow-sm overflow-hidden">
-                   {fazendaSelecionada?.config?.logo_base64 ? (
-                       <img src={fazendaSelecionada.config.logo_base64} alt="Logo" className="w-full h-full object-contain" />
-                   ) : (
-                       <img src="/icon.png" alt="Logo" className="w-full h-full object-contain" />
-                   )}
+                    <img src="/icon.png" alt="Logo AgroVisão" className="w-full h-full object-contain" />
                 </div>
                 <div className="min-w-0">
                     <h1 className="text-base font-bold text-gray-800 truncate">
                         {fazendaSelecionada?.nome || 'AgroVisão'}
                     </h1>
-                    <p className="text-xs text-gray-600 truncate font-medium">AgroVisão v3.6</p>
+                    <p className="text-xs text-gray-600 truncate font-medium">AgroVisão {APP_VERSION}</p>
                 </div>
             </div>
             <div className="flex items-center gap-1">
@@ -170,9 +199,15 @@ const MainLayout = () => {
            </div>
         </nav>
 
-        {modal.open && (
+        {modal.isOpen && (
            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-              {modal.type === 'confirm' && <ConfirmModal {...modal.props} />}
+              {modal.type === 'confirm' && (
+                  <ConfirmModal 
+                    {...modal.props} 
+                    isOpen={true} 
+                    onClose={() => dispatch({ type: ACTIONS.CLOSE_MODAL })}
+                  />
+              )}
               {modal.type === 'os-details' && (
                   <OSDetailsModal 
                     os={selectedOS} 

@@ -1,256 +1,267 @@
 
-import React, { useState, useEffect } from 'react';
-import { Settings, ListPlus, Save, Lock, Sliders, ArrowRight, Building2 } from 'lucide-react'; 
+import React, { useState } from 'react';
+import { ListPlus, LogOut, Shield, ChevronRight, List, Settings, Trash2, Edit2, Check, X, ShieldAlert, Users, Info, Building2, Sliders, Save, ArrowRight, UserCircle} from 'lucide-react';
 import { PageHeader } from '../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { ASSET_DEFINITIONS } from '../data/assets';
-import { dbService } from '../services'; // Import direto
+import { APP_VERSION } from '../data/constants';
 import AssetListEditor from '../features/settings/components/AssetListEditor';
+import EquipeEditor from '../features/settings/components/EquipeEditor';
+import PermissionsEditor from '../features/settings/components/PermissionsEditor';
 import ParametrosEditor from '../features/settings/components/ParametrosEditor';
 import FazendaPerfilEditor from '../features/settings/components/FazendaPerfilEditor';
+import MinhaContaEditor from '../features/settings/components/MinhaContaEditor';
 
-// ===========================================
-// 3. Componente Principal de Configurações
-// ===========================================
-// Em ConfiguracoesScreen()
 export default function ConfiguracoesScreen() {
-    const { setTela, ativos, dispatch, fazendaNome, fazendaId, fazendasDisponiveis, updateAtivos, fazendaSelecionada } = useAppContext();
-    const [view, setView] = useState('principal'); // principal, listas, parametros, perfil, editor, editor-lista
+    const { state, logout, dispatch, setTela } = useAppContext();
+    const { userRole, fazendaNome } = state;
     
-    // STATE PARA O EDITOR DE LISTA
-    const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+    const [view, setView] = useState('menu'); // 'menu', 'listas', 'equipe', 'permissoes', 'fazenda', 'parametros', 'editor', 'conta'
+    const [activeAsset, setActiveAsset] = useState<string | null>(null);
 
-    // GESTÃO DE ORDEM DOS MENUS (Reordenação) - MOVIDO PARA O TOPO
-    const [isReordering, setIsReordering] = useState(false);
-    
-    // Inicializa com Defaults (Constants)
-    const defaultDbOrder = Object.entries(ASSET_DEFINITIONS).filter(([,d]:any) => d.table).map(([k]) => k);
-    const defaultLocalOrder = Object.entries(ASSET_DEFINITIONS).filter(([,d]:any) => !d.table).map(([k]) => k);
-
-    const [dbOrder, setDbOrder] = useState<string[]>(defaultDbOrder);
-    const [localOrder, setLocalOrder] = useState<string[]>(defaultLocalOrder);
-
-    // Sincroniza com o estado global 'ativos.menuOrder' quando carregado
-    useEffect(() => {
-        if (ativos?.menuOrder) {
-            if (ativos.menuOrder.db) setDbOrder(ativos.menuOrder.db);
-            if (ativos.menuOrder.local) setLocalOrder(ativos.menuOrder.local);
-        }
-    }, [ativos?.menuOrder]);
-
-    const moveMenu = (listType: 'db' | 'local', index: number, direction: 'up' | 'down') => {
-        const isDb = listType === 'db';
-        const currentList = isDb ? dbOrder : localOrder;
-        
-        const newList = [...currentList];
-        const targetIndex = direction === 'up' ? index - 1 : index + 1;
-        
-        if (targetIndex < 0 || targetIndex >= newList.length) return;
-        
-        [newList[index], newList[targetIndex]] = [newList[targetIndex], newList[index]];
-
-        // 1. Atualiza Visualmente Imediato
-        if (isDb) setDbOrder(newList); else setLocalOrder(newList);
-
-        // 2. Persiste Globalmente (Salva no banco/localstorage)
-        const newFullOrder = {
-            db: isDb ? newList : dbOrder,
-            local: isDb ? localOrder : newList
-        };
-        updateAtivos('menuOrder', newFullOrder);
-    };
+    // Ordens de exibição (Unificadas)
+    const dbOrder = ['maquinas', 'talhoes', 'centrosCusto', 'produtos', 'locaisChuva', 'locaisEnergia'];
+    const localOrder = ['safras', 'culturas', 'tiposRefeicao'];
 
     const handleOpenEditor = (key: string) => {
-        setSelectedAsset(key);
-        setView('editor-lista');
+        setActiveAsset(key);
+        setView('editor');
     };
 
-    // HANDLER PARA SALVAR PARÂMETROS
-    const handleSaveParams = async (novaConfig: any) => {
-            const currentFazendaNome = fazendaNome || '';
-             // 1. Atualizar Parâmetros Persistentes
-             updateAtivos('parametros', novaConfig);
-
-             // 2. Atualizar Nome da Fazenda (Se mudou)
-             if (novaConfig.fazendaNome && novaConfig.fazendaNome !== currentFazendaNome) {
-                 if (fazendaId) {
-                     try {
-                         await dbService.update('fazendas', fazendaId, { nome: novaConfig.fazendaNome }, fazendaId);
-                         
-                         // Atualiza estado global corretamente mantendo a lista
-                         dispatch({ 
-                             type: ACTIONS.SET_FAZENDA, 
-                             fazendaId, 
-                             fazendaNome: novaConfig.fazendaNome,
-                             fazendas: fazendasDisponiveis.map((f:any) => f.id === fazendaId ? { ...f, nome: novaConfig.fazendaNome } : f)
-                         });
-                    
-                     } catch (e: any) {
-                         console.error(e);
-                         const isPermission = e.message?.includes('permissão') || e.message?.includes('row-level security');
-                         toast.error(isPermission 
-                            ? 'Nome bloqueado pelo Admin (RLS), mas parâmetros foram salvos!' 
-                            : `Erro no nome: ${e.message}`, 
-                            { duration: 5000 }
-                         );
-                         setView('principal'); 
-                         return;
-                     }
-                 }
-             }
-
-             toast.success('Configurações salvas com sucesso!');
-             setView('principal');
+    const handleLogout = () => {
+        dispatch({ type: ACTIONS.SET_MODAL, modal: { 
+            isOpen: true, 
+            type: 'confirm',
+            props: {
+                title: 'Sair do Sistema',
+                message: 'Deseja realmente sair do sistema?', 
+                onConfirm: () => logout(),
+                variant: 'danger',
+                icon: 'logout'
+            }
+        }});
     };
 
-    // --- RENDERIZADORES CONDICIONAIS ---
-
-    if (view === 'parametros') {
-        const currentParams = {
-            ...ativos?.parametros,
-            fazendaNome: ativos?.parametros?.fazendaNome || fazendaSelecionada?.nome || ''
-        };
-        return <ParametrosEditor 
-                    currentParams={currentParams} 
-                    onSave={handleSaveParams} 
-                    onBack={() => setView('principal')} 
-                />;
-    }
-
-    if (view === 'perfil') {
-        return (
-            <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
-                 <PageHeader setTela={() => setView('principal')} title="Perfil da Propriedade" icon={Building2} colorClass="bg-green-600" backTarget="principal" isSubScreen />
-                 <FazendaPerfilEditor />
+    // Sub-componente de Botão de Menu
+    const MenuButton = ({ icon: Icon, title, desc, onClick, color = 'bg-gray-50', badge }: any) => (
+        <button 
+            onClick={onClick}
+            className="w-full flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group hover:border-indigo-200 transition-all active:scale-95"
+        >
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${color} group-hover:bg-indigo-600 group-hover:text-white transition-colors`}>
+                <Icon className="w-6 h-6" />
             </div>
-        );
+            <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                    <p className="font-bold text-gray-800 group-hover:text-indigo-900 transition-colors uppercase tracking-tight text-sm">{title}</p>
+                    {badge && <span className="bg-indigo-100 text-indigo-700 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">{badge}</span>}
+                </div>
+                <p className="text-[10px] text-gray-400 font-medium leading-tight">{desc}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+        </button>
+    );
+
+    // Container padrão para sub-telass com Header
+    const EditorContainer = ({ title, icon: Icon, color, children, onBack }: any) => (
+        <div className="space-y-6 p-4 pb-24 max-w-md mx-auto min-h-screen bg-gray-50/50">
+            <PageHeader setTela={onBack} title={title} icon={Icon} colorClass={color} backTarget="menu" />
+            {children}
+        </div>
+    );
+
+    // ==========================================
+    // RENDERIZAÇÃO
+    // ==========================================
+
+    // 1. TELA DE EDITOR DE ATIVOS
+    if (view === 'editor' && activeAsset) {
+        return <AssetListEditor assetKey={activeAsset} setView={() => setView('listas')} />;
     }
-    
-    if (view === 'editor-lista' && selectedAsset) {
-         return <AssetListEditor 
-                    assetKey={selectedAsset} 
-                    setView={setView}
-                    onBack={() => setView('principal')} 
-                />;
-    }
-    
+
+    // 2. TELA DE LISTAS (UNIFICADA)
     if (view === 'listas') {
         return (
-            <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
-                {/* Header Normal */}
-                <PageHeader setTela={setView} title="Cadastros & Listas" icon={ListPlus} colorClass="bg-indigo-600" backTarget={'principal'} />
-
-                <div className="space-y-3">
-                    {/* Botão Organizar movido para o cabeçalho da seção */}
-                    <div className="flex justify-between items-center pt-2 px-1">
-                        <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Ativos Operacionais (Banco)</h2>
-                        <button 
-                            onClick={() => setIsReordering(!isReordering)}
-                            className={`text-xs font-bold px-3 py-1 rounded-full border transition-all ${isReordering ? 'bg-indigo-100 text-indigo-700 border-indigo-300' : 'bg-white text-gray-500 border-gray-200'}`}
-                        >
-                            {isReordering ? 'Concluir' : 'Organizar'}
-                        </button>
+            <EditorContainer title="Cadastros & Listas" icon={ListPlus} color="bg-indigo-600" onBack={() => setView('menu')}>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center pt-2 px-1 border-b border-gray-100 pb-2">
+                        <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider">Itens Disponíveis</h2>
                     </div>
 
-                    {dbOrder.map((key: string, index: number) => {
-                        const def: any = ASSET_DEFINITIONS[key];
-                        return (
-                        <div key={key} className="relative group">
-                             {isReordering && (
-                                 <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
-                                     <button disabled={index === 0} onClick={() => moveMenu('db', index, 'up')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m18 15-6-6-6 6"/></svg></button>
-                                     <button disabled={index === dbOrder.length - 1} onClick={() => moveMenu('db', index, 'down')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></button>
-                                 </div>
-                             )}
-                             <div className={`transition-all ${isReordering ? 'ml-6' : ''}`}>
-                                <MenuButton 
-                                    icon={def.icon} 
-                                    title={def.title} 
-                                    desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
-                                    onClick={() => !isReordering && handleOpenEditor(key)} 
-                                    color={`bg-${def.color}-50`} 
-                                />
-                             </div>
-                        </div>
-                    )})}
+                    <div className="space-y-3">
+                        {[...dbOrder, ...localOrder].map((key: string) => {
+                            const def: any = ASSET_DEFINITIONS[key];
+                            if (!def) return null;
+                            
+                            return (
+                                <div 
+                                    key={key} 
+                                    className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group hover:border-indigo-200 transition-all active:scale-95 cursor-pointer"
+                                    onClick={() => handleOpenEditor(key)}
+                                >
+                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${def.color}-50 text-${def.color}-600 group-hover:bg-${def.color}-600 group-hover:text-white transition-colors`}>
+                                        <def.icon className="w-5 h-5" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-bold text-gray-800 group-hover:text-indigo-900 transition-colors uppercase tracking-tight">{def.title}</p>
+                                        <p className="text-[10px] text-gray-400 font-medium">{def.label || 'Gerenciar itens'}</p>
+                                    </div>
+                                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all" />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-
-                <div className="space-y-3 pt-4">
-                    <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Listas Fixas (Local)</h2>
-                    {localOrder.map((key: string, index: number) => {
-                        const def: any = ASSET_DEFINITIONS[key];
-                        return (
-                        <div key={key} className="relative group">
-                             {isReordering && (
-                                 <div className="absolute -left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-10">
-                                     <button disabled={index === 0} onClick={() => moveMenu('local', index, 'up')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m18 15-6-6-6 6"/></svg></button>
-                                     <button disabled={index === localOrder.length - 1} onClick={() => moveMenu('local', index, 'down')} className="p-1 bg-white shadow rounded-full hover:bg-gray-50 disabled:opacity-30"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></button>
-                                 </div>
-                             )}
-                             <div className={`transition-all ${isReordering ? 'ml-6' : ''}`}>
-                                <MenuButton 
-                                    icon={def.icon} 
-                                    title={def.title} 
-                                    desc={`Gerenciar cadastros de ${def.title.toLowerCase()}`} 
-                                    onClick={() => !isReordering && handleOpenEditor(key)} 
-                                    color={`bg-${def.color}-50`} 
-                                />
-                             </div>
-                        </div>
-                    )})}
-                </div>
-            </div>
+            </EditorContainer>
         );
     }
 
+    // 3. OUTRAS TELAS COM WRAPPER DE HEADER
+    if (view === 'conta') {
+        return (
+            <EditorContainer title="Minha Conta" icon={UserCircle} color="bg-indigo-700" onBack={() => setView('menu')}>
+                <MinhaContaEditor />
+            </EditorContainer>
+        );
+    }
 
+    if (view === 'equipe') {
+        return (
+            <EditorContainer title="Gestão de Equipe" icon={Users} color="bg-orange-500" onBack={() => setView('menu')}>
+                <EquipeEditor />
+            </EditorContainer>
+        );
+    }
+
+    if (view === 'permissoes') {
+        return (
+            <EditorContainer title="Permissões" icon={Shield} color="bg-red-600" onBack={() => setView('menu')}>
+                <PermissionsEditor />
+            </EditorContainer>
+        );
+    }
+
+    if (view === 'fazenda') {
+        return (
+            <EditorContainer title="Minha Fazenda" icon={Building2} color="bg-blue-600" onBack={() => setView('menu')}>
+                <FazendaPerfilEditor />
+            </EditorContainer>
+        );
+    }
+
+    if (view === 'parametros') {
+        return (
+            <EditorContainer title="Parâmetros Gerais" icon={Sliders} color="bg-teal-600" onBack={() => setView('menu')}>
+                <ParametrosEditor onBack={() => setView('menu')} />
+            </EditorContainer>
+        );
+    }
+
+    // 4. MENU PRINCIPAL DE CONFIGURAÇÕES
     return (
-        <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
-            <PageHeader setTela={setTela} title="Configurações" icon={Settings} colorClass="bg-gray-600" />
-            
+        <div className="space-y-6 p-4 pb-24 max-w-md mx-auto min-h-screen bg-gray-50/50">
+            <PageHeader setTela={setTela} title="Configurações" icon={Settings} colorClass="bg-gray-800" backTarget={'principal'} />
+
+            {/* Perfil do Usuário */}
             <div className="space-y-3">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Sistema</h2>
-                <MenuButton icon={Sliders} title="Parâmetros Globais" desc="Estoque, Preços, Alertas e Metas" onClick={() => setView('parametros')} color="bg-blue-50" />
-                <MenuButton icon={ListPlus} title="Cadastros & Listas" desc="Máquinas, Produtos, Talhões..." onClick={() => setView('listas')} color="bg-indigo-50" />
+                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Usuário</h2>
+                <MenuButton 
+                    icon={UserCircle} 
+                    title="Minha Conta" 
+                    desc="Meus dados, CNH e segurança" 
+                    onClick={() => setView('conta')} 
+                    color="bg-indigo-50"
+                />
             </div>
 
-            <div className="space-y-3 pt-2">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">Dados & Segurança</h2>
-                <MenuButton icon={Save} title="Backup de Dados" desc="Exportar ou Importar JSON" onClick={() => toast("Em breve: Exportação JSON")} />
-                <MenuButton icon={Lock} title="Permissões" desc="Controle de Usuários" onClick={() => toast("Em breve: Módulo Usuários")} />
+            {/* Perfil e Fazenda */}
+            <div className="space-y-3">
+                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Propriedade</h2>
+                <MenuButton 
+                    icon={Building2} 
+                    title="Minha Fazenda" 
+                    desc={fazendaNome || "Dados da propriedade"} 
+                    onClick={() => setView('fazenda')} 
+                    color="bg-blue-50"
+                />
             </div>
-            
-        <div className="mt-8 flex flex-col items-center justify-center opacity-80">
-        <img 
-            src="/logo-full.png" 
-            alt="AgroVisão" 
-            className="h-20 object-contain hover:scale-105 transition-transform cursor-pointer" 
-         />
+
+            {/* Gestão e Operação */}
+            <div className="space-y-3">
+                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Gestão Operacional</h2>
+                <MenuButton 
+                    icon={ListPlus} 
+                    title="Cadastros & Listas" 
+                    desc="Máquinas, Talhões, Centros de Custo, etc." 
+                    onClick={() => setView('listas')} 
+                    color="bg-indigo-50"
+                />
+                <MenuButton 
+                    icon={Users} 
+                    title="Gestão de Equipe" 
+                    desc="Membros e Convites de Acesso" 
+                    onClick={() => setView('equipe')} 
+                    color="bg-orange-50"
+                />
+                {userRole === 'Proprietário' && (
+                    <MenuButton 
+                        icon={Shield} 
+                        title="Permissões" 
+                        desc="Quem pode ver o quê no AgroVisão" 
+                        onClick={() => setView('permissoes')} 
+                        color="bg-red-50"
+                    />
+                )}
             </div>
-        <div className="mt-8 flex flex-col items-center justify-center opacity-80">
-         <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Desenvolvido por</span>
-         <img 
-            src="/marca-praticoapp.png" 
-            alt="PraticoAPP" 
-            className="h-20 object-contain hover:scale-105 transition-transform cursor-pointer" 
-            onClick={() => window.open('https://praticoapp.com.br', '_blank')}
-         />
+
+            {/* Avançado */}
+            <div className="space-y-3">
+                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Sistema</h2>
+                <MenuButton 
+                    icon={Sliders} 
+                    title="Parâmetros Gerais" 
+                    desc="Moeda, Unidades e Metas" 
+                    onClick={() => setView('parametros')} 
+                    color="bg-teal-50"
+                />
+            </div>
+
+            {/* Logout */}
+            <div className="pt-4 border-t border-gray-100">
+                <button 
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 p-4 rounded-2xl font-black uppercase text-xs hover:bg-red-600 hover:text-white transition-all active:scale-95 shadow-sm"
+                >
+                    <LogOut className="w-5 h-5" /> Sair do Sistema
+                </button>
+            </div>
+
+            <div className="text-center space-y-4">
+                <div>
+                  <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">AgroVisão Enterprise {APP_VERSION}</p>
+                  <p className="text-[9px] text-gray-200 mt-1">Conectado de forma segura via Cloud</p>
+                </div>
+
+                {/* Bloco de Logos solicitado pelo usuário */}
+                <div className="flex flex-col items-center justify-center gap-6 pt-4 pb-4 opacity-70">
+                    <img 
+                        src="/logo-full.png" 
+                        alt="AgroVisão" 
+                        className="h-14 object-contain hover:scale-105 transition-transform cursor-pointer" 
+                    />
+                    
+                    <div className="flex flex-col items-center">
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-2">Desenvolvido por</span>
+                        <img 
+                            src="/logo-full-praticoapp.png" 
+                            alt="PraticoAPP" 
+                            className="h-10 object-contain hover:scale-105 transition-transform cursor-pointer" 
+                            onClick={() => window.open('https://praticoapp.com.br', '_blank')}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
-
-// Componente auxiliar de menu
-const MenuButton = ({ icon: Icon, title, desc, onClick, color = 'bg-gray-50' }: any) => (
-    <button onClick={onClick} className={`w-full flex items-center p-3 rounded-xl shadow-sm ${color} transition-shadow hover:shadow-md border-l-4 border-green-500 hover:border-green-600`}>
-        <div className="mr-3 p-2 bg-white rounded-lg shadow-sm">
-             <Icon className="w-5 h-5 text-gray-600" />
-        </div>
-        <div className="text-left">
-            <p className="font-bold text-sm text-gray-800">{title}</p>
-            <p className="text-xs text-gray-600">{desc}</p>
-        </div>
-        <ArrowRight className="w-4 h-4 ml-auto text-gray-400" />
-    </button>
-);

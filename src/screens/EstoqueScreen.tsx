@@ -5,7 +5,10 @@ import { PageHeader } from '../components/ui/Shared';
 import { U } from '../data/utils';
 
 export default function EstoqueScreen() {
-  const { ativos, dados, setTela } = useAppContext();
+  const { state, ativos, dados, setTela } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
+  
   const [search, setSearch] = useState('');
 
   // Lógica de cálculo de estoque para cada produto
@@ -108,14 +111,16 @@ export default function EstoqueScreen() {
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-[10px]">
+            <div className={`mt-3 pt-3 border-t border-gray-100 flex ${rolePermissions?.actions?.estoque_compra === false ? 'justify-center' : 'justify-between'} items-center text-[10px]`}>
               <p className="text-gray-500 font-bold uppercase tracking-tighter">Estoque Mínimo: <span className="text-gray-700 font-black">{item.minimo}</span></p>
-              <button 
-                onClick={() => setTela('abastecimento')}
-                className="text-blue-600 font-black uppercase flex items-center gap-1 hover:underline"
-              >
-                Comprar <Plus className="w-3 h-3" />
-              </button>
+              {rolePermissions?.actions?.estoque_compra !== false && (
+                  <button 
+                    onClick={() => setTela('abastecimento')}
+                    className="text-blue-600 font-black uppercase flex items-center gap-1 hover:underline"
+                  >
+                    Comprar <Plus className="w-3 h-3" />
+                  </button>
+              )}
             </div>
           </div>
         ))}

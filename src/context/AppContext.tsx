@@ -3,8 +3,8 @@ import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { U } from '../data/utils'; 
 import { dbService, syncService, authService } from '../services'; 
-import { appReducer, INITIAL_STATE, ACTIONS } from './reducer';
-import { ATIVOS_INICIAIS } from '../data/constants';
+import { ACTIONS, appReducer, INITIAL_STATE } from './reducer';
+import { ATIVOS_INICIAIS, DEFAULT_PERMISSIONS } from '../data/constants';
 
 // Re-exporta ACTIONS para uso nos componentes
 export { ACTIONS };
@@ -233,7 +233,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Implementação: wrapper sobre o dispatch que também persiste
       // Mas o dispatch é assíncrono/redutor.
-      // Solução: Observar 'state.ativos' no useEffect (como já estava) e disparar o save remoto lá.
+      // Solução: Observar 'state.ativos' nel useEffect (como já estava) e disparar o save remoto lá.
       
       // MANTENDO A ESTRATÉGIA DO EFFECT 1.5 MAS MELHORADA
       localStorage.setItem('agrodev_params', JSON.stringify(novosAtivos));
@@ -282,7 +282,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         fetchRecords('maquinas');
         fetchRecords('talhoes');
         fetchRecords('locais_monitoramento');
-        fetchRecords('pessoas');
+        fetchRecords('centros_custos');
         fetchRecords('produtos');
     }
   }, [fazendaId, fetchRecords]); 
@@ -329,10 +329,39 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
 
 
-    // Estado para controlar a navegação "fora" das rotas principais (ex: Seleção de Fazenda)
     const [tela, setTela] = useState('loading'); // 'loading', 'auth', 'fazenda_selection', 'create_fazenda', 'dashboard'
     const [fazendaSelecionada, setFazendaSelecionada] = useState<any>(null);
     const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    const ensureMembroOwner = useCallback(async (fid: string, user: any) => {
+        if (!fid || !user?.id) return;
+        try {
+            // Verifica se já existe registro como membro (apenas pelo user_id)
+            const { data: existingById } = await supabase
+                .from('fazenda_membros')
+                .select('id')
+                .eq('fazenda_id', fid)
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (!existingById) {
+                // Não existe nenhum registro, vamos criar apenas com o ID e Role
+                const payload: any = {
+                    fazenda_id: fid,
+                    user_id: user.id,
+                    role: 'Proprietário'
+                };
+
+                const { error: insError } = await supabase
+                    .from('fazenda_membros')
+                    .insert([payload]);
+                
+                if (insError) console.error("Erro ao inserir proprietário auto-reparo:", insError);
+            }
+        } catch (e) {
+            console.log("Auto-reparo de equipe falhou silenciosamente:", e);
+        }
+    }, []);
 
     useEffect(() => {
         const handleStatusChange = () => {
@@ -349,37 +378,139 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     // Efeito para checar sessão e fazenda salva
     useEffect(() => {
         const checkSession = async (session: any) => {
-            if (!session) {
-                setTela('auth');
-                return;
-            }
-
-            // Se o usuário acabou de logar e estamos na tela de auth ou loading, precisamos decidir pra onde ir
-            // Verificamos se já existe uma fazenda no state ou storage
             if (!session?.user?.id) {
                 setTela('auth');
                 return;
             }
 
+            // 1. Verificar se o usuário já tem uma preferência salva (F5/Reload)
             const lastFazendaId = localStorage.getItem('last_fazenda_id');
-            
             if (lastFazendaId) {
                  const { data, error } = await supabase.from('fazendas').select('*').eq('id', lastFazendaId).single();
                  if (data && !error) {
-                     setFazendaSelecionada(data);
-                     dispatch({ 
-                        type: ACTIONS.SET_FAZENDA, 
-                        fazendaId: data.id, 
-                        fazendaNome: data.nome 
-                     });
-                     setTela('principal'); 
-                     return;
+                      // Buscar papel
+                      const { data: membro } = await supabase
+                          .from('fazenda_membros')
+                          .select('role')
+                          .eq('fazenda_id', lastFazendaId)
+                          .eq('user_id', session.user.id)
+                          .maybeSingle();
+
+                      setFazendaSelecionada(data);
+                      
+                      // Mesclar permissões (Padrão + Banco)
+                      const customPermissions = data.config?.permissions || {};
+                      const mergedPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS)); // Deep copy padrão
+                      
+                      // Aplica customizações sobre o padrão
+                      Object.keys(customPermissions).forEach(role => {
+                          if (mergedPermissions[role]) {
+                              mergedPermissions[role].screens = { ...mergedPermissions[role].screens, ...customPermissions[role].screens };
+                              mergedPermissions[role].actions = { ...mergedPermissions[role].actions, ...customPermissions[role].actions };
+                          } else {
+                              mergedPermissions[role] = customPermissions[role];
+                          }
+                      });
+
+                      dispatch({ type: ACTIONS.SET_PERMISSIONS, payload: mergedPermissions });
+
+                      dispatch({ 
+                         type: ACTIONS.SET_FAZENDA, 
+                         fazendaId: data.id, 
+                         fazendaNome: data.nome,
+                         userRole: membro?.role
+                      });
+
+                      if (data.user_id === session.user.id) {
+                          ensureMembroOwner(data.id, session.user);
+                      }
+
+                      // IMPORTANTE: Só redireciona se estiver na tela de carregamento ou auth
+                      // Isso evita que o app "volte pro início" sozinho ao dar focus na aba
+                      setTela(t => (t === 'loading' || t === 'auth' || t === 'fazenda_selection') ? 'principal' : t);
+                      return;
                  }
             }
 
-            // Se não tem fazenda salva, vai para tela de seleção
-            setTela('fazenda_selection');
-            dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+            // 2. Se não tem preferência ou F5 falhou, buscar todas as fazendas do usuário
+            try {
+                // Buscamos as fazendas onde ele é o dono (user_id) ou onde ele é membro
+                const { data: fazendasOwner, error: errorOwner } = await supabase
+                    .from('fazendas')
+                    .select('*')
+                    .eq('user_id', session.user.id);
+                
+                // Busca também onde ele é membro convidado
+                const { data: participacoes, error: errorMembros } = await supabase
+                    .from('fazenda_membros')
+                    .select('fazenda_id, fazendas(*)')
+                    .eq('user_id', session.user.id);
+
+                const fazendasParticipante = (participacoes || []).map((p: any) => p.fazendas).filter(Boolean);
+                
+                // Mesclar listas sem duplicatas (pelo ID)
+                const todasFazendas = [...(fazendasOwner || [])];
+                fazendasParticipante.forEach(f => {
+                    if (!todasFazendas.find(ownerF => ownerF.id === f.id)) {
+                        todasFazendas.push(f);
+                    }
+                });
+
+                dispatch({ type: ACTIONS.SET_FAZENDAS_DISPONIVEIS, payload: todasFazendas });
+
+                // MUDANÇA: Não força mais a criação de fazenda se estiver vazio.
+                // Isso permite ao usuário aguardar um convite na tela de seleção.
+                if (todasFazendas.length === 1) {
+                    const f = todasFazendas[0];
+                    // Buscar papel
+                    const { data: membro } = await supabase
+                        .from('fazenda_membros')
+                        .select('role')
+                        .eq('fazenda_id', f.id)
+                        .eq('user_id', session.user.id)
+                        .maybeSingle();
+
+                    setFazendaSelecionada(f);
+                    
+                    // Mesclar permissões (Padrão + Banco)
+                    const customPermissions = f.config?.permissions || {};
+                    const mergedPermissions = JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS));
+                    Object.keys(customPermissions).forEach(role => {
+                        if (mergedPermissions[role]) {
+                            mergedPermissions[role].screens = { ...mergedPermissions[role].screens, ...customPermissions[role].screens };
+                            mergedPermissions[role].actions = { ...mergedPermissions[role].actions, ...customPermissions[role].actions };
+                        } else {
+                            mergedPermissions[role] = customPermissions[role];
+                        }
+                    });
+                    dispatch({ type: ACTIONS.SET_PERMISSIONS, payload: mergedPermissions });
+
+                    dispatch({ 
+                        type: ACTIONS.SET_FAZENDA, 
+                        fazendaId: f.id, 
+                        fazendaNome: f.nome,
+                        userRole: membro?.role
+                    });
+                    localStorage.setItem('last_fazenda_id', f.id);
+                    
+                    // Só redireciona se estiver "fora" (evita reset no focus)
+                    setTela(t => (t === 'loading' || t === 'auth' || t === 'fazenda_selection') ? 'principal' : t);
+                    
+                    if (f.user_id === session.user.id) {
+                        ensureMembroOwner(f.id, session.user);
+                    }
+                } 
+                else {
+                    // Se tiver 0 ou mais de 1, vai para a seleção.
+                    // AQUI SÓ REDIRECIONA SE NÃO ESTIVER LOGADO (para evitar pulos)
+                    setTela(t => (t === 'loading' || t === 'auth') ? 'fazenda_selection' : t);
+                }
+            } catch (err) {
+                console.error("Erro no checkSession flow:", err);
+                setTela('fazenda_selection');
+            } finally {
+                dispatch({ type: ACTIONS.SET_LOADING, loading: false });
+            }
         };
 
         // Check inicial
@@ -410,9 +541,6 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
             document.title = 'AgroVisão - Gestão Rural Inteligente';
         }
-        
-        // Se tiver favicon customizado, poderíamos atualizar aqui também, mas é mais complexo.
-        // Por enquanto, ficamos com o título.
     }, [fazendaSelecionada]);
 
     const logout = async () => {
@@ -443,10 +571,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         ...estoqueCalculations,
         // Novos exports
         session: state.session,
+        fazendaId: state.fazendaId,
+        fazendaNome: state.fazendaNome,
         tela,
         setTela,
         fazendaSelecionada,
         setFazendaSelecionada,
+        fazendasDisponiveis: state.fazendasDisponiveis,
         logout,
         trocarFazenda,
         modal: state.modal,
@@ -455,7 +586,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         ativos: state.ativos,
         dbAssets: state.dbAssets,
         buscarUltimaLeitura,
-        parseNumber
+        parseNumber,
+        ensureMembroOwner
     }), [
         state, 
         dispatch, 
@@ -471,7 +603,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline,
         buscarUltimaLeitura,
         parseNumber,
-        trocarFazenda
+        trocarFazenda,
+        ensureMembroOwner
     ]);
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

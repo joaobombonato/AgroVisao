@@ -9,12 +9,14 @@ export type State = {
   dados: any;
   ativos: any;
   loading: boolean;
-  modal: { isOpen: boolean; message: string; onConfirm: () => void };
+  modal: { isOpen: boolean; type?: string; props?: any };
   selectedOS: any;
   session: Session | null;
   userProfile: any | null; 
   fazendaId: string | null; 
   fazendaNome: string | null;
+  userRole: string | null;
+  permissions: any;
   fazendasDisponiveis: any[];
   dbAssets: { [key: string]: any[] }; 
   syncQueue: any[];
@@ -26,12 +28,14 @@ export const INITIAL_STATE: State = {
   dados: DADOS_INICIAIS,
   ativos: ATIVOS_INICIAIS,
   loading: true,
-  modal: { isOpen: false, message: '', onConfirm: () => {} },
+  modal: { isOpen: false, type: '', props: {} },
   selectedOS: null,
   session: null, 
   userProfile: null,
   fazendaId: null,
   fazendaNome: 'Fazenda SC (Demo)',
+  userRole: null,
+  permissions: {},
   fazendasDisponiveis: [],
   dbAssets: {},
   syncQueue: syncService.loadQueue(),
@@ -53,6 +57,8 @@ export const ACTIONS = {
   SET_DB_ASSETS: 'SET_DB_ASSETS',
   ADD_TO_QUEUE: 'ADD_TO_QUEUE',
   REMOVE_FROM_QUEUE: 'REMOVE_FROM_QUEUE',
+  SET_FAZENDAS_DISPONIVEIS: 'SET_FAZENDAS_DISPONIVEIS',
+  SET_PERMISSIONS: 'SET_PERMISSIONS',
 };
 
 export function appReducer(state: State, action: any) {
@@ -76,14 +82,15 @@ export function appReducer(state: State, action: any) {
             ...state, 
             fazendaId: action.fazendaId, 
             fazendaNome: action.fazendaNome,
-            fazendasDisponiveis: action.fazendas, 
+            userRole: action.userRole || null,
+            fazendasDisponiveis: action.fazendas || state.fazendasDisponiveis, 
             loading: false
         };
     case ACTIONS.SET_DB_ASSETS: {
         let ativosKey = '';
         if (action.table === 'maquinas') ativosKey = 'maquinas';
         if (action.table === 'talhoes') ativosKey = 'talhoes';
-        if (action.table === 'pessoas') ativosKey = 'pessoas';
+        if (action.table === 'centros_custos') ativosKey = 'centrosCusto';
         if (action.table === 'produtos') ativosKey = 'produtos';
 
         const newDbAssets = { ...state.dbAssets, [action.table]: action.records };
@@ -148,6 +155,10 @@ export function appReducer(state: State, action: any) {
         return { ...state, syncQueue: [...state.syncQueue, action.payload] };
     case ACTIONS.REMOVE_FROM_QUEUE:
         return { ...state, syncQueue: state.syncQueue.filter(i => i.id !== action.id) };
+    case ACTIONS.SET_FAZENDAS_DISPONIVEIS:
+        return { ...state, fazendasDisponiveis: action.payload };
+    case ACTIONS.SET_PERMISSIONS:
+        return { ...state, permissions: action.payload };
     
     default:
       return state;

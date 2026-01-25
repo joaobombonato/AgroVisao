@@ -4,23 +4,36 @@ import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
 
 export default function OsScreen() {
-  const { os, dispatch, setTela } = useAppContext();
+  const { state, os, dispatch, setTela } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   // Estados Locais
   const [filtro, setFiltro] = useState('Pendente');
   const [search, setSearch] = useState('');
   
-  // Contadores
-  const pendentes = os.filter((o:any) => o.status === 'Pendente').length;
-  const confirmadas = os.filter((o:any) => o.status === 'Confirmado').length;
-  const canceladas = os.filter((o:any) => o.status === 'Cancelado').length;
+  // Lista Filtrada por Permissão (Módulos que o usuário pode ver)
+  const osPorPermissao = useMemo(() => {
+    return os.filter((o: any) => {
+        const moduloKey = o.modulo?.toLowerCase();
+        // Se o módulo da OS estiver entre as telas permitidas (ou for a principal)
+        if (moduloKey === 'principal') return true;
+        if (rolePermissions?.screens?.[moduloKey] === false) return false;
+        return true;
+    });
+  }, [os, rolePermissions]);
+
+  // Contadores (Baseados na lista permitida)
+  const pendentes = osPorPermissao.filter((o:any) => o.status === 'Pendente').length;
+  const confirmadas = osPorPermissao.filter((o:any) => o.status === 'Confirmado').length;
+  const canceladas = osPorPermissao.filter((o:any) => o.status === 'Cancelado').length;
   
-  // Lista Filtrada
+  // Lista Final (Filtros de Status + Busca)
   const osFiltradas = useMemo(() => {
-    let l = filtro === 'Todas' ? os : os.filter((o:any) => o.status === filtro);
+    let l = filtro === 'Todas' ? osPorPermissao : osPorPermissao.filter((o:any) => o.status === filtro);
     if (search) l = l.filter((o:any) => (o.descricao || '').toLowerCase().includes(search.toLowerCase()) || (o.modulo || '').toLowerCase().includes(search.toLowerCase()));
     return [...l].reverse();
-  }, [os, filtro, search]);
+  }, [osPorPermissao, filtro, search]);
 
   const getStatusColor = (s:string) => s === 'Pendente' ? 'bg-yellow-500' : s === 'Confirmado' ? 'bg-green-500' : 'bg-red-500';
   const getCardBorder = (s:string) => s === 'Pendente' ? 'border-yellow-400 bg-yellow-50 text-yellow-800' : s === 'Confirmado' ? 'border-green-400 bg-green-50 text-green-800' : 'border-red-400 bg-red-50 text-red-800';

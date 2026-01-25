@@ -113,12 +113,12 @@ export default function AssetListEditor({ assetKey, setView }: any) {
              }
         }
 
-        // 4. PESSOAS / CENTROS DE CUSTO
-        if (assetKey === 'centrosCusto' || assetKey === 'pessoas') {
-             const usedInAbastecimentos = (dados.abastecimentos || []).some((a: any) => a.responsavel === itemNome || a.operador === itemNome);
-             const usedInManutencao = (dados.manutencoes || []).some((m: any) => m.responsavel === itemNome);
-             if (usedInAbastecimentos || usedInManutencao) {
-                 toast.error(`Impossível excluir "${itemNome}": Pessoa vinculada a registros operacionais.`);
+        // 4. CENTROS DE CUSTO
+        if (assetKey === 'centrosCusto') {
+             const usedInAbastecimentos = (dados.abastecimentos || []).some((a: any) => a.centroCusto === itemNome);
+             const usedInRange = (dados.refeicoes || []).some((r: any) => r.centroCusto === itemNome);
+             if (usedInAbastecimentos || usedInRange) {
+                 toast.error(`Impossível excluir "${itemNome}": Centro de Custo vinculado a registros operacionais.`);
                  return false;
              }
         }
@@ -241,7 +241,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                         label={label} 
                         value={newItemName} 
                         onChange={(e: any) => setNewItemName(e.target.value)} 
-                        placeholder={placeholder} 
+                        placeholder={placeholder || "Ex: Novo item..."} 
                         required 
                     />
                 )}
@@ -252,7 +252,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                         value={newItemFields[f.key] || ''} 
                         onChange={(e: any) => setNewItemFields({ ...newItemFields, [f.key]: e.target.value })} 
                         type={f.type || 'text'}
-                        placeholder={f.placeholder} 
+                        placeholder={f.placeholder || placeholder} 
                         required={!f.hidden}
                     />
                 ))}

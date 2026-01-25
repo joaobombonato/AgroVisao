@@ -1,0 +1,261 @@
+APIs Principais para Integração:
+
+AgroAPI (Embrapa)
+Plataforma brasileira com APIs freemium para agronomia.
+Agritec: Recomenda cultivares mais aptas para 12 culturas (inclui soja, milho, trigo, feijão). Inclui modelos de recomendação baseados em clima/solo.Época ideal de plantio por município/região (baseado no ZARC). Recomendação de adubação e correção de solo (com base em análise de solo + meta de produtividade)
+API Agrofit: banco completo de defensivos agrícolas(agrotóxicos, herbicidas, fungicidas, inseticidas, bioinsumos) registrados no MAPA. Inclui princípio ativo, indicações de uso por cultura/praga, classificação toxicológica, classe ambiental, detentor do registro etc. Excelente cobertura nacional. → ideal para criar recomendações dinâmicas de proteção vegetal nos seus “guias técnicos”.
+SmartSolos Expert API → Melhor para Tipos de Solo
+Sistema especialista que classifica perfis de solo conforme o Sistema Brasileiro de Classificação de Solos (SiBCS).
+Útil para identificar tipos de solo (Latossolo, Argissolo, Nitossolo, etc.) por região.
+Outras APIs: AgroTermos (glossário técnico), BlueStar Sting (modelos específicos).
+Outras úteis: ClimAPI (clima), SATVeg (índices de vegetação via satélite), Agrofit (fitossanitários), Bioinsumos (insumos orgânicos).
+Outras relacionadas: API Bioinsumos, e há menção a API de Classificação de Solos da Embrapa (facilita curadoria e classificação taxonômica de solos brasileiros).→ Acesse via plataforma AgroAPI (geralmente requer cadastro/chave). É a base mais autorizada e atualizada para Brasil.
+Acesso: Cadastre-se em portal.agroapi.cnptia.embrapa.br, gere token e use endpoints REST. Docs: Tutorial inicial.
+Acesso: https://www.embrapa.br/agroapi (registre-se para obter documentação e chaves). Gratuito para a maioria dos usos de integração
+SoilGrids API (ISRIC - World Soil Information) → https://soilgrids.org/ ou REST API (rest.isric.org).
+Melhor opção global/gratuita para tipos de solo e propriedades por coordenadas/região (250m resolução). Fornece textura (argila, silte, areia), pH, capacidade de água, carbono orgânico, densidade etc. para qualquer ponto no Brasil (muito útil para regionalização por estado/microrregião). Excelente para mapas e recomendações de fertilidade.Há pacotes Python/R para facilitar (soilgrids package)
+
+Dicas Importantes
+A maioria das informações de cultivares por micro-região vem do RNC (Registro Nacional de Cultivares) do MAPA + recomendações da Embrapa. A Agritec já entrega uma boa parte filtrada.
+Defensivos: Agrofit é a fonte mais completa e atualizada do Brasil.
+Solo por região: O SmartSolos é bom para classificação, mas para mapas detalhados você pode precisar integrar também o Mapa de Solos do Brasil (IBGE/Embrapa) em shapefile.
+
+Imagens de Satélite e Monitoramento de Cultivos:
+Brazil Data Cube (INPE): Plataforma gratuita com cubos de dados de satélites (ex.: Landsat, Sentinel, CBERS) para classificação de uso do solo, monitoramento de LULC (Land Use and Land Cover) e agricultura sustentável. Tem APIs para análise de séries temporais, ideal para detectar mudanças em lavouras por região. Acesse via https://data.inpe.br/bdc/.
+
+OneSoil API: Gratuita para monitoramento de campos, com dados de satélite para yields, sementes e fertilizantes. Adaptada ao Brasil
+
+FAOSTAT (FAO)
+Produção, rendimento e área plantada de soja e milho no Brasil (séries históricas anuais).
+Use para benchmarks de produtividade ou calculadoras de meta de colheita.
+Acesso: downloads gratuitos em CSV/ZIP direto no site (https://www.fao.org/faostat/en/#data → Production → Crops and livestock primary → Brazil → Soybeans / Maize). Há endpoints REST programáticos (fenixservices.fao.org/faostat/api/v1).
+
+USDA NASS APIs (EUA, mas dados globais adaptáveis)
+Dados estatísticos de produção para milho, soja etc.
+Quick Stats API: Produção, rendimento, área plantada por estado/região (1997+).
+Outros: Cropland Data Layer (mapas de cultivos), VegScape (NDVI para condições de lavoura).
+Cálculos: Integre para estimar yields.
+Preço: Gratuito (com chave API).
+Acesso: nass.usda.gov/developer. Use em Python/R via pacotes como rnassqs
+USDA Quick Stats API + FAS OpenDataWeb
+Estatísticas detalhadas de colheita, rendimento e exportação de soja e milho (inclui dados do Brasil via FAS).
+Bom para comparar safras brasileiras com mundiais.
+Quick Stats: https://quickstats.nass.usda.gov/api
+FAS: https://apps.fas.usda.gov/opendataweb/
+Gratuito com chave API.
+
+MapBiomas → Mapas anuais de uso do solo, cobertura vegetal, desmatamento, e agora MapBiomas Solo (carbono orgânico). Dados para download/API em alguns casos → Excelente para análise por bioma/região.
+
+Cultivares de Soja e Milho por Microrregiões
+Não existe uma API perfeita e gratuita ultra-específica por "microrregião IBGE" atualizada automaticamente, mas combine estas:
+
+Embrapa AgroAPI (Agritec ou endpoints de cultivares) + Portal Cultivares Embrapa → https://www.embrapa.br/cultivares. Muitos dados de recomendação estão aqui ou via ZARC (Zoneamento Agrícola de Risco Climático - MAPA/Embrapa), que indica cultivares recomendadas por região/município com base em clima/solo.
+BrAPI (Breeding API - https://brapi.org/) → Padrão internacional para bancos de germoplasma e cultivares. Algumas instituições brasileiras/Embrapa podem expor dados assim. Boa para interoperabilidade se você quiser integrar variedades de soja/milho.
+Recomendação prática: Use Embrapa + IBGE API (para microrregiões/municípios) + dados ZARC (downloads ou scraping controlado). As listas oficiais de cultivares recomendadas para soja/milho saem anualmente por região (Centro-Oeste, Sul etc.).
+
+
+Radar Meteorológico "Ao Vivo" (Precipitação em Tempo Real) – Opções Gratuitas
+
+RainViewer API (melhor opção gratuita para radar ao vivo no Brasil)
+Cobertura: Inclui radares brasileiros (ex.: São Paulo, Rio, Brasília, etc.), atualiza a cada 5-10 minutos.
+O que entrega: Imagens de radar (PNG/Tile para mapas), dados de precipitação (intensidade, acumulado), histórico curto e previsão de movimento da chuva.
+Tier gratuito: Sim, generoso para não-comercial ou baixo volume (milhares de requests/dia sem chave em alguns endpoints; plano free com limite razoável).
+Documentação: https://www.rainviewer.com/api.html (tem endpoints para mapas animados e dados JSON).
+
+Open-Meteo API (com radar/precipitação de alta resolução)
+Gratuita, sem chave de API, open-source.
+Tem endpoint de "radar" via integração com dados EUMETSAT/NOAA, mas mais focado em precipitação nowcast (previsão imediata) do que imagem raw de radar.
+Útil como complemento: https://open-meteo.com/en/docs (procure por "precipitation" e "nowcast").
+Não é radar clássico, mas dá estimativa em tempo real sem custo.
+
+CPTEC/INPE MapSAT e Portal de Satélites (visual, mas integrável)
+App MapSAT mostra radar + satélite em um mapa único, gratuito.
+Não tem API oficial, mas as imagens são públicas e podem ser consumidas via URL direta (ex.: tiles ou PNG gerados dinamicamente) para embed no seu SaaS.
+Alternativa: Use o portal INPE de acesso gratuito a dados de radares – baixe datasets periodicamente ou scrape ético para atualização.
+
+Outras menções rápidas (freemium):
+Meteoblue Maps API: Tem radar ao vivo, mas tier free limitado.
+Zoom.Earth: Mapas interativos com radar Brasil, mas sem API aberta.
+
+Sugestão de Stack Gratuito para Agregar Agora
+
+Radar ao vivo principal: RainViewer API (fácil de integrar, visual impactante no dashboard do SaaS).
+Satélite extra: Brazil Data Cube (INPE) – fortalece o "made in Brazil" e dá dados processados para soja/milho.
+Clima complementar: Open-Meteo (zero custo, alta precisão em precipitação).
+Bônus Embrapa AgroAPI: Continua gratuita (freemium com 1 mês full + limite depois), use ClimAPI e SATVeg para NDVI de satélite + zoning (não tem radar, mas agrega valor em produtividade estimada).
+
+
+Calculadoras e Modelos Open Source
+
+Fertilizer Predictor API (GitHub): ML para recomendações de fertilizantes (baseado em solo/cultura). Clone e adapte: github.com/Yahid-Basha/fertiliserpredictor-api.
+NPK Recommendation Calculator (Clemson Univ.): Web app gratuita; fórmulas abertas para NPK em cultivos. precisionag.sites.clemson.edu.
+Crop Calculators (Univ. Minnesota): Para soja/milho (adubação, rendimento). Fórmulas públicas: apps.extension.umn.edu.
+Ag Forecasting API (GitHub): Modelos de doenças em soja/milho (baseado em clima). github.com/UW-Madison-DSI.
+NASA POWER API → dados climáticos diários/históricos (temperatura, precipitação, radiação, evapotranspiração) ideais para modelos agronômicos. Gratuito.
+Modelos open-source prontos para deploy:
+GitHub – Fertilizer Recommendation System (ML que recomenda NPK a partir de solo, clima e cultura) → https://github.com/Tejasgolhar/Fertilizer_Recommendation_System
+FRST (Fertilizer Recommendation Support Tool) – banco com milhares de ensaios de P e K (principalmente milho e soja) → https://soiltestfrst.org/ (web, mas dá para usar os dados).
+Como montar a calculadora no seu SaaS
+Combine 2–3 APIs:
+Clima/Satélite (Agromonitoring ou NASA POWER) + dados de solo/cultura (Embrapa ou FRST) + modelo matemático/ML → gera recomendação de adubação, previsão de yield, alerta de pragas etc.
+Exemplo simples: NDVI baixo + precipitação acumulada baixa → recomendar irrigação + N extra.
+
+Outras úteis:
+Farmonaut ou GeoPard → APIs de agricultura de precisão/satélite.
+APIs de preços de commodities → CEPEA (soja, milho) ou CME Group futures (pago).
+IBGE API + BrasilAPI → Para dados geográficos, microrregiões, municípios.
+Leaf Agriculture ou Cropin: Para integração de dados de fazenda/IoT (mais enterprise).
+
+Considerações para SaaS
+Prioridade Brasil → Comece com Embrapa AgroAPI (AGROFIT + Agritec/Soil) + SoilGrids. Isso cobre ~70-80% do que você pediu com dados oficiais/atualizados.
+Custos → Muitas são gratuitas/freemium (SoilGrids, OpenWeather free tier, AgroAPI depende de plano). Satélite/clima premium sobe rápido com volume.
+Precisão Regional → Soja/milho no Brasil variam muito por microclima (ex: MATOPIBA, Cerrado vs Sul). Combine com ZARC + coordenadas do usuário.
+Outras ideias interessantes → Integração de recomendação de adubação (baseada em solo + cultura), alerta de pragas (via clima + defensivos), histórico NDVI para safra anterior, ou integração com máquinas (John Deere API etc.).
+
+
+Preços e Mercado (Muito Importante)
+
+CEPEA API (Esalq/USP) → Preços diários de soja, milho, boi, café, etc.
+CONAB → Estimativas oficiais de safra (produção, produtividade, estoque)
+
+Portal de Dados Abertos do MAPA (CKAN): Hub com datasets de preços agrícolas, VBP regional (Valor Bruto da Produção) e séries de Conab/CEPEA. API CKAN gratuita para queries.
+Acesso: https://dados.agricultura.gov.br/ — use a API CKAN (ex.: /api/3/action/package_search?q=precos) para buscar e baixar datasets automaticamente.
+Para IA: Query dinâmica por região/produto.
+
+
+2. Preços do Diesel (Regional e Nacional)
+
+ANP (Agência Nacional do Petróleo): Fonte oficial com Levantamento Semanal de Preços de Combustíveis (inclui diesel S-10 e comum por estado/região, com médias ponderadas).
+Acesso: https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos — downloads semanais em PDF/Excel. Série histórica gratuita em https://dados.gov.br/dataset/serie-historica-de-precos-de-combustiveis-e-de-glp (datasets CSV abertos).
+Alternativa processada: Base dos Dados — tabela tratada e gratuita via BigQuery/SQL (ex.: basedosdados.br_anp_precos_combustiveis.precos_combustiveis). API-like via queries SQL gratuitas (tier free generoso).
+Para Noroeste de MG: Médias por estado (Minas) ou microrregião aproximada.
+
+Petrobras Preços Médios: Média nacional e por estado (diesel S-10), atualizada.
+Acesso: https://precos.petrobras.com.br/ — dados públicos, integre via scraping ou downloads.
+
+
+3. Preços de Venda da Produção (ao Produtor e Mercado)
+
+Use as mesmas de cima (CEPEA + Conab) — elas cobrem exatamente "preço recebido pelo produtor" para soja, milho etc., por praça/região.
+Sistema de Preços de Commodities CNA: Cotações diárias de milho, soja etc. por praça (ex.: MT, PR, mas inclui médias MG).
+Acesso: https://www.cnabrasil.org.br/servicos/precos-commodities — público, atualizações diárias.
+
+
+4. Cotação do Dólar (Real Time ou Diário)
+
+AwesomeAPI (API de Cotações): Gratuita com tier free generoso (milhares de requests/dia), cotações em tempo real de USD/BRL (comercial, turismo, PTAX etc.).
+Acesso: https://docs.awesomeapi.com.br/api-de-moedas — endpoint simples: https://economia.awesomeapi.com.br/json/last/USD-BRL (sem chave para uso básico; cadastre para mais volume).
+Ideal para SaaS: Atualização em tempo real, cache no seu app.
+
+Banco Central do Brasil (BCB) - API de Câmbio: Oficial e 100% gratuita, cotação diária do dólar (PTAX venda/compra).
+Acesso: https://dadosabertos.bcb.gov.br/dataset/dolar-americano-usd-todos-os-boletins-diarios — endpoint JSON/XML: ex. https://api.bcb.gov.br/dados/serie/bcdata.sgs.10813/dados?formato=json (série PTAX venda).
+Para real time aproximado: Use o PTAX diário + AwesomeAPI para intraday.
+
+DolarApi.com: Alternativa gratuita focada no Brasil, com cotações atualizadas.
+Acesso: https://dolarapi.com/docs/brasil — endpoints simples.
+
+Sugestão de Stack Gratuito para Seu SaaS
+
+Core preços agrícolas: Conab + MAPA CKAN (datasets periódicos) + CEPEA (scraping diário para soja/milho regionais).
+Diesel: ANP via Base dos Dados (SQL fácil) ou downloads semanais.
+Dólar: AwesomeAPI (real time) + BCB (oficial diário).
+Integração com IA: Armazene em banco (ex.: PostgreSQL) e use RAG para respostas como "Com dólar a R$5,80 e soja a R$130/saca em MG, vale vender agora?".
+Diferencial para Noroeste de MG: Combine com AgroAPI Embrapa (zoning/clima) + preços regionais para alertas personalizados (ex.: "Preço da soja em Unaí hoje vs. custo diesel").
+
+
+Guias técnicos de soja e milho (conteúdo pronto e gratuito)
+
+Embrapa Infoteca-e: Guias PDF gratuitos para soja/milho (manejo, pragas, adubação). Baixe e parse para app (ex.: via API custom). Ex.: Recomendações Soja. Busca: infoteca.cnptia.embrapa.br.
+Dados Abertos Embrapa: Mapas, zoneamentos agrícolas (aptidão solo para soja/milho). embrapa.br/dados-abertos.
+FAO Datasets: Guias de produção (soja/milho) e API para stats. faostat.fao.org (API via queries).
+A Embrapa publica os “Sistema de Produção” completos (manejo, adubação, cultivares, pragas, doenças, rotação). Exemplos:
+
+Soja: https://www.embrapa.br/soja/publicacoes
+Milho: https://www.embrapa.br/milho/publicacoes
+
+São PDFs gratuitos e atualizados (edições 2023–2025). No seu SaaS você pode:
+
+Fazer download automático + busca interna por palavra-chave, ou
+Usar IA (ex: GPT-4o ou Llama) para responder perguntas do usuário a partir dos PDFs + cruzar com Agrofit API para recomendações de defensivos.
+
+Outras Sugestões Inovadoras:
+Leaf Agriculture API: Unifica dados de fazendas, incluindo IoT e maquinaria. Usada por empresas brasileiras como Aegro, para gestão integrada.
+Solinftec API: Plataforma agtech brasileira com IA para agronomia em tempo real, conectando clima, satélite e sustentabilidade.
+Cropin API: Integra dados de fazendas, satélite e clima para gerenciamento de cultivos. Forte presença no Brasil.
+
+
+
+1. APIs para Tipos de Solos por Região
+Essas permitem classificar solos com base no SiBCS (Sistema Brasileiro de Classificação de Solos), integrando com microrregiões IBGE para mapas personalizados.
+
+SmartSolos Expert API (Embrapa AgroAPI): Gratuita após cadastro, classifica perfis de solos em todo o Brasil a partir de dados como textura, profundidade e química. Ideal para consultas por coordenadas ou microrregiões (ex.: solos argilosos no Noroeste de Minas - código 304). Integre para gerar relatórios de fertilidade. Acesse via https://www.agroapi.cnptia.embrapa.br/store/apis/info?name=SmartSolosExpert.
+Plataforma Saúde do Solo BR (Embrapa): Banco aberto com 61 mil amostras de solos saudáveis em 1.500 municípios. Não é API nativa, mas datasets gratuitos para download e integração (ex.: via CSV para seu backend). Útil para saúde do solo em SP/MG. Site: https://saudedosolo.embrapa.gov.br/.
+Mapa de Erodibilidade dos Solos (Embrapa): Dados gratuitos para erosão por região, integrável via AgroAPI. Bom para sustentabilidade em áreas inclinadas como interior paulista.
+
+2. APIs para Microrregiões e Indicação de Cultivares de Soja e Milho
+Use códigos IBGE (ex.: 304 para Noroeste de Minas, 35059 para Ribeirão Preto/SP perto de Batatais) para granularidade. Foco em dados de produtividade e adaptação.
+
+Agritec API (Embrapa AgroAPI): Freemium (1 mês grátis com 1.000 requests), estima produtividade de soja e milho por microrregião IBGE, com indicações de cultivares adaptadas (ex.: variedades resistentes a seca no Cerrado). Integra com zoning agrícola para datas de plantio. Perfeita para recomendações personalizadas.
+APIs de Dados do IBGE: Gratuitas, para microrregiões e produção agrícola (ex.: LSPA - Levantamento Sistemático da Produção Agrícola). Consulta códigos como 304 e dados de yields de soja/milho por município. Acesse: https://servicodados.ibge.gov.br/api/docs.
+Portal de Cultivares (Embrapa): Datasets abertos para cultivares registradas, integráveis via scraping ou AgroAPI. Inclui adaptações por bioma (ex.: soja para Sudeste).
+
+3. APIs de Defensivos Agrícolas
+Para listas atualizadas de pesticidas registrados, com filtros por cultivo (soja/milho).
+
+Agrofit API (Embrapa AgroAPI): Gratuita, banco completo de defensivos, agrotóxicos e bioinsumos. Consulta por ingrediente ativo, cultivo e modalidade. Essencial para compliance no Brasil. Integre para buscas rápidas: https://www.agroapi.cnptia.embrapa.br/store/apis/info?name=AGROFIT.
+AGROFIT Consulta Aberta (MAPA): Portal gratuito do Ministério da Agricultura, com dados abertos para defensivos. Não API nativa, mas use web services ou datasets CSV para automação. Site: https://agrofit.agricultura.gov.br/.
+Bioinsumos API (Embrapa): Complementar, gratuita para produtos biológicos alternativos a químicos.
+
+4. Calculadoras para Agricultura
+Integre para ferramentas interativas como cálculo de insumos, emissões ou yields.
+
+ClimAPI (Embrapa AgroAPI): Freemium, calcula riscos climáticos para plantio de soja/milho por microrregião. Inclui evapotranspiração e zoneamento.
+ABC+Calc (Embrapa/MAPA): Gratuita, calculadora de emissões de GEE para cadeias como soja e milho. Ótima para módulos de sustentabilidade/carbono.
+SATVeg API (Embrapa): Freemium, usa satélite para calcular NDVI e monitoramento temporal de cultivos. Integre com seu Sentinel para yields estimados.
+
+5. Outras Sugestões Interessantes para Deixar Seu SaaS Top
+Adicione valor com IA, sustentabilidade e mercado – tudo gratuito para startups.
+
+Catálogo de APIs Governamentais (Gov.br): Hub gratuito com APIs como CAF (Cadastro Agricultura Familiar) e dados fundiários. Útil para perfis de produtores em Batatais. Explore: https://www.gov.br/conecta/catalogo.
+OneSoil API (B2B Freemium): Calcula zones de manejo, yields e fertilizantes via satélite. Gratuito para testes, forte em soja/milho no Brasil.
+QuickTrials (SaaS Freemium): Gerenciamento de ensaios de campo para cultivares. Tier gratuito para pequenos usuários, integra com dados IBGE.
+Portal de Dados Abertos MAPA: APIs para preços agrícolas, estoques e exportações (ex.: soja). Gratuito para mercado em tempo real.
+RespondeAgro API (Embrapa): IA gratuita para respostas agrícolas, como dicas de manejo. Diferencial para chatbots no seu SaaS.
+Agrotermos API (Embrapa): Glossário agrícola gratuito, para enriquecer descrições no app.
+
+Dicas Finais para Implementação
+
+Core Stack: Comece com AgroAPI Embrapa (cadastro grátis em https://www.embrapa.br/agroapi) – cobre solos, cultivares, defensivos e calculadoras em um só lugar. Limite: 1.000 requests/mês free.
+Integração: Use Python/JS para chamadas REST. Para microrregiões, combine IBGE com Embrapa para precisão.
+Diferencial 2026: Adicione IA para personalização (ex.: calcule cultivares ideais para código 35059 em SP) e sustentabilidade (ABC+Calc para créditos de carbono).
+Escalabilidade: Teste com dados de Batatais (microrregião Ribeirão Preto) para validar.
+
+1. APIs e Dados do INPE para Monitoramento de Biomas e Vegetação (Ideal para Cerrado/Noroeste de MG)
+
+TerraBrasilis (INPE): Plataforma gratuita para monitoramento espacial de supressão de vegetação nativa. Perfeita para o Cerrado, incluindo Noroeste de Minas — detecta desmatamento, alertas diários de mudanças florestais (via DETER) e taxas anuais (PRODES). Inclui dashboards para análise de incêndios em áreas agrícolas.
+Acesso: Web services e downloads gratuitos de vetores/raster (ex.: polygons por município). Sem API REST nativa, mas integre via OGC standards (WMS/WFS) para pulls automáticos.
+Para IA/SaaS: Use dados para alertas em tempo real (ex.: "Sua propriedade em Unaí-MG tem risco de incêndio?") ou análise preditiva. Baixe datasets para treinar modelos de detecção de rotação de culturas.
+Site: https://terrabrasilis.dpi.inpe.br/ — cadastre-se para metadados e serviços.
+
+BiomasBR (INPE): Monitoramento anual e diário de supressão em todos os biomas, com foco no Cerrado (relevante para expansão agrícola em MG). Dados gratuitos de satélite (ex.: Landsat, Sentinel) para vegetação e mudanças.
+Acesso: Downloads abertos e visualizações; integre via web services para queries regionais.
+Para IA: Embedde dados em sua IA para respostas sobre sustentabilidade (ex.: compliance com Código Florestal em propriedades mineiras).
+
+
+2. APIs e Dados Abertos do MAPA para Agricultura Regional
+
+Portal de Dados Abertos do MAPA: Hub gratuito com datasets nacionais, mas com filtros por região (ex.: produção de soja/milho no Noroeste de MG). Cobre agroecologia, certificação orgânica, sustentabilidade, base de conhecimento agrícola, zoneamento de risco climático (ZARC) e registro de pesticidas (Agrofit).
+Acesso: Via CKAN API (documentação em http://docs.ckan.org/en/2.6/api/) — queries REST para busca e download. Gratuito, sem limites.
+Para IA/SaaS: Integre para respostas baseadas em dados (ex.: "Zoneamento climático para milho em Paracatu-MG?") ou análise de tendências de produção. Use em RAG para consultas naturais.
+Site: https://dados.agricultura.gov.br/ — explore o catálogo para MG-specific.
+
+Sistema Agrofit (MAPA, via API): Embora já mencionado, reforçando: dados de defensivos por cultivo e região, acessível via CKAN ou integração com AgroAPI da Embrapa.
+
+3. APIs Adicionais da Embrapa para Dados Regionais e Monitoramento
+
+GeoInfo e Portal de Dados Espaciais (Embrapa): Dados gratuitos espaciais para agropecuária, incluindo novo mapa de potencial agrícola (2025), que destaca áreas de alta aptidão no Cerrado/MG (ex.: solos e clima para soja).
+Acesso: Downloads abertos de shapefiles e raster; integre via web services para mapas dinâmicos.
+Para IA: Use para recomendações geolocalizadas (ex.: "Potencial para agricultura irrigada no Noroeste de MG?"). Bom para embeddings em IA para queries espaciais.
+
+Outras da AgroAPI (Freemium): Além das que citei antes, destaque para RespondeAgro (IA para respostas agrícolas) e Bioinsumos (alternativas sustentáveis, úteis para Cerrado). Limite free: até 100k requests/mês para algumas.
+Para IA: Integre RespondeAgro como base para seu chatbot, ou use dados para fine-tuning.

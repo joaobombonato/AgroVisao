@@ -6,6 +6,8 @@ interface MapHeaderProps {
   saving: boolean;
   onSave: () => void;
   onBack: () => void;
+  fazendaNome?: string;
+  recCode?: string;
 }
 
 /**
@@ -16,11 +18,20 @@ export const MapHeader: React.FC<MapHeaderProps> = ({
   saving,
   onSave,
   onBack,
+  fazendaNome,
+  recCode
 }) => (
   <div className="flex items-center justify-between mb-4 pb-2 border-b pl-2 pr-2">
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
        <MapPinned className="w-7 h-7 text-green-700" />
-       <h1 className="text-xl font-bold text-gray-800">Mapas e Satélite</h1>
+       <div>
+         <h1 className="text-xl font-bold text-gray-800">{fazendaNome || 'Mapas e Satélite'}</h1>
+         {recCode && (
+           <span className="text-[10px] bg-blue-100 text-blue-700 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+             Região: {recCode}
+           </span>
+         )}
+       </div>
     </div>
     <div className="flex items-center gap-2">
        {hasChanges && (

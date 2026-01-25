@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { FileCog, Search, Eye, Bell, CloudRain, Fuel, AlertTriangle, TrendingUp, Calendar, ArrowRight, Droplet, Plus, ArrowLeft, Utensils, Leaf, FolderOpen, Zap, Wrench } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { U } from '../data/utils';
+import { APP_VERSION } from '../data/constants';
 
 export default function DashboardScreen() { 
   const { os, dados, setTela, dispatch, ativos } = useAppContext();
@@ -49,7 +50,8 @@ export default function DashboardScreen() {
       const hojeData = new Date();
       const docsVencendo = [
           ...(ativos.maquinas || []).filter((m:any) => m.vencimento_doc && new Date(m.vencimento_doc) <= hojeData),
-          ...(ativos.pessoas || ativos.centrosCusto || []).filter((p:any) => p.vencimento_cnh && new Date(p.vencimento_cnh) <= hojeData)
+          // CNH removido do rastreio de Custo
+
       ].length;
 
       // Chuva Crítica (24h > 50mm por padrão)
@@ -293,6 +295,10 @@ export default function DashboardScreen() {
           </button>
       </div>
 
+      {/* Rodapé Versão */}
+      <div className="text-center pb-6">
+          <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest">AgroVisão Enterprise {APP_VERSION}</p>
+      </div>
     </div>
   );
 }

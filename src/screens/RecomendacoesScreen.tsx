@@ -6,17 +6,12 @@ import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
-// Componente: SELECT PESQUISÁVEL (Mantido)
-// ==========================================
-// ==========================================
-// SEARCHABLE SELECT: IMPORTADO DO SHARED
-// ==========================================
-
-// ==========================================
 // TELA PRINCIPAL
 // ==========================================
 export default function RecomendacoesScreen() {
-  const { dados, dispatch, setTela, ativos } = useAppContext();
+  const { state, dados, dispatch, setTela, ativos } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   // Estado do Cabeçalho (Fixo para a receita inteira)
   const [header, setHeader] = useState({ data: U.todayIso(), safra: '', talhao: '', area: '', cultura: '' });
@@ -141,96 +136,108 @@ export default function RecomendacoesScreen() {
     <div className="space-y-4 p-4 pb-24">
       <PageHeader setTela={setTela} title="Recomendações" icon={Leaf} colorClass="bg-green-500" />
       
-      <div className="bg-white rounded-lg border-2 p-4 shadow-sm space-y-4">
-        <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 flex items-center gap-2">
-            <ScrollText className="w-5 h-5 text-green-500"/> Nova Receita Agronômica
-        </h2>
-        
-        {/* CABEÇALHO (SAFRA, TALHÃO, CULTURA) */}
-        <div className="bg-gray-100 p-3 rounded-lg border space-y-3">
-            <p className="text-xs font-bold text-black-800 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center"><span className="text-red-500">***</span> Definição do Local <span className="text-red-500">***</span></p>
-            
-            {/* Campo Data Manual (Padronizado) */}
-            <div className="space-y-1">
-                <label className="block text-xs font-bold text-gray-700">Data da Receita </label>
-                <input 
-                    type="date" 
-                    value={header.data} 
-                    onChange={(e:any) => setHeader({ ...header, data: e.target.value })} 
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
-                    required 
-                />
+      {rolePermissions?.actions?.recomendacao_criar === false ? (
+        <div className="bg-amber-50 rounded-lg border-2 border-amber-200 p-8 shadow-sm text-center">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <ScrollText className="w-6 h-6 text-amber-600" />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-                <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} color="green" />
-                <SearchableSelect label="Culturas" placeholder="Selecione..." options={ativos.culturas} value={header.cultura} onChange={(e:any) => setHeader({ ...header, cultura: e.target.value })} color="green" />
-            </div>
-            <SearchableSelect label="Talhões" placeholder="Buscar o Talhão/Pivo... Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
-            {header.area && <div className="text-xs text-right text-green-600 font-bold">Área: {header.area} ha</div>}
+            <h3 className="text-amber-900 font-bold mb-1">Acesso Direcionado</h3>
+            <p className="text-sm text-amber-700 leading-relaxed">
+                Neste nível de acesso (**Operador**), você pode apenas **consultar e compartilhar** as recomendações já registradas.
+            </p>
         </div>
-
-        {/* ADICIONAR PRODUTOS */}
-        <div className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-3">
-            <p className="text-xs font-bold text-green-700 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center flex justify-center gap-1"><span className="text-red-500">***</span><Beaker className="w-5 h-5"/>Composição da Calda <span className="text-red-500">***</span></p>
+      ) : (
+        <div className="bg-white rounded-lg border-2 p-4 shadow-sm space-y-4">
+            <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 flex items-center gap-2">
+                <ScrollText className="w-5 h-5 text-green-500"/> Nova Receita Agronômica
+            </h2>
             
-            <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
-            
-            <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                    <SearchableSelect label="Produto" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Produto... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} color="green" />
-                </div>
+            {/* CABEÇALHO (SAFRA, TALHÃO, CULTURA) */}
+            <div className="bg-gray-100 p-3 rounded-lg border space-y-3">
+                <p className="text-xs font-bold text-black-800 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center"><span className="text-red-500">***</span> Definição do Local <span className="text-red-500">***</span></p>
                 
-                {/* Campo Dose Manual (Padronizado) */}
+                {/* Campo Data Manual (Padronizado) */}
                 <div className="space-y-1">
-                    <label className="block text-xs font-bold text-gray-700">Dose</label>
+                    <label className="block text-xs font-bold text-gray-700">Data da Receita </label>
                     <input 
-                        type="text" 
-                        placeholder="Informe... Ex: 2L/ha" 
-                        value={item.dose} 
-                        onChange={(e:any) => setItem({ ...item, dose: e.target.value })} 
+                        type="date" 
+                        value={header.data} 
+                        onChange={(e:any) => setHeader({ ...header, data: e.target.value })} 
                         className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+                        required 
                     />
                 </div>
 
-                {/* Botão Incluir com Texto */}
-                <button type="button" onClick={handleAddItem} className="bg-green-600 text-white rounded-lg flex items-center justify-center gap-2 shadow-md active:scale-95 font-bold text-sm">
-                    <Plus className="w-5 h-5"/> Incluir
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                    <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} color="green" />
+                    <SearchableSelect label="Culturas" placeholder="Selecione..." options={ativos.culturas} value={header.cultura} onChange={(e:any) => setHeader({ ...header, cultura: e.target.value })} color="green" />
+                </div>
+                <SearchableSelect label="Talhões" placeholder="Buscar o Talhão/Pivo... Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
+                {header.area && <div className="text-xs text-right text-green-600 font-bold">Área: {header.area} ha</div>}
             </div>
-        </div>
 
-        {/* LISTA DE ITENS ADICIONADOS (CARRINHO) */}
-        {itensAdicionados.length > 0 && (
-            <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-100 text-gray-600 font-bold">
-                        <tr>
-                            <th className="p-2">Produto</th>
-                            <th className="p-2">Dose</th>
-                            <th className="p-2 w-8"></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                        {itensAdicionados.map((it, idx) => (
-                            <tr key={it.id} className="bg-white">
-                                <td className="p-2">{it.produto}</td>
-                                <td className="p-2">{it.dose}</td>
-                                <td className="p-2"><button onClick={() => handleRemoveItem(it.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></td>
+            {/* ADICIONAR PRODUTOS */}
+            <div className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-3">
+                <p className="text-xs font-bold text-green-700 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center flex justify-center gap-1"><span className="text-red-500">***</span><Beaker className="w-5 h-5"/>Composição da Calda <span className="text-red-500">***</span></p>
+                
+                <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
+                
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                        <SearchableSelect label="Produto" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Produto... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} color="green" />
+                    </div>
+                    
+                    {/* Campo Dose Manual (Padronizado) */}
+                    <div className="space-y-1">
+                        <label className="block text-xs font-bold text-gray-700">Dose</label>
+                        <input 
+                            type="text" 
+                            placeholder="Informe... Ex: 2L/ha" 
+                            value={item.dose} 
+                            onChange={(e:any) => setItem({ ...item, dose: e.target.value })} 
+                            className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+                        />
+                    </div>
+
+                    {/* Botão Incluir com Texto */}
+                    <button type="button" onClick={handleAddItem} className="bg-green-600 text-white rounded-lg flex items-center justify-center gap-2 shadow-md active:scale-95 font-bold text-sm">
+                        <Plus className="w-5 h-5"/> Incluir
+                    </button>
+                </div>
+            </div>
+
+            {/* LISTA DE ITENS ADICIONADOS (CARRINHO) */}
+            {itensAdicionados.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-gray-100 text-gray-600 font-bold">
+                            <tr>
+                                <th className="p-2">Produto</th>
+                                <th className="p-2">Dose</th>
+                                <th className="p-2 w-8"></th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        )}
+                        </thead>
+                        <tbody className="divide-y">
+                            {itensAdicionados.map((it, idx) => (
+                                <tr key={it.id} className="bg-white">
+                                    <td className="p-2">{it.produto}</td>
+                                    <td className="p-2">{it.dose}</td>
+                                    <td className="p-2"><button onClick={() => handleRemoveItem(it.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
-        {/* BOTÃO FINALIZAR */}
-        {itensAdicionados.length > 0 && (
-            <button onClick={enviar} className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-green-800 transition-transform active:scale-95 flex items-center justify-center gap-2">
-                <Check className="w-6 h-6"/> Registrar Recomendação ({itensAdicionados.length} itens)
-            </button>
-        )}
-      </div>
+            {/* BOTÃO FINALIZAR */}
+            {itensAdicionados.length > 0 && (
+                <button onClick={enviar} className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-green-800 transition-transform active:scale-95 flex items-center justify-center gap-2">
+                    <Check className="w-6 h-6"/> Registrar Recomendação ({itensAdicionados.length} itens)
+                </button>
+            )}
+        </div>
+      )}
 
       {/* HISTÓRICO RESTAURADO (Data, Safra, Cultura, Talhão) */}
       <div className="bg-white rounded-lg border-2 overflow-x-auto shadow-sm">

@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Mail, Lock, LogIn, Loader2, Sprout, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import { APP_VERSION } from '../data/constants';
 import AuthCadastroScreen from './AuthCadastroScreen';
 
 export default function AuthScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState<'login' | 'register'>('login');
+    const [view, setView] = useState<'login' | 'register' | 'forgot'>('login');
     const [showPassword, setShowPassword] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -33,9 +34,69 @@ export default function AuthScreen() {
         }
     };
 
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        if (!email) {
+            toast.error("Informe seu e-mail.");
+            setLoading(false);
+            return;
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin,
+        });
+
+        if (error) {
+            toast.error(`Erro: ${error.message}`);
+        } else {
+            toast.success("Link de recuperação enviado para seu e-mail!");
+            setView('login');
+        }
+        setLoading(false);
+    };
+
     // Sub-rota para cadastro
     if (view === 'register') {
         return <AuthCadastroScreen onBack={() => setView('login')} />;
+    }
+
+    if (view === 'forgot') {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center p-8">
+                <div className="w-full max-w-md space-y-8 text-center">
+                    <div>
+                        <img src="/logo-full.png" alt="AgroVisão" className="h-16 object-contain mx-auto mb-6" />
+                        <h2 className="text-2xl font-bold text-gray-900">Recuperar Senha</h2>
+                        <p className="mt-2 text-sm text-gray-500">Informe seu e-mail para receber o link de recuperação.</p>
+                    </div>
+                    <form onSubmit={handleResetPassword} className="space-y-6 text-left">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">E-mail</label>
+                            <input
+                                type="email"
+                                required
+                                className="block w-full px-4 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                                placeholder="seu@email.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3.5 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all flex items-center justify-center"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enviar Link de Recuperação"}
+                        </button>
+                    </form>
+                    <button onClick={() => setView('login')} className="text-sm font-bold text-green-600 hover:underline">
+                        Voltar para o Login
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -113,7 +174,7 @@ export default function AuthScreen() {
                         <div className="space-y-1">
                              <div className="flex items-center justify-between ml-1">
                                 <label className="text-xs font-bold text-gray-600 uppercase">Senha</label>
-                                <a href="#" className="text-xs font-medium text-green-600 hover:text-green-500">Esqueceu a senha?</a>
+                                <button type="button" onClick={() => setView('forgot')} className="text-xs font-medium text-green-600 hover:text-green-500">Esqueceu a senha?</button>
                             </div>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -159,17 +220,17 @@ export default function AuthScreen() {
                         </div>
                     </div>
 
-                    <div className="mt-6 text-center">
+                     <div className="mt-6 text-center">
                          <button
                             onClick={() => setView('register')}
                             className="w-full py-3 px-4 border-2 border-dashed border-gray-300 rounded-xl text-sm font-medium text-gray-600 hover:border-green-500 hover:text-green-600 hover:bg-green-50/50 transition-all flex items-center justify-center gap-2"
                         >
-                            Criar Nova Conta de Produtor
+                            Criar Nova Conta
                         </button>
                     </div>
 
                     <div className="mt-8 text-center">
-                         <p className="text-xs text-gray-400">© 2026 AgroVisão Systems. v3.6 Stable</p>
+                         <p className="text-xs text-gray-400">© 2026 AgroVisão Systems. {APP_VERSION}</p>
                          
                          <div className="mt-6 flex flex-col items-center justify-center opacity-80">
                             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider mb-2">Desenvolvido por</span>

@@ -19,7 +19,7 @@ export const dbService = {
              query = query.order(orderBy, { ascending: false });
         } else {
              // Padrões por tipo de tabela
-             const sortByName = ['maquinas', 'talhoes', 'pessoas', 'produtos', 'locais_monitoramento', 'safras', 'culturas'];
+             const sortByName = ['maquinas', 'talhoes', 'centros_custos', 'produtos', 'locais_monitoramento', 'safras', 'culturas'];
              const sortByData = ['os', 'abastecimentos', 'energia', 'recomendacoes', 'refeicoes', 'chuvas', 'compras'];
              
              if (sortByName.includes(table)) {

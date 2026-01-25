@@ -9,11 +9,10 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         const safeParams = currentParams || {};
         // Se currentParams vier vazio ou incompleto, garantimos a estrutura
         return {
-            fazendaNome: safeParams.fazendaNome || '',
             energia: safeParams.energia || { custoKwh: '', metaConsumo: '' },
             estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '' },
             manutencao: safeParams.manutencao || { alertaPreventiva: '' },
-            ...safeParams // Sobrescreve com o que existir de verdade
+            ...safeParams
         };
     });
 
@@ -40,22 +39,8 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
     };
 
     return (
-        <div className="space-y-6 p-4 pb-24 max-w-md mx-auto">
-            <PageHeader setTela={onBack} title="Parâmetros Globais" icon={Sliders} colorClass="bg-blue-600" backTarget="principal" />
+        <div className="space-y-6">
             
-            {/* PROPRIEDADE */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-emerald-500 space-y-3">
-                <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                    <Home className="w-5 h-5 text-emerald-500"/> Identificação
-                </h3>
-                <Input 
-                    label="Nome da Propriedade" 
-                    value={getVal('root', 'fazendaNome')} 
-                    onChange={(e: any) => handleChange('root', 'fazendaNome', e.target.value)}
-                    type="text"
-                    placeholder="Ex: Fazenda Santa Maria"
-                />
-            </div>
 
             {/* ENERGIA */}
             <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 space-y-3">

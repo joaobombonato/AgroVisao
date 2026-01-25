@@ -4,7 +4,9 @@ import { useAppContext } from '../context/AppContext';
 import WeatherMiniWidget from '../components/weather/WeatherMiniWidget';
 
 export default function PrincipalScreen() {
-  const { setTela, nivelCritico, ativos, fazendaSelecionada } = useAppContext();
+  const { state, setTela, nivelCritico, ativos, fazendaSelecionada } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   // Verifica se a fazenda é nova (sem máquinas cadastradas)
   const isNovaFazenda = !ativos?.maquinas || ativos.maquinas.length === 0;
@@ -19,7 +21,11 @@ export default function PrincipalScreen() {
     { id: 'chuvas:previsao', nome: 'Chuvas e Previsão', icon: CloudRain, cor: 'bg-cyan-500', descricao: 'Registro de Chuvas e Previsão Multi-Fonte' }, 
     { id: 'mapa', nome: 'Mapas e Satélite', icon: MapPinned, cor: 'bg-green-700', descricao: 'Satélite & Área' },
     { id: 'relatorios', nome: 'Relatórios', icon: FileText, cor: 'bg-indigo-700', descricao: 'Relatórios Diversos' },
-  ];
+  ].filter(m => {
+    const screenId = m.id.split(':')[0];
+    if (rolePermissions?.screens?.[screenId] === false) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-5 p-4 pb-24">

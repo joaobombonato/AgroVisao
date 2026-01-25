@@ -95,7 +95,7 @@ export default function WeatherMiniWidget({ latitude, longitude, farmName, onCli
             <h3 className="text-sm font-black leading-tight tracking-tight uppercase">
                 {farmName || 'Fazenda AgroVisão'}
             </h3>
-            <p className="text-[10px] text-blue-100 uppercase font-bold tracking-widest opacity-80">Painel Operacional 24h</p>
+            <p className="text-[10px] text-blue-100 font-bold tracking-widest opacity-80">Painel Meteorológico do Dia</p>
           </div>
         </div>
         <ArrowRight className="w-4 h-4 text-blue-200 group-hover:translate-x-1 transition-transform" />

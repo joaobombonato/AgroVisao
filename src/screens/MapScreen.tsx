@@ -62,7 +62,9 @@ const TILE_LAYERS = {
 
 
 export default function MapScreen() {
-  const { setTela, fazendaSelecionada, genericUpdate } = useAppContext();
+  const { state, setTela, fazendaSelecionada, genericUpdate } = useAppContext();
+  const { userRole, permissions } = state;
+  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -479,7 +481,14 @@ export default function MapScreen() {
 
   return (
     <div className="space-y-4 p-4 pb-24 font-inter min-h-screen relative">
-      <MapHeader hasChanges={hasChanges} saving={saving} onSave={handleSave} onBack={() => setTela('principal')} />
+    <MapHeader 
+      hasChanges={hasChanges} 
+      saving={saving} 
+      onSave={handleSave} 
+      onBack={() => setTela('principal')} 
+      fazendaNome={fazendaSelecionada?.nome}
+      recCode={fazendaSelecionada?.config?.regional?.rec}
+    />
       
       {showCalendar && (
         <SatelliteCalendar
@@ -575,7 +584,7 @@ export default function MapScreen() {
                  </div>
  
                  {/* 2. MODIFY ACTION CARD */}
-                 {!isDrawing && (
+                 {!isDrawing && rolePermissions?.actions?.mapa_edicao !== false && (
                    geojsonData ? (
                      <div 
                        onClick={startEditing}
@@ -718,7 +727,6 @@ export default function MapScreen() {
         <AgronomicIntelligenceCard 
           agronomic={agronomic} 
           loading={false} 
-          precipitation={agronomic?.current?.precipitation || 0} 
         />
       )}
 
