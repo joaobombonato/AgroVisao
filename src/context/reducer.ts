@@ -59,6 +59,7 @@ export const ACTIONS = {
   REMOVE_FROM_QUEUE: 'REMOVE_FROM_QUEUE',
   SET_FAZENDAS_DISPONIVEIS: 'SET_FAZENDAS_DISPONIVEIS',
   SET_PERMISSIONS: 'SET_PERMISSIONS',
+  SET_DADOS: 'SET_DADOS',
 };
 
 export function appReducer(state: State, action: any) {
@@ -87,21 +88,37 @@ export function appReducer(state: State, action: any) {
             loading: false
         };
     case ACTIONS.SET_DB_ASSETS: {
-        let ativosKey = '';
-        if (action.table === 'maquinas') ativosKey = 'maquinas';
-        if (action.table === 'talhoes') ativosKey = 'talhoes';
-        if (action.table === 'centros_custos') ativosKey = 'centrosCusto';
-        if (action.table === 'produtos') ativosKey = 'produtos';
+        const { table, records } = action;
+        const newDbAssets = { ...state.dbAssets, [table]: records };
+        let newAtivos = { ...state.ativos };
 
-        const newDbAssets = { ...state.dbAssets, [action.table]: action.records };
-        const newAtivos = ativosKey 
-            ? { ...state.ativos, [ativosKey]: action.records }
-            : state.ativos;
+        if (table === 'maquinas') newAtivos.maquinas = records;
+        if (table === 'talhoes') newAtivos.talhoes = records;
+        if (table === 'centros_custos') newAtivos.centrosCusto = records;
+        if (table === 'produtos') newAtivos.produtos = records;
+        if (table === 'safras') newAtivos.safras = records;
+        if (table === 'culturas') newAtivos.culturas = records;
+        if (table === 'tipos_refeicao') newAtivos.tiposRefeicao = records;
+        if (table === 'classes_agronomicas') newAtivos.classes = records;
+        if (table === 'tipos_documento') newAtivos.tiposDocumento = records;
+        
+        if (table === 'locais_monitoramento') {
+            newAtivos.locais = records.filter((r: any) => r.tipo === 'chuva');
+            newAtivos.pontosEnergia = records.filter((r: any) => r.tipo === 'energia');
+        }
 
         return { 
             ...state, 
             dbAssets: newDbAssets,
             ativos: newAtivos
+        };
+    }
+    case ACTIONS.SET_DADOS: {
+        const { modulo, records } = action;
+        if (modulo === 'os') return { ...state, os: records };
+        return { 
+            ...state, 
+            dados: { ...state.dados, [modulo]: records } 
         };
     }
     case ACTIONS.SET_TELA:
@@ -110,20 +127,7 @@ export function appReducer(state: State, action: any) {
       const { modulo, record, osDescricao, osDetalhes } = action;
       const newDados = { ...state.dados, [modulo]: [...(state.dados[modulo] || []), record] };
       
-      let newOs = state.os;
-      if (osDescricao) {
-        const osId = `OS-${new Date().getFullYear()}-${String(state.os.length + 1).padStart(4, '0')}`;
-        const moduloFormatado = modulo.charAt(0).toUpperCase() + modulo.slice(1);
-        newOs = [...state.os, { 
-            id: osId, 
-            modulo: moduloFormatado, 
-            descricao: osDescricao, 
-            detalhes: osDetalhes || {},
-            status: 'Pendente', 
-            data: new Date().toISOString() 
-        }];
-      }
-      return { ...state, dados: newDados, os: newOs };
+      return { ...state, dados: newDados };
     }
     case ACTIONS.REMOVE_RECORD: {
       const { modulo, id } = action;

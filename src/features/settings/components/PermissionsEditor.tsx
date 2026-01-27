@@ -83,6 +83,10 @@ export default function PermissionsEditor() {
     { id: 'chuvas_registro', label: 'Registrar Lançamento de Chuvas' },
     { id: 'mapa_edicao', label: 'Editar Áreas e Talhões no Mapa' },
     { id: 'excluir_registros', label: 'Excluir Registros do Sistema' },
+    { id: 'config_financeiro', label: 'Acesso às Config. Financeiras' },
+    { id: 'config_equipe', label: 'Gerenciar Pessoas e Equipe' },
+    { id: 'config_propriedade', label: 'Ajustar Dados da Fazenda' },
+    { id: 'config_sistema', label: 'Alterar Parâmetros e Safras' },
   ];
 
   return (

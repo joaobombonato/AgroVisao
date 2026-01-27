@@ -9,8 +9,9 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         const safeParams = currentParams || {};
         // Se currentParams vier vazio ou incompleto, garantimos a estrutura
         return {
-            energia: safeParams.energia || { custoKwh: '', metaConsumo: '' },
-            estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '' },
+            energia: safeParams.energia || { custoKwh: '', metaConsumo: '', diaLeitura: '' },
+            estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '', ajusteManual: '' },
+            financeiro: safeParams.financeiro || { precoDiesel: '' },
             manutencao: safeParams.manutencao || { alertaPreventiva: '' },
             ...safeParams
         };
@@ -42,7 +43,26 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         <div className="space-y-6">
             
 
-            {/* ENERGIA */}
+            {/* SAFRA ATIVA (GLOBAL) */}
+            <div className="bg-white p-4 rounded-xl shadow-md border-l-4 border-blue-600 space-y-3">
+                <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                    <Sliders className="w-5 h-5 text-blue-600"/> Planejamento de Safra
+                </h3>
+                <div className="space-y-1">
+                    <label className="block text-xs font-bold text-gray-700">Safra Ativa (Contexto Principal)</label>
+                    <select 
+                        value={form.safraAtiva || ''} 
+                        onChange={(e) => setForm({...form, safraAtiva: e.target.value})}
+                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-bold focus:border-blue-500 outline-none"
+                    >
+                        <option value="">Nenhuma Safra Selecionada</option>
+                        {(currentParams?.safras_lista || []).map((s: any) => (
+                            <option key={s.id} value={s.id}>{s.nome || s.titulo}</option>
+                        ))}
+                    </select>
+                    <p className="text-[10px] text-gray-400 leading-tight">Todos os lançamentos de hoje em diante serão vinculados a esta Safra.</p>
+                </div>
+            </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 space-y-3">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
                     <Zap className="w-5 h-5 text-yellow-500"/> Energia Elétrica
@@ -51,14 +71,25 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     label="Custo por kWh (R$)" 
                     value={getVal('energia', 'custoKwh')} 
                     onChange={(e: any) => handleChange('energia', 'custoKwh', e.target.value)}
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 0,92"
                 />
                 <Input 
                     label="Meta de Consumo Mensal (kWh)" 
                     value={getVal('energia', 'metaConsumo')} 
                     onChange={(e: any) => handleChange('energia', 'metaConsumo', e.target.value)}
-                    type="number"
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 500,0"
+                />
+                <Input 
+                    label="Dia do Fechamento (Leitura)" 
+                    value={getVal('energia', 'diaLeitura')} 
+                    onChange={(e: any) => handleChange('energia', 'diaLeitura', e.target.value)}
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 15"
                 />
             </div>
 
@@ -71,13 +102,33 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     label="Capacidade do Tanque (Litros)" 
                     value={getVal('estoque', 'capacidadeTanque')} 
                     onChange={(e: any) => handleChange('estoque', 'capacidadeTanque', e.target.value)}
-                    type="number"
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 15000,0"
                 />
                 <Input 
                     label="Estoque Mínimo (Alerta)" 
                     value={getVal('estoque', 'estoqueMinimo')} 
                     onChange={(e: any) => handleChange('estoque', 'estoqueMinimo', e.target.value)}
-                    type="number"
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 1000,0"
+                />
+                <Input 
+                    label="Ajuste Manual / Saldo Inicial (L)" 
+                    value={getVal('estoque', 'ajusteManual')} 
+                    onChange={(e: any) => handleChange('estoque', 'ajusteManual', e.target.value)}
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 500,0"
+                />
+                <Input 
+                    label="Preço de Referência Diesel (R$)" 
+                    value={getVal('financeiro', 'precoDiesel')} 
+                    onChange={(e: any) => handleChange('financeiro', 'precoDiesel', e.target.value)}
+                    type="text"
+                    numeric={true}
+                    placeholder="Ex: 6,45"
                 />
             </div>
 
@@ -90,7 +141,8 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     label="Alerta Preventivo (Horas Antes)" 
                     value={getVal('manutencao', 'alertaPreventiva')} 
                     onChange={(e: any) => handleChange('manutencao', 'alertaPreventiva', e.target.value)}
-                    type="number"
+                    type="text"
+                    numeric={true}
                     placeholder="Ex: 50"
                 />
             </div>

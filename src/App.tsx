@@ -49,10 +49,9 @@ const RestrictedScreen = ({ onBackHome }: { onBackHome: () => void }) => (
 );
 
 // -- [MainLayout: Layout para usuários logados com fazenda selecionada] --
-const MainLayout = () => {
+const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: any, handleInstallClick: () => void }) => {
   const { state, tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda } = useAppContext();
   const { userRole } = state;
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showTrocarModal, setShowTrocarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
   
@@ -76,7 +75,23 @@ const MainLayout = () => {
     mapa: MapScreen
   };
 
-  const [screenId, subTab] = tela.split(':');
+  const [screenId, ...rest] = tela.split(':');
+  const subTab = rest.join(':');
+  const mainRef = React.useRef<HTMLDivElement>(null);
+
+  // Reset Scroll ao trocar de tela
+  useEffect(() => {
+    // Reset para o topo tanto do container interno quanto da janela global
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, [tela]);
+
+  useEffect(() => {
+    const nome = fazendaSelecionada?.nome ? ` | ${fazendaSelecionada.nome}` : '';
+    document.title = `AgroVisão${nome}`;
+  }, [fazendaSelecionada]);
 
   // Bloqueio Dinâmico via Permissões
   const { permissions } = state;
@@ -97,24 +112,7 @@ const MainLayout = () => {
     return true;
   });
 
-  // PWA Install Prompt
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e:any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') toast.success("Instalação iniciada!");
-      setDeferredPrompt(null);
-    }
-  };
+  // As funções PWA foram movidas para o AppContent para garantir captura global
 
   const irParaNotificacoes = () => setTela('os');
 
@@ -164,8 +162,31 @@ const MainLayout = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto pb-24 scroll-smooth">
+        <main ref={mainRef} className="flex-1 overflow-y-auto pb-24">
              <div className="max-w-md mx-auto w-full">
+                {/* Banner de Instalação (PWA) */}
+                {deferredPrompt && (
+                  <div className="mx-4 mt-4 p-4 bg-gradient-to-r from-green-600 to-green-700 rounded-2xl shadow-lg border border-green-500/20 animate-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center shrink-0">
+                          <img src="/icon.png" alt="AgroVisão" className="w-8 h-8 object-contain" />
+                        </div>
+                        <div className="text-white">
+                          <h3 className="font-bold text-sm">AgroVisão no seu celular</h3>
+                          <p className="text-[10px] opacity-90">Gerenciador Agrícola Inteligente</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleInstallClick}
+                        className="bg-white text-green-700 px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-50 active:scale-95 transition-all whitespace-nowrap shadow-sm"
+                      >
+                        Instalar Agora
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <React.Suspense fallback={
                     <div className="flex items-center justify-center h-64">
                          <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
@@ -249,7 +270,28 @@ const MainLayout = () => {
 
 // -- [AppContent: Gerenciador de Rotas Globais] --
 const AppContent = () => {
-    const { tela } = useAppContext();
+    const { session, tela, setTela } = useAppContext();
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+    // PWA Install Prompt - Captura Global
+    useEffect(() => {
+        const handleBeforeInstallPrompt = (e: any) => {
+            console.log('PWA: Prompt de instalação capturado!');
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') toast.success("Instalação iniciada!");
+            setDeferredPrompt(null);
+        }
+    };
 
     if (tela === 'loading') {
         return (
@@ -260,7 +302,7 @@ const AppContent = () => {
         );
     }
 
-    if (tela === 'auth') {
+    if (!session || tela === 'auth') {
         return (
             <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
                 <AuthScreen />
@@ -285,7 +327,7 @@ const AppContent = () => {
     }
 
     // Default: App Logado
-    return <MainLayout />;
+    return <MainLayout deferredPrompt={deferredPrompt} handleInstallClick={handleInstallClick} />;
 };
 
 // -- [Root Component] --

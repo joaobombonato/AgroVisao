@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Zap, Search, ChevronDown, Check, X, History, Calculator } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
+import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
+
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
@@ -23,7 +24,8 @@ export default function EnergiaScreen() {
       ponto: '', 
       medidor: '', 
       leituraAnterior: '', 
-      leituraAtual: '' 
+      leituraAtual: '',
+      centroCusto: ''
   });
   
   const [filterData, setFilterData] = useState('');
@@ -38,8 +40,8 @@ export default function EnergiaScreen() {
 
   const valorEstimado = useMemo(() => {
       const kwh = U.parseDecimal(consumo);
-      // Lê do parâmetro global ou usa 0.92 como fallback seguro
-      const custoMedio = ativos.parametros?.energia?.custoKwh || 0.92; 
+      const custoKwhStr = ativos.parametros?.energia?.custoKwh;
+      const custoMedio = custoKwhStr !== '' ? U.parseDecimal(custoKwhStr) : 0.92; 
       return (kwh * custoMedio).toFixed(2);
   }, [consumo, ativos.parametros]);
 
@@ -54,26 +56,42 @@ export default function EnergiaScreen() {
       const ultimoRegistro = buscarUltimaLeitura('energia', 'ponto', nomePonto);
       const leituraAntAuto = ultimoRegistro ? ultimoRegistro.leituraAtual : '0';
 
-      setForm(prev => ({ 
-          ...prev, 
-          ponto: nomePonto, 
-          medidor: medidorAuto || prev.medidor, 
-          leituraAnterior: leituraAntAuto 
-      }));
+      setForm(prev => {
+          const novoPonto = nomePonto;
+          
+          // Busca Centro de Custo vinculado a este medidor/ponto
+          const ccVinculado = (ativos.centros_custos || []).find((cc: any) => 
+            cc.tipo_vinculo === 'Medidor de Energia' && cc.vinculo_id === nomePonto
+          );
+
+          return { 
+              ...prev, 
+              ponto: nomePonto, 
+              medidor: medidorAuto || prev.medidor, 
+              leituraAnterior: leituraAntAuto,
+              centroCusto: ccVinculado ? ccVinculado.nome : prev.centroCusto
+          };
+      });
   };
 
   const enviar = (e: any) => {
     e.preventDefault();
     if (U.parseDecimal(consumo) <= 0) { toast.error("Leitura Atual deve ser maior que a Anterior"); return; }
     
-    const novo = { ...form, consumo, valorEstimado, id: U.id('EN-') };
+    const novo = { 
+        ...form, 
+        consumo, 
+        valorEstimado, 
+        safra_id: ativos.parametros?.safraAtiva || null,
+        id: U.id('EN-') 
+    };
 
     
     const descOS = `Energia: ${form.ponto} (${consumo} kWh)`;
-    genericSave('energia', novo, { type: ACTIONS.ADD_RECORD, modulo: 'energia', osDescricao: descOS });
+    genericSave('energia', novo, { type: ACTIONS.ADD_RECORD, modulo: 'energia' });
 
     // 2. Persistência OS
-    genericSave('os', {
+    const novaOS = {
         id: U.id('OS-EN-'),
         modulo: 'Energia',
         descricao: descOS,
@@ -84,9 +102,15 @@ export default function EnergiaScreen() {
         },
         status: 'Pendente',
         data: new Date().toISOString()
+    };
+
+    genericSave('os', novaOS, {
+        type: ACTIONS.ADD_RECORD,
+        modulo: 'os',
+        record: novaOS
     });
     
-    setForm({ data: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '' });
+    setForm({ data: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '', centroCusto: '' });
     toast.success('Leitura de energia registrada!');
   };
 
@@ -148,39 +172,31 @@ export default function EnergiaScreen() {
              </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-              {/* LEITURA ANTERIOR (Altura Ajustada) */}
-              <div className="space-y-1">
-                 <div className="flex justify-center">
-                    <p className="text-xs font-bold text-gray-500 flex items-center gap-1"><History className="w-4 h-4"/> Leitura Anterior</p>
-                    <span className="text-[10px] text-yellow-600 bg-yellow-100 px-1 rounded">Auto</span>
-                 </div>
-                 <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg">
-                     <input 
-                        type="number" 
+          <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                      <Input 
+                        label="Leitura Anterior"
+                        type="text" 
                         value={form.leituraAnterior} 
                         readOnly
-                        className="w-full px-1 py-1 bg-transparent font-bold text-yellow-500 outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-full px-1 py-1 bg-gray-50 font-bold text-yellow-600 outline-none text-center border-2 border-yellow-200 rounded-lg"
                         placeholder="-"
-                     />
-                 </div>
-              </div>
-              
-              {/* LEITURA ATUAL */}
-              <div className="space-y-1">
-                 <p className="text-xs font-bold text-gray-700 text-center">Leitura Atual<span className="text-red-500">*</span></p>
-                 <div className="">
-                     <input 
-                        type="number" 
+                      />
+                  </div>
+                  <div className="space-y-1">
+                      <Input 
+                        label="Leitura Atual"
+                        type="text" 
                         value={form.leituraAtual} 
-                        onChange={(e) => setForm({...form, leituraAtual: e.target.value})}
-                        className="w-full px-1 py-1 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-yellow-200 focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="Preencher..."
+                        onChange={(e: any) => setForm({...form, leituraAtual: e.target.value})}
+                        numeric={true}
+                        className="w-full px-1 py-1 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-yellow-200 focus:outline-none text-center"
+                        placeholder="Ex: 1250,5"
                         required
-                     />
-                 </div>
+                      />
+                  </div>
               </div>
-          </div>
+
 
           {/* Card de Resultado */}
           <div className="flex items-center justify-between bg-gray-800 text-white p-4 rounded-xl shadow-lg mt-2 relative overflow-hidden">

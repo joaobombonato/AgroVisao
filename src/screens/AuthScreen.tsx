@@ -3,6 +3,7 @@ import { Mail, Lock, LogIn, Loader2, Sprout, ArrowRight, Eye, EyeOff } from 'luc
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
 import { APP_VERSION } from '../data/constants';
+import { U } from '../data/utils';
 import AuthCadastroScreen from './AuthCadastroScreen';
 
 export default function AuthScreen() {
@@ -26,7 +27,7 @@ export default function AuthScreen() {
         
         // Se der erro, mostra toast. Se sucesso, o App.tsx detecta mudança de sessão automaticamente.
         if (error) {
-            toast.error(`Erro: ${error.message}`);
+            toast.error(`Erro: ${U.translateAuthError(error.message)}`);
             setLoading(false);
         } else {
             toast.success("Login realizado. Entrando...", { duration: 2000 });
@@ -49,7 +50,7 @@ export default function AuthScreen() {
         });
 
         if (error) {
-            toast.error(`Erro: ${error.message}`);
+            toast.error(`Erro: ${U.translateAuthError(error.message)}`);
         } else {
             toast.success("Link de recuperação enviado para seu e-mail!");
             setView('login');

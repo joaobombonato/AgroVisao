@@ -611,7 +611,7 @@ export default function MapScreen() {
                        <div className="flex flex-col items-center justify-center w-full text-white">
                            <div className="flex items-center gap-1 mb-0.5">
                              <Plus className="w-3 h-3" />
-                             <span className="text-[7.5px] font-black uppercase tracking-widest">Novo Talhão</span>
+                             <span className="text-[7.5px] font-black uppercase tracking-widest">Delimitar Divisa</span>
                            </div>
                            <span className="text-[13px] font-black uppercase">Desenhar Área</span>
                        </div>

@@ -14,7 +14,7 @@ export default function RecomendacoesScreen() {
   const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
   // Estado do Cabeçalho (Fixo para a receita inteira)
-  const [header, setHeader] = useState({ data: U.todayIso(), safra: '', talhao: '', area: '', cultura: '' });
+  const [header, setHeader] = useState({ data: U.todayIso(), safra: '', operacao: '', talhao: '', area: '', cultura: '' });
   
   // Estado do Item Atual (Sendo adicionado)
   const [item, setItem] = useState({ classe: '', produto: '', dose: '' });
@@ -33,6 +33,7 @@ export default function RecomendacoesScreen() {
           setHeader(prev => ({
               ...prev,
               safra: ultimo.safra || '',
+              operacao: ultimo.operacao || '',
               talhao: ultimo.talhao || '',
               cultura: ultimo.cultura || '',
               area: '', 
@@ -84,6 +85,7 @@ export default function RecomendacoesScreen() {
       // Cria a descrição da OS Unificada
       const resumoProdutos = itensAdicionados.map(i => i.produto).join(', ');
       const detalhesOS: any = {
+          "Operação": header.operacao,
           "Talhão": header.talhao,
           "Cultura": header.cultura,
           "Área": `${header.area} ha`,
@@ -107,14 +109,32 @@ export default function RecomendacoesScreen() {
 
   const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir recomendação?', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'recomendacoes', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
   
-  // Produtos Filtrados (Para o select de item)
+  // Produtos Filtrados (Por Classe e por Operação)
   const produtosFiltrados = useMemo(() => {
-      if (!item.classe) return ativos.produtos;
-      return ativos.produtos.filter((p: any) => {
-          if (typeof p === 'string') return true;
-          return p.classe === item.classe || !p.classe;
-      });
-  }, [ativos.produtos, item.classe]);
+      let filtered = ativos.produtos || [];
+      
+      // 1. Filtrar por Operação Selecionada (Se houver)
+      if (header.operacao) {
+          const opObj = (ativos.operacoesAgricolas || []).find((o: any) => o.nome === header.operacao || o === header.operacao);
+          const opId = opObj?.id;
+          
+          if (opId) {
+              filtered = filtered.filter((p: any) => p.operacao_id === opId || !p.operacao_id);
+          }
+      }
+
+      // 2. Filtrar por Classe Selecionada (Se houver)
+      if (item.classe) {
+          const classeObj = (ativos.classes || []).find((c: any) => c.nome === item.classe || c === item.classe);
+          const classeId = classeObj?.id;
+          
+          if (classeId) {
+              filtered = filtered.filter((p: any) => p.classe_id === classeId || !p.classe_id);
+          }
+      }
+
+      return filtered;
+  }, [ativos.produtos, ativos.operacoesAgricolas, ativos.classes, header.operacao, item.classe]);
 
   const listFilter = useMemo(() => (dados.recomendacoes || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
@@ -172,7 +192,10 @@ export default function RecomendacoesScreen() {
                     <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} color="green" />
                     <SearchableSelect label="Culturas" placeholder="Selecione..." options={ativos.culturas} value={header.cultura} onChange={(e:any) => setHeader({ ...header, cultura: e.target.value })} color="green" />
                 </div>
-                <SearchableSelect label="Talhões" placeholder="Buscar o Talhão/Pivo... Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
+                <div className="grid grid-cols-2 gap-3">
+                    <SearchableSelect label="Talhões" placeholder="Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
+                    <SearchableSelect label="Operação" placeholder="Ex: Plantio..." options={ativos.operacoesAgricolas} value={header.operacao} onChange={(e:any) => setHeader({ ...header, operacao: e.target.value })} color="green" />
+                </div>
                 {header.area && <div className="text-xs text-right text-green-600 font-bold">Área: {header.area} ha</div>}
             </div>
 
@@ -180,7 +203,9 @@ export default function RecomendacoesScreen() {
             <div className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-3">
                 <p className="text-xs font-bold text-green-700 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center flex justify-center gap-1"><span className="text-red-500">***</span><Beaker className="w-5 h-5"/>Composição da Calda <span className="text-red-500">***</span></p>
                 
-                <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
+                {header.operacao === 'Manejo de aplicações' && (
+                    <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
+                )}
                 
                 <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
@@ -189,7 +214,7 @@ export default function RecomendacoesScreen() {
                     
                     {/* Campo Dose Manual (Padronizado) */}
                     <div className="space-y-1">
-                        <label className="block text-xs font-bold text-gray-700">Dose</label>
+                        <label className="block text-xs font-bold text-gray-700">Dose / Qtd</label>
                         <input 
                             type="text" 
                             placeholder="Informe... Ex: 2L/ha" 
@@ -258,8 +283,8 @@ export default function RecomendacoesScreen() {
                         <tr>
                             <th className="px-3 py-2 text-left text-xs font-bold text-gray-500">Data</th>
                             <th className="px-3 py-2 text-left text-xs font-bold text-gray-500">Safra</th>
+                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-500">Talhão / Operação</th>
                             <th className="px-3 py-2 text-left text-xs font-bold text-gray-500">Cultura</th>
-                            <th className="px-3 py-2 text-left text-xs font-bold text-gray-500">Talhão</th>
                             <th className="px-3 py-2 text-right text-xs font-bold text-gray-500">Ações</th>
                         </tr>
                     </thead>
@@ -274,11 +299,14 @@ export default function RecomendacoesScreen() {
                                 <Row key={item.id} onDelete={() => excluir(item.id)}>
                                     <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data)}</td>
                                     <td className="px-3 py-2 text-gray-700 text-xs">{item.safra}</td>
+                                    <td className="px-3 py-2 text-xs">
+                                        <div className="font-bold text-green-700">{item.talhao}</div>
+                                        <div className="text-[10px] text-gray-400 uppercase font-black">{item.operacao}</div>
+                                    </td>
                                     <td className="px-3 py-2 text-gray-700 text-xs">
                                         <div className="font-bold">{item.cultura}</div>
                                         <div className="text-[10px] text-gray-500">{resumoProdutos}</div>
                                     </td>
-                                    <td className="px-3 py-2 text-xs font-bold text-green-700">{item.talhao}</td>
                                     <td className="px-3 py-2 text-right">
                                         <button 
                                             onClick={(e) => {

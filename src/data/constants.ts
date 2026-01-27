@@ -4,101 +4,183 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = 'v4.0.2'; // Versão centralizada
+export const APP_VERSION = "v4.0.2"; // Versão centralizada
 
 export const DADOS_INICIAIS = {
-  chuvas: [], energia: [], documentos: [], abastecimento: [], recomendacoes: [], refeicoes: [], compras: []
+  chuvas: [],
+  energia: [],
+  documentos: [],
+  abastecimentos: [],
+  recomendacoes: [],
+  refeicoes: [],
+  compras: [],
+  os: [],
 };
 
-
 export const ATIVOS_INICIAIS = {
-  // --- Cérebro Paramétrico (Local, será migrado) ---
   parametros: {
-    estoque: {
-      capacidadeTanque: 15000,
-      estoqueMinimo: 1000,
-      ajusteManual: 0 
-    },
-    financeiro: {
-      precoRefeicao: 18.00 
-    },
-    energia: {
-      diaLeitura: 15,
-      metaConsumo: 500,
-      custoKwh: 0.92 // Valor inicial (será editável)
-    },
-    manutencao: {
-      alertaPreventiva: 50
-    }
+    estoque: { capacidadeTanque: "", estoqueMinimo: "", ajusteManual: "" },
+    financeiro: { precoDiesel: "" },
+    energia: { diaLeitura: "", metaConsumo: "", custoKwh: "" },
+    manutencao: { alertaPreventiva: "" },
   },
-  // ---------------------------------
-  // Listas locais que AINDA NÃO migraram para o banco
-  safras: ['2024/2025', '2025/2026', '2026/2027'],
-  culturas: ['Soja', 'Milho', 'Trigo', 'Café', 'Cana-de-açúcar'],
-  classes: ['Herbicida', 'Inseticida', 'Fungicida', 'Adubo', 'Acaricida'],
-  centros_custos: [],
-  tiposDocumento: ['Nota Fiscal', 'Boleto', 'Contrato', 'Recibo', 'Outros'],
-  tiposRefeicao: [
-      { nome: 'Básica', valor: 15.00 },
-      { nome: 'Executiva', valor: 25.00 },
-      { nome: 'Especial', valor: 35.00 }
-  ],
+  maquinas: [],
+  talhoes: [],
+  centrosCusto: [],
+  produtos: [],
+  locais: [],
+  pontosEnergia: [],
+  safras: [],
+  culturas: [],
+  classes: [],
+  tiposDocumento: [],
+  tiposRefeicao: [],
 };
 
 export const DEFAULT_PERMISSIONS: any = {
   Proprietário: {
     screens: {
-      dashboard: true, graficos: true, config: true, os: true, refeicoes: true, 
-      abastecimento: true, recomendacoes: true, estoque: true, manutencao: true, 
-      docs: true, energia: true, chuvas: true, mapa: true
+      dashboard: true,
+      graficos: true,
+      config: true,
+      os: true,
+      refeicoes: true,
+      abastecimento: true,
+      recomendacoes: true,
+      estoque: true,
+      manutencao: true,
+      docs: true,
+      energia: true,
+      chuvas: true,
+      mapa: true,
     },
     actions: {
-      abastecimento_compra: true, estoque_compra: true, recomendacao_criar: true, 
-      chuvas_registro: true, mapa_edicao: true, excluir_registros: true
-    }
+      abastecimento_compra: true,
+      estoque_compra: true,
+      recomendacao_criar: true,
+      chuvas_registro: true,
+      mapa_edicao: true,
+      excluir_registros: true,
+      config_financeiro: true,
+      config_equipe: true,
+      config_propriedade: true,
+      config_sistema: true,
+    },
   },
   Gerente: {
     screens: {
-      dashboard: true, graficos: true, config: false, os: true, refeicoes: true, 
-      abastecimento: true, recomendacoes: true, estoque: true, manutencao: true, 
-      docs: true, energia: true, chuvas: true, mapa: true
+      dashboard: true,
+      graficos: true,
+      config: false,
+      os: true,
+      refeicoes: true,
+      abastecimento: true,
+      recomendacoes: true,
+      estoque: true,
+      manutencao: true,
+      docs: true,
+      energia: true,
+      chuvas: true,
+      mapa: true,
     },
     actions: {
-      abastecimento_compra: true, estoque_compra: true, recomendacao_criar: true, 
-      chuvas_registro: true, mapa_edicao: true, excluir_registros: false
-    }
+      abastecimento_compra: true,
+      estoque_compra: true,
+      recomendacao_criar: true,
+      chuvas_registro: true,
+      mapa_edicao: true,
+      excluir_registros: false,
+      config_financeiro: true,
+      config_equipe: true,
+      config_propriedade: true,
+      config_sistema: true,
+    },
   },
   Administrativo: {
     screens: {
-      dashboard: true, graficos: true, config: false, os: true, refeicoes: true, 
-      abastecimento: true, recomendacoes: false, estoque: true, manutencao: false, 
-      docs: true, energia: true, chuvas: true, mapa: false
+      dashboard: true,
+      graficos: true,
+      config: false,
+      os: true,
+      refeicoes: true,
+      abastecimento: true,
+      recomendacoes: false,
+      estoque: true,
+      manutencao: false,
+      docs: true,
+      energia: true,
+      chuvas: true,
+      mapa: false,
     },
     actions: {
-      abastecimento_compra: true, estoque_compra: true, recomendacao_criar: false, 
-      chuvas_registro: true, mapa_edicao: false, excluir_registros: false
-    }
+      abastecimento_compra: true,
+      estoque_compra: true,
+      recomendacao_criar: false,
+      chuvas_registro: true,
+      mapa_edicao: false,
+      excluir_registros: false,
+      config_financeiro: true,
+      config_equipe: false,
+      config_propriedade: true,
+      config_sistema: false,
+    },
   },
   Operador: {
     screens: {
-      dashboard: false, graficos: false, config: false, os: true, refeicoes: true, 
-      abastecimento: true, recomendacoes: true, estoque: true, manutencao: true, 
-      docs: true, energia: true, chuvas: true, mapa: true
+      dashboard: false,
+      graficos: false,
+      config: false,
+      os: true,
+      refeicoes: true,
+      abastecimento: true,
+      recomendacoes: true,
+      estoque: true,
+      manutencao: true,
+      docs: true,
+      energia: true,
+      chuvas: true,
+      mapa: true,
     },
     actions: {
-      abastecimento_compra: false, estoque_compra: false, recomendacao_criar: false, 
-      chuvas_registro: true, mapa_edicao: true, excluir_registros: false
-    }
+      abastecimento_compra: false,
+      estoque_compra: false,
+      recomendacao_criar: false,
+      chuvas_registro: true,
+      mapa_edicao: true,
+      excluir_registros: false,
+      config_financeiro: false,
+      config_equipe: false,
+      config_propriedade: false,
+      config_sistema: false,
+    },
   },
   "Consultor Agrícola": {
     screens: {
-      dashboard: false, graficos: true, config: false, os: true, refeicoes: false, 
-      abastecimento: false, recomendacoes: true, estoque: true, manutencao: false, 
-      docs: true, energia: false, chuvas: true, mapa: true
+      dashboard: false,
+      graficos: true,
+      config: false,
+      os: true,
+      refeicoes: false,
+      abastecimento: false,
+      recomendacoes: true,
+      estoque: true,
+      manutencao: false,
+      docs: true,
+      energia: false,
+      chuvas: true,
+      mapa: true,
     },
     actions: {
-      abastecimento_compra: false, estoque_compra: false, recomendacao_criar: true, 
-      chuvas_registro: true, mapa_edicao: true, excluir_registros: false
-    }
-  }
+      abastecimento_compra: false,
+      estoque_compra: false,
+      recomendacao_criar: true,
+      chuvas_registro: true,
+      mapa_edicao: true,
+      excluir_registros: false,
+      config_financeiro: false,
+      config_equipe: false,
+      config_propriedade: true,
+      config_sistema: false,
+    },
+  },
 };

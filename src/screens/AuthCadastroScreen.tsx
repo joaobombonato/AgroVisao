@@ -10,9 +10,12 @@ import {
   Sprout,
   User,
   Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { supabase } from "../supabaseClient";
+import { U } from "../data/utils";
 
 export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
   const [email, setEmail] = useState("");
@@ -22,6 +25,8 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +64,7 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
     setLoading(false);
 
     if (error) {
-      toast.error(`Erro ao cadastrar: ${error.message}`);
+      toast.error(`Erro ao cadastrar: ${U.translateAuthError(error.message)}`);
     } else {
       setSuccess(true);
       toast.success("Cadastro iniciado!");
@@ -175,16 +180,23 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
           <label className="text-xs font-bold text-gray-600 uppercase ml-1">
             Senha
           </label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+          <div className="relative group">
+            <Lock className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               placeholder="Mínimo 6 caracteres"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
+              className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
           </div>
         </div>
 
@@ -192,16 +204,23 @@ export default function AuthCadastroScreen({ onBack }: { onBack: () => void }) {
           <label className="text-xs font-bold text-gray-600 uppercase ml-1">
             Confirmar Senha
           </label>
-          <div className="relative">
-            <CheckCircle2 className="absolute left-3 top-3.5 w-5 h-5 text-gray-400" />
+          <div className="relative group">
+            <CheckCircle2 className="absolute left-3 top-3.5 w-5 h-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               placeholder="Repita a senha"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
+              className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:border-green-500 focus:bg-white outline-none transition-all"
               required
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
           </div>
         </div>
 

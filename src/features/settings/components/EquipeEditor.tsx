@@ -140,6 +140,19 @@ export default function EquipeEditor() {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             
+            {/* Alerta de Permissões */}
+            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex gap-3 shadow-sm border-dashed">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                    <Shield className="w-6 h-6 text-amber-600" />
+                </div>
+                <div className="space-y-0.5">
+                    <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest">Atenção Administrativa</p>
+                    <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+                        Antes de autorizar novos acessos, recomendamos revisar as <b>Permissões</b> nas configurações para conferir o que cada cargo (Operador, Gerente, etc.) poderá visualizar no sistema.
+                    </p>
+                </div>
+            </div>
+
             {/* Form de Autorização Direta */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                 <div className="mb-6">

@@ -11,19 +11,24 @@ export default function ManutencaoScreen() {
   // Lógica para determinar o status de cada máquina
   const maquinasStatus = useMemo(() => {
     return (ativos.maquinas || []).map((maq: any) => {
-      // Busca o último abastecimento para ter o horímetro atual
+      // 1. Busca o horímetro atual (Usa abastecimento ou o inicial do cadastro)
       const abastecimentos = (dados.abastecimentos || []).filter((a: any) => a.maquina === maq.nome);
       const ultimoAbastecimento = abastecimentos.sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())[0];
       
-      const horimetroAtual = ultimoAbastecimento ? U.parseDecimal(ultimoAbastecimento.horimetroAtual) : 0;
-      const horimetroRevisao = U.parseDecimal(maq.horimetro_revisao);
+      const horimetroAtual = ultimoAbastecimento 
+        ? U.parseDecimal(ultimoAbastecimento.horimetroAtual) 
+        : U.parseDecimal(maq.horimetro_inicial);
+      
+      // 2. Calcula a próxima revisão: Última + Intervalo
+      const horimetroRevisao = U.parseDecimal(maq.ultima_revisao) + U.parseDecimal(maq.intervalo_revisao);
       
       const horasRestantes = horimetroRevisao - horimetroAtual;
-      const status = horasRestantes <= 0 ? 'Vencida' : horasRestantes <= 50 ? 'Alerta' : 'Regular';
+      const status = horimetroRevisao === 0 ? 'Regular' : (horasRestantes <= 0 ? 'Vencida' : horasRestantes <= 50 ? 'Alerta' : 'Regular');
 
       return {
         ...maq,
         horimetroAtual,
+        horimetroRevisao,
         horasRestantes,
         status
       };
@@ -92,7 +97,7 @@ export default function ManutencaoScreen() {
                 <Wrench className="w-4 h-4 opacity-50" />
                 <div>
                   <p className="text-[10px] uppercase font-bold opacity-70">Meta Revisão</p>
-                  <p className="text-sm font-black">{U.formatInt(U.parseDecimal(maq.horimetro_revisao))} h</p>
+                  <p className="text-sm font-black">{U.formatInt(maq.horimetroRevisao)} h</p>
                 </div>
               </div>
             </div>

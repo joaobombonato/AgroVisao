@@ -1,7 +1,7 @@
 import React, { useState, useMemo, Suspense } from 'react';
 import { CloudRain, Search, Check, Droplets, Cloud, Loader2, Satellite } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
@@ -34,20 +34,34 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
     e.preventDefault();
     if (!form.local || !form.milimetros) { toast.error("Preencha Local e Milímetros"); return; }
     
+    // --- VERIFICAÇÃO DE DUPLICIDADE ---
+    const jaExiste = (dados.chuvas || []).some((c: any) => c.data === form.data && c.local === form.local);
+    if (jaExiste) {
+        toast.error(`Já existe um registro para ${form.local} nesta data (${U.formatDate(form.data)}).`);
+        return;
+    }
+    // ----------------------------------
+    
     const mm = U.parseDecimal(form.milimetros);
     const novo = { ...form, milimetros: mm, id: U.id('CH-') };
     
     const descOS = `Chuva: ${form.local} (${mm}mm)`;
-    genericSave('chuvas', novo, { type: ACTIONS.ADD_RECORD, modulo: 'chuvas', osDescricao: descOS });
+    genericSave('chuvas', novo, { type: ACTIONS.ADD_RECORD, modulo: 'chuvas' });
 
     // 2. Persistência OS
-    genericSave('os', {
+    const novaOS = {
         id: U.id('OS-CH-'),
         modulo: 'Pluviometria',
         descricao: descOS,
         detalhes: { "Local": form.local, "Volume": `${mm} mm` },
         status: 'Pendente',
         data: new Date().toISOString()
+    };
+
+    genericSave('os', novaOS, {
+        type: ACTIONS.ADD_RECORD,
+        modulo: 'os',
+        record: novaOS
     });
     
     setForm({ data: U.todayIso(), local: '', milimetros: '' });
@@ -138,19 +152,20 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
                 />
                 
                 <div className="space-y-1">
-                   <label className="block text-xs font-bold text-gray-700">Volume (mm) <span className="text-red-500">*</span></label>
                    <div className="relative">
-                       <input 
-                          type="number" 
-                          value={form.milimetros} 
-                          onChange={(e) => setForm({...form, milimetros: e.target.value})}
-                          className="w-full px-3 py-3 border-2 border-cyan-400 rounded-lg text-lg font-bold text-gray-900 focus:ring-2 focus:ring-cyan-200 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                          placeholder="Preencher..."
-                          required
-                       />
-                       <span className="absolute right-4 top-4 text-sm font-bold text-gray-400">mm</span>
+                        <Input 
+                           label="Volume (mm)"
+                           type="text" 
+                           value={form.milimetros} 
+                           onChange={(e: any) => setForm({...form, milimetros: e.target.value})}
+                           numeric={true}
+                           placeholder="Ex: 12,5"
+                           required
+                        />
+                        <span className="absolute right-4 top-8 text-sm font-bold text-gray-400">mm</span>
                    </div>
                 </div>
+
   
                 <button type="submit" className="w-full bg-cyan-500 text-white py-3 rounded-lg font-bold hover:bg-cyan-600 transition-colors shadow-md flex items-center justify-center gap-2">
                     <Check className="w-5 h-5" /> Registrar Chuva

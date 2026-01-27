@@ -79,6 +79,7 @@ export default function RefeicoesScreen() {
     const novo = { 
         ...form, 
         valorTotal: vTotal, 
+        safra_id: ativos.parametros?.safraAtiva || null,
         id: U.id('RF-') 
     };
     
@@ -94,9 +95,7 @@ export default function RefeicoesScreen() {
 
     genericSave('refeicoes', novo, {
         type: ACTIONS.ADD_RECORD, 
-        modulo: 'refeicoes', 
-        osDescricao: descOS,
-        osDetalhes: detalheOS
+        modulo: 'refeicoes'
     });
 
     // 2. Persistência Silenciosa da OS
@@ -108,7 +107,11 @@ export default function RefeicoesScreen() {
         status: 'Pendente',
         data: new Date().toISOString()
     };
-    genericSave('os', novaOS);
+    genericSave('os', novaOS, {
+        type: ACTIONS.ADD_RECORD,
+        modulo: 'os',
+        record: novaOS
+    });
     
     setForm({ data: U.todayIso(), tipo: '', qtd: '', valorUnitario: '', centroCusto: '', obs: '' });
     setShowObs(false);
@@ -193,17 +196,24 @@ export default function RefeicoesScreen() {
                  </div>
               </div>
           </div>
-
+          {/*
+            - [x] Injeção de `safra_id` nas Telas Operacionais
+                - [x] `RefeicoesScreen`
+                - [x] `AbastecimentoScreen`
+                - [x] `EnergiaScreen`
+            - [x] Implementação de Setores / Grupos para Refeições
+            - [x] Verificação e Testes
+          */}
           <SearchableSelect 
-              label="Centro de Custo" 
-              placeholder="Buscar quem consumiu? Ex: Operacional" 
-              options={ativos.centrosCusto} 
+              label="Destinação / Setor" 
+              placeholder="Para quem? Ex: Operacional" 
+              options={ativos.setores || []} 
               value={form.centroCusto} 
-              onChange={(e:any) => setForm({ ...form, centroCusto: e.target.value })} 
+              onChange={(e: any) => setForm({ ...form, centroCusto: e.target.value })} 
               required 
               color="orange"
           />
-          
+
           {/* OBSERVAÇÃO */}
           <div>
             <button type="button" onClick={() => setShowObs(!showObs)} className="flex items-center gap-1 text-xs font-bold text-orange-600 hover:text-orange-700 mb-1">

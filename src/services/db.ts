@@ -25,11 +25,22 @@ export const dbService = {
              if (sortByName.includes(table)) {
                  query = query.order('nome', { ascending: true });
              } else if (sortByData.includes(table)) {
-                 // Verifica se a tabela tem coluna 'data' ou usa 'created_at' como fallback?
-                 // Na dúvida, para tabelas de movimento assumimos que 'data' existe (padrão do sistema)
-                 query = query.order('data', { ascending: false });
-             } 
-             // Se não estiver em nenhuma lista, não aplica order (evita erro de coluna inexistente)
+                 // Mapa de colunas de data específicas por tabela
+                 const dateColumnMap: { [key: string]: string } = {
+                     'os': 'data_abertura',
+                     'abastecimentos': 'data_operacao',
+                     'energia': 'data_leitura',
+                     'chuvas': 'data_leitura',
+                     'refeicoes': 'data_refeicao',
+                     'recomendacoes': 'data_recomendacao',
+                     'compras': 'data' 
+                 };
+                 const col = dateColumnMap[table] || 'created_at';
+                 query = query.order(col, { ascending: false });
+             } else {
+                 // Fallback para qualquer outra tabela
+                 query = query.order('created_at', { ascending: false });
+             }
         }
 
         const { data, error } = await query;

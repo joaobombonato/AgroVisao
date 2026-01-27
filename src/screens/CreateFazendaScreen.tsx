@@ -3,6 +3,7 @@ import { Building2, Ruler, MapPin, Check, ChevronLeft, Loader2, Search, Map } fr
 import { supabase } from '../supabaseClient';
 import { useAppContext } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
+import { U } from '../data/utils';
 
 // Lazy load the map component to avoid SSR issues
 const FarmMap = React.lazy(() => import('../components/maps/FarmMap'));
@@ -238,7 +239,8 @@ export default function CreateFazendaScreen() {
        setTela('fazenda_selection'); // Volta para seleção para ver a nova fazenda
 
     } catch (error: any) {
-        toast.error("Erro ao criar fazenda: " + error.message);
+        const readableError = U.translateError(error.message);
+        toast.error("Erro ao criar fazenda: " + readableError);
     } finally {
         setLoading(false);
     }

@@ -79,9 +79,9 @@ export default function FazendaSelectionScreen() {
         });
         setFazendaSelecionada(fazenda);
         
-        // 2. Auto-reparo: garante que o dono esteja na tabela de membros se for o criador
+        // 2. Auto-reparo e Inicialização de Dados Padrão (Seed)
         if (fazenda.user_id === session?.user?.id) {
-            ensureMembroOwner(fazenda.id, session?.user);
+            await ensureMembroOwner(fazenda.id, session?.user);
         }
 
         // 3. Salvar preferência localmente para autologin futuro

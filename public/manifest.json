@@ -1,11 +1,11 @@
 {
-  "name": "AgroVisão - Gestão Rural Inteligente",
+  "name": "AgroVisão - Gerenciador Agrícola Inteligente",
   "short_name": "AgroVisão",
   "description": "Sistema de Gestão Agrícola e Registros Operacionais",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f9fafb",
-  "theme_color": "#10b981",
+  "theme_color": "#16a34a",
   "icons": [
     {
       "src": "/icon.png",
@@ -13,9 +13,10 @@
       "type": "image/png"
     },
     {
-      "src": "/logo-full.png",
+      "src": "/icon.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

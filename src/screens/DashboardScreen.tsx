@@ -16,11 +16,15 @@ export default function DashboardScreen() {
       const absHoje = (dados.abastecimentos || []).filter((a:any) => a.data === hoje);
       const litrosHoje = absHoje.reduce((acc:number, item:any) => acc + U.parseDecimal(item.qtd), 0);
       
-      // Alertas Críticos (Estoque Diesel Baixo)
-      const estoqueDiesel = U.parseDecimal(ativos.estoqueDiesel?.inicial || 0) 
+      // Alertas Críticos (Estoque Diesel Baixo) - Puxando da configuração da fazenda via ativos.parametros
+      const paramsEstoque = ativos.parametros?.estoque || {};
+      const estoqueInicial = paramsEstoque.ajusteManual !== '' ? U.parseDecimal(paramsEstoque.ajusteManual) : 0;
+      const estoqueMinimo = paramsEstoque.estoqueMinimo !== '' ? U.parseDecimal(paramsEstoque.estoqueMinimo) : 0;
+
+      const estoqueDiesel = estoqueInicial 
                           + (dados.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0)
                           - (dados.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0);
-      const alertaEstoque = estoqueDiesel <= U.parseDecimal(ativos.estoqueDiesel?.minimo || 0);
+      const alertaEstoque = estoqueDiesel <= estoqueMinimo;
 
       // Refeições Hoje
       const refeicoesHoje = (dados.refeicoes || []).filter((r:any) => r.data === hoje).length;
@@ -38,12 +42,17 @@ export default function DashboardScreen() {
       const chuvasHoje = (dados.chuvas || []).filter((c:any) => c.data === hoje).length;
       
       // Alertas de Manutenção
+      const alertPrevVal = ativos.parametros?.manutencao?.alertaPreventiva;
+      const alertPrev = alertPrevVal !== '' ? U.parseDecimal(alertPrevVal) : 0;
       const maquinasVencidas = (ativos.maquinas || []).filter((m:any) => {
-          const horimetroRevisao = U.parseDecimal(m.horimetro_revisao);
-          if (!horimetroRevisao) return false;
+          const horimetroRevisao = U.parseDecimal(m.ultima_revisao || 0) + U.parseDecimal(m.intervalo_revisao || 0);
+          if (horimetroRevisao <= 0) return false;
+          
           const ultimoAbs = (dados.abastecimentos || []).filter((a:any) => a.maquina === m.nome).sort((a:any, b:any) => b.id - a.id)[0];
-          const horimetroAtual = ultimoAbs ? U.parseDecimal(ultimoAbs.horimetroAtual) : 0;
-          return horimetroAtual >= horimetroRevisao;
+          const horimetroAtual = ultimoAbs ? U.parseDecimal(ultimoAbs.horimetroAtual) : U.parseDecimal(m.horimetro_inicial || 0);
+          
+          // Alerta se está nas últimas X horas configuradas
+          return horimetroAtual >= (horimetroRevisao - alertPrev);
       }).length;
 
       // Alertas de Documentos (Máquinas ou Pessoas)

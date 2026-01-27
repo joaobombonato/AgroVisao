@@ -85,22 +85,32 @@ function CompraCombustivelForm({ onClose }: any) {
               <div className="space-y-1">
                  <label className="block text-xs font-bold text-gray-700">Litros (L) <span className="text-red-500">*</span></label>
                  <input 
-                    type="number" 
-                    placeholder="Informe quantidade..." 
+                    type="text" 
+                    placeholder="Ex: 500,0" 
                     value={form.litros} 
-                    onChange={(e) => setForm({ ...form, litros: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e: any) => {
+                       const val = e.target.value;
+                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                           setForm({ ...form, litros: val });
+                       }
+                    }}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none"
                     required
                  />
               </div>
               <div className="space-y-1">
                  <label className="block text-xs font-bold text-gray-700">Valor Unitário <span className="text-red-500">*</span></label>
                  <input 
-                    type="number" 
-                    placeholder="Informe o valor..." 
+                    type="text" 
+                    placeholder="Ex: 6,45" 
                     value={form.valorUnitario} 
-                    onChange={(e) => setForm({ ...form, valorUnitario: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e: any) => {
+                       const val = e.target.value;
+                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                           setForm({ ...form, valorUnitario: val });
+                       }
+                    }}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none"
                     required
                  />
               </div>
@@ -114,7 +124,7 @@ function CompraCombustivelForm({ onClose }: any) {
              {showFrete && (
                  <div className="grid grid-cols-2 gap-3 bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-1">
                      <Input label="NF Frete" placeholder="Nº da NF Frete" value={form.nfFrete} onChange={(e:any) => setForm({ ...form, nfFrete: e.target.value })} />
-                     <Input label="Valor Frete (R$)" type="number" placeholder="Informe o valor..." value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value })} />
+                     <Input label="Valor Frete (R$)" type="text" numeric={true} placeholder="Ex: 150,00" value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value })} />
                  </div>
              )}
           </div>
@@ -163,7 +173,8 @@ export default function AbastecimentoScreen() {
       horimetroAnterior: '', 
       horimetroAtual: '',
       obs: '',
-      tanqueCheio: true 
+      tanqueCheio: true,
+      centroCusto: ''
   });
   
   const [showCompraForm, setShowCompraForm] = useState(false);
@@ -171,16 +182,17 @@ export default function AbastecimentoScreen() {
   const [filterData, setFilterData] = useState('');
   const [filterText, setFilterText] = useState('');
 
-  // ... (cálculos de estoque mantidos) ...
-  // ... (cálculos de estoque mantidos) ...
-  const estoqueInicial = U.parseDecimal(ativos?.estoqueDiesel?.inicial || 0); 
-  const estoqueMinimo = U.parseDecimal(ativos?.estoqueDiesel?.minimo || 0);
+  // 1. CÁLCULO DE ESTOQUE (DINÂMICO PELO BANCO)
+  const pEstoque = ativos.parametros?.estoque || {};
+  const estoqueInicial = pEstoque.ajusteManual !== '' ? U.parseDecimal(pEstoque.ajusteManual) : 0; 
+  const estoqueMinimo = pEstoque.estoqueMinimo !== '' ? U.parseDecimal(pEstoque.estoqueMinimo) : 0;
+  const capacidadeTanque = pEstoque.capacidadeTanque !== '' ? U.parseDecimal(pEstoque.capacidadeTanque) : 0;
   
   const totalComprado = useMemo(() => (dados?.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0), [dados?.compras]);
   const totalUsado = useMemo(() => (dados?.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0), [dados?.abastecimentos]);
   
   const estoqueAtual = (estoqueInicial + totalComprado - totalUsado);
-  const percentualTanque = Math.min(((estoqueAtual / 15000) * 100), 100).toFixed(0); 
+  const percentualTanque = Math.min(((estoqueAtual / capacidadeTanque) * 100), 100).toFixed(0); 
   const nivelCritico = estoqueAtual <= estoqueMinimo;
 
   // 2. LÓGICA DE BOMBA E MÁQUINA
@@ -194,10 +206,17 @@ export default function AbastecimentoScreen() {
   const handleMaquinaChange = (e: any) => {
       const maq = e.target.value;
       const ultimo = buscarUltimaLeitura('abastecimentos', 'maquina', maq);
+      
+      // Busca Centro de Custo vinculado a esta máquina
+      const ccVinculado = (ativos.centros_custos || []).find((cc: any) => 
+        cc.tipo_vinculo === 'Máquina' && cc.vinculo_id === maq
+      );
+
       setForm(prev => ({ 
           ...prev, 
           maquina: maq, 
-          horimetroAnterior: ultimo ? ultimo.horimetroAtual : '' 
+          horimetroAnterior: ultimo ? ultimo.horimetroAtual : '',
+          centroCusto: ccVinculado ? ccVinculado.nome : prev.centroCusto
       }));
   };
 
@@ -235,14 +254,29 @@ export default function AbastecimentoScreen() {
           const ultimaCompra = compras[compras.length - 1];
           return U.parseDecimal(ultimaCompra.valorUnitario || 0);
       }
-      return 6.00; 
-  }, [dados.compras]);
+      const pFinanceiro = ativos.parametros?.financeiro?.precoDiesel;
+      return pFinanceiro !== '' ? U.parseDecimal(pFinanceiro) : 0; 
+  }, [dados.compras, ativos.parametros]);
 
   const custoEstimado = (U.parseDecimal(litrosCalculados) * precoMedioDiesel).toFixed(2);
   
   // 4. FUNÇÃO ENVIAR (AGORA COM LÓGICA DE OS AUTOMÁTICA)
   const enviar = (e: any) => {
     e.preventDefault();
+    
+    // --- TRAVA DE DUPLICIDADE (ABASTECIMENTO) ---
+    const jaExiste = (dados.abastecimentos || []).some((a: any) => 
+        a.maquina === form.maquina && 
+        a.data === form.data && 
+        U.parseDecimal(a.horimetroAtual) === U.parseDecimal(form.horimetroAtual)
+    );
+
+    if (jaExiste) {
+        toast.error("Este abastecimento já foi registrado (Mesma máquina, data e horímetro).");
+        return;
+    }
+    // ---------------------------------------------
+
     if (!form.maquina || U.parseDecimal(litrosCalculados) <= 0) { toast.error("Verifique os dados da Bomba e Máquina"); return; }
     
     if (!form.horimetroAtual) { toast.error("Informe o Hodômetro Atual"); return; }
@@ -257,6 +291,7 @@ export default function AbastecimentoScreen() {
         qtd: litrosCalculados, 
         media: mediaConsumo,
         custo: custoEstimado,
+        safra_id: ativos.parametros?.safraAtiva || null,
         id: U.id('AB-') 
     };
     
@@ -273,12 +308,13 @@ export default function AbastecimentoScreen() {
     // --- ALERTA DE MANUTENÇÃO ---
     // Verifica se a máquina excedeu o limite de revisão
     const maquinaObj = (ativos?.maquinas || []).find((m:any) => m.nome === form.maquina);
-    if (maquinaObj && maquinaObj.horimetro_revisao) {
+    const horimetroAlvo = U.parseDecimal(maquinaObj?.ultima_revisao || 0) + U.parseDecimal(maquinaObj?.intervalo_revisao || 0);
+
+    if (maquinaObj && horimetroAlvo > 0) {
         const horasAtuais = U.parseDecimal(form.horimetroAtual);
-        const horasRevisao = U.parseDecimal(maquinaObj.horimetro_revisao);
         
-        if (horasAtuais >= horasRevisao) {
-            detalhesOS["ALERTA MANUTENÇÃO"] = `VENCIDA! (${horasAtuais}h > ${horasRevisao}h)`;
+        if (horasAtuais >= horimetroAlvo) {
+            detalhesOS["ALERTA MANUTENÇÃO"] = `VENCIDA! (${horasAtuais}h >= ${horimetroAlvo}h)`;
             toast((t) => (
                 <div className="flex items-center gap-2 text-red-600 font-bold">
                     <AlertTriangle className="w-5 h-5" />
@@ -293,34 +329,39 @@ export default function AbastecimentoScreen() {
 
     genericSave('abastecimentos', novo, {
         type: ACTIONS.ADD_RECORD, 
-        modulo: 'abastecimentos',
-        osDescricao: descOS,
-        osDetalhes: detalhesOS
+        modulo: 'abastecimentos'
     });
 
     // 2. Persistência Silenciosa da OS (Best Effort)
     const novaOS = {
         id: U.id('OS-'),
         modulo: 'Abastecimento',
-        descricao: descOS,
-        detalhes: detalhesOS,
+        descricao: `Abastecimento: ${form.maquina} (${litrosCalculados}L)`,
+        detalhes: {
+            "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
+            "Consumo": `${mediaConsumo} L/h (Média)`,
+            "Custo": `R$ ${U.formatValue(custoEstimado)}`,
+            "Obs": form.obs || '-'
+        },
         status: 'Pendente',
         data: new Date().toISOString()
     };
-    genericSave('os', novaOS); // Salva no banco/fila sem afetar UI (já atualizada pelo optimistic acima)
+
+    genericSave('os', novaOS, {
+        type: ACTIONS.ADD_RECORD,
+        modulo: 'os', 
+        record: novaOS
+    });
     
     // 2. LÓGICA DE OS AUTOMÁTICA DE ESTOQUE
     const litrosUsados = U.parseDecimal(litrosCalculados);
     const estoqueAposAbastecimento = estoqueAtual - litrosUsados;
 
     if (estoqueAposAbastecimento <= estoqueMinimo) {
-        // CORREÇÃO 2: Verificar na lista 'os' (raiz) e não em 'dados.os'
         const osPendentes = (os || []).filter((o:any) => o.status === 'Pendente');
         const compraPendentes = osPendentes.some((o:any) => o.descricao.includes('COMPRA URGENTE DE DIESEL'));
 
         if (!compraPendentes) {
-            // Cria a OS de alerta de estoque crítico
-            // Cria a OS de alerta de estoque crítico
             const alertaDesc = `COMPRA URGENTE DE DIESEL - ESTOQUE CRÍTICO (${U.formatInt(estoqueAposAbastecimento)}L)`;
             const alertaDetalhes = {
                     "Alerta": "Automático por Estoque Crítico de Combustível",
@@ -329,20 +370,19 @@ export default function AbastecimentoScreen() {
                     "Prioridade": "URGENTE"
             };
 
-            // Salva Localmente (Reducer) e na Fila/Banco
-            genericSave('os', {
+            const alertaOS = {
                 id: U.id('OS-ALERT-'),
                 modulo: 'Estoque',
                 descricao: alertaDesc,
                 detalhes: alertaDetalhes,
                 status: 'Pendente',
                 data: new Date().toISOString()
-            }, {
+            };
+
+            genericSave('os', alertaOS, {
                 type: ACTIONS.ADD_RECORD, 
-                modulo: 'os_alert_estoque',
-                record: {}, // Payload dummy para o reducer
-                osDescricao: alertaDesc,
-                osDetalhes: alertaDetalhes
+                modulo: 'os',
+                record: alertaOS
             });
             toast.success('ALERTA! OS de Compra de Diesel criada automaticamente.');
         }
@@ -385,7 +425,7 @@ export default function AbastecimentoScreen() {
              <div className={`h-full transition-all duration-1000 ${nivelCritico ? 'bg-yellow-300' : 'bg-white'}`} style={{ width: `${percentualTanque}%` }}></div>
          </div>
          
-         <p className="text-xs opacity-80 mt-1 text-center font-bold">{percentualTanque}% (Tanque 15k)</p>
+         <p className="text-xs opacity-80 mt-1 text-center font-bold">{percentualTanque}% (Tanque {U.formatInt(capacidadeTanque)}L)</p>
 
          {nivelCritico && (
              <span className="flex items-center justify-center gap-1 text-xs font-bold bg-yellow-400 text-red-900 px-2 py-1 rounded mt-2 animate-bounce">
@@ -486,11 +526,16 @@ export default function AbastecimentoScreen() {
               <div className="space-y-1">
                  <label className="block text-xs font-bold text-gray-700 text-center">Final <span className="text-red-500">*</span></label>
                  <input 
-                    type="number" 
+                    type="text" 
                     value={form.bombaFinal} 
-                    onChange={(e) => setForm({...form, bombaFinal: e.target.value})}
-                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="Preencher..."
+                    onChange={(e: any) => {
+                       const val = e.target.value;
+                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                           setForm({...form, bombaFinal: val});
+                       }
+                    }}
+                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center"
+                    placeholder="Ex: 12550,5"
                     required
                  />
               </div>
@@ -518,11 +563,16 @@ export default function AbastecimentoScreen() {
               <div className="space-y-1">
                  <label className="block text-xs font-bold text-gray-700 text-center">Atual <span className="text-red-500">*</span></label>
                  <input 
-                    type="number" 
+                    type="text" 
                     value={form.horimetroAtual} 
-                    onChange={(e) => setForm({...form, horimetroAtual: e.target.value})}
-                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="Preencher..."
+                    onChange={(e: any) => {
+                       const val = e.target.value;
+                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
+                           setForm({...form, horimetroAtual: val});
+                       }
+                    }}
+                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center"
+                    placeholder="Ex: 501,5"
                     required 
                  />
               </div>

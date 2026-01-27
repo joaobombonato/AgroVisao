@@ -1,5 +1,5 @@
 import React from 'react';
-import { Utensils, Fuel, Leaf, FolderOpen, Zap, CloudRain, Home, AlertTriangle, Wrench, ShoppingBag, FileText, Settings, Tractor, ArrowRight, MapPinned } from 'lucide-react';
+import { Utensils, Fuel, Leaf, FolderOpen, Zap, CloudRain, Home, AlertTriangle, Wrench, ShoppingBag, FileText, Settings, Tractor, ArrowRight, MapPinned, Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import WeatherMiniWidget from '../components/weather/WeatherMiniWidget';
 
@@ -34,24 +34,124 @@ export default function PrincipalScreen() {
         <h1 className="text-2xl font-bold text-gray-800">Módulos Operacionais</h1>
       </div>
 
-      {isNovaFazenda && (
-        <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-5 text-white shadow-xl animate-in zoom-in duration-500">
-           <div className="flex items-start gap-3">
-              <div className="p-2 bg-white/20 rounded-lg shrink-0">
-                 <Settings className="w-6 h-6 text-white animate-spin" style={{ animationDuration: '4s' }} />
+      {/* Sistema de Passos de Boas-vindas (Checklist Dinâmico) */}
+      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.precoDiesel) && (
+        <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-6 shadow-xl animate-in zoom-in duration-500 overflow-hidden relative">
+           {/* Detalhe de luz suave no fundo */}
+           <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
+           
+           <div className="flex items-center gap-4 mb-6 relative z-10">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/10 shrink-0">
+                 <Settings className="w-7 h-7 text-white animate-spin" style={{ animationDuration: '4s' }} />
               </div>
-              <div className="flex-1">
-                 <h2 className="text-lg font-bold mb-1">Quase lá! 🚀</h2>
-                 <p className="text-sm text-green-50 leading-relaxed mb-4">
-                    Sua propriedade foi criada, mas ainda está vazia. Comece cadastrando suas <b>máquinas, talhões, centros de custo, medidores de energia, estações meteorológicas e muito mais</b> nas configurações.
-                 </p>
-                 <button 
-                  onClick={() => setTela('config')}
-                  className="w-full bg-white text-green-700 font-bold py-2.5 rounded-xl shadow-lg hover:bg-green-50 transition-colors flex items-center justify-center gap-2"
-                 >
-                    Configurar Propriedade <ArrowRight className="w-5 h-5" />
-                 </button>
+              <div>
+                 <h2 className="text-xl font-black text-white tracking-tight">AgroVisão Onboarding 🚀</h2>
+                 <p className="text-[10px] text-green-100 uppercase font-bold tracking-[0.2em] opacity-80">Guia de Configuração Inicial</p>
               </div>
+           </div>
+
+           <div className="space-y-3 relative z-10">
+              {/* PASSO 1: PERÍMETRO DA FAZENDA */}
+              <button 
+                onClick={() => setTela('mapa')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${fazendaSelecionada?.geojson ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${fazendaSelecionada?.geojson ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {fazendaSelecionada?.geojson ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">1</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${fazendaSelecionada?.geojson ? 'text-green-700' : 'text-gray-700'}`}>Perímetro da Fazenda</p>
+                       <p className="text-[10px] text-gray-400">Defina os limites e áreas da propriedade</p>
+                    </div>
+                 </div>
+                 {!fazendaSelecionada?.geojson && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 2: FROTA DE MAQUINÁRIO */}
+              <button 
+                onClick={() => setTela('config:editor:maquinas')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.maquinas?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.maquinas?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.maquinas?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">2</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.maquinas?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Frota de Maquinário</p>
+                       <p className="text-[10px] text-gray-400">Cadastre seus tratores e implementos</p>
+                    </div>
+                 </div>
+                 {!(ativos?.maquinas?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 3: PARÂMETROS GERAIS */}
+              <button 
+                onClick={() => setTela('config:parametros')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.parametros?.precoDiesel > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.parametros?.precoDiesel > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.parametros?.precoDiesel > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">3</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.parametros?.precoDiesel > 0 ? 'text-green-700' : 'text-gray-700'}`}>Parâmetros Gerais</p>
+                       <p className="text-[10px] text-gray-400">Energia elétrica, abastecimento e manutenção</p>
+                    </div>
+                 </div>
+                 {!(ativos?.parametros?.precoDiesel > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 4: CADASTROS OPERACIONAIS */}
+              <button 
+                onClick={() => setTela('config:listas')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">4</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Cadastros Operacionais</p>
+                       <p className="text-[10px] text-gray-400">Safras, Culturas e Centros de Custo</p>
+                    </div>
+                 </div>
+                 {!(ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 5: GESTÃO DE EQUIPE & PERMISSÕES */}
+              <button 
+                onClick={() => setTela('config:equipe')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.dbAssets?.membros?.length > 1 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.dbAssets?.membros?.length > 1 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {state.dbAssets?.membros?.length > 1 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">5</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${state.dbAssets?.membros?.length > 1 ? 'text-green-700' : 'text-gray-700'}`}>Gestão de Equipe & Permissões</p>
+                       <p className="text-[10px] text-gray-400">Convide seu time e ajuste o que cada um pode ver</p>
+                    </div>
+                 </div>
+                 {!(state.dbAssets?.membros?.length > 1) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 6: MINHA CONTA */}
+              <button 
+                onClick={() => setTela('config:conta')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.userProfile?.full_name ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.userProfile?.full_name ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {state.userProfile?.full_name ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">6</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${state.userProfile?.full_name ? 'text-green-700' : 'text-gray-700'}`}>Perfil do Usuário</p>
+                       <p className="text-[10px] text-gray-400">Complete seu cadastro e assinatura</p>
+                    </div>
+                 </div>
+                 {!state.userProfile?.full_name && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
            </div>
         </div>
       )}
