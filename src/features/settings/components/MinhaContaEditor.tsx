@@ -55,6 +55,24 @@ export default function MinhaContaEditor() {
         }
     }, [session]);
 
+    const applyPhoneMask = (v: string) => {
+        v = v.replace(/\D/g, "");
+        if (v.length > 11) v = v.slice(0, 11);
+        if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
+        if (v.length > 6) return v.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+        if (v.length > 2) return v.replace(/(\d{2})(\d{0,4})/, "($1) $2");
+        return v;
+    };
+
+    const applyCNHMask = (v: string) => {
+        v = v.replace(/\D/g, "");
+        if (v.length > 11) v = v.slice(0, 11);
+        if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
+        if (v.length > 3) return v.replace(/(\d{3})(\d{0,3})/, "$1.$2");
+        return v;
+    };
+
     const loadProfile = async () => {
         try {
             setLoading(true);
@@ -117,12 +135,12 @@ export default function MinhaContaEditor() {
             setLoading(true);
             const updates = {
                 full_name: formData.full_name,
-                phone: formData.phone,
+                phone: formData.phone.replace(/\D/g, ''),
                 data_nascimento: formData.data_nascimento,
                 funcao: formData.funcao,
                 avatar_url: formData.avatar_url,
                 config: {
-                    cnh_numero: formData.cnh_numero,
+                    cnh_numero: formData.cnh_numero.replace(/\D/g, ''),
                     cnh_vencimento: formData.cnh_vencimento
                 },
                 updated_at: new Date().toISOString()
@@ -387,7 +405,7 @@ export default function MinhaContaEditor() {
                         label="Telefone / WhatsApp" 
                         icon={Phone} 
                         value={formData.phone} 
-                        onChange={(e:any) => setFormData({...formData, phone: e.target.value})} 
+                        onChange={(e:any) => setFormData({...formData, phone: applyPhoneMask(e.target.value)})} 
                         placeholder="(00) 00000-0000"
                     />
                 </div>
@@ -421,8 +439,8 @@ export default function MinhaContaEditor() {
                         label="Número da CNH" 
                         icon={CreditCard} 
                         value={formData.cnh_numero} 
-                        onChange={(e:any) => setFormData({...formData, cnh_numero: e.target.value})} 
-                        placeholder="00000000000"
+                        onChange={(e:any) => setFormData({...formData, cnh_numero: applyCNHMask(e.target.value)})} 
+                        placeholder="000.000.000-00"
                     />
                     <InputField 
                         label="Vencimento CNH" 

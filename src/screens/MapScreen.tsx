@@ -100,6 +100,8 @@ export default function MapScreen() {
   // Cache para evitar requisições redundantes (Economia de PUs)
   const overlayCacheRef = useRef<Record<string, string>>({});
 
+  const [dateError, setDateError] = useState(false);
+
   // Estado para dados agronômicos (Solo)
   const [agronomic, setAgronomic] = useState<AgronomicResult | null>(null);
 
@@ -230,10 +232,14 @@ export default function MapScreen() {
           const minZ = map.getZoom();
           map.setMinZoom(minZ);
           
+          let isInternalMove = false;
           syncHandler = () => {
+             if (isInternalMove) return;
              // Se o zoom atingir o mínimo, força o enquadramento perfeito como no botão "Centralizar"
              if (map.getZoom() <= minZ + 0.01) {
+                isInternalMove = true;
                 map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40], animate: true });
+                setTimeout(() => { isInternalMove = false; }, 500);
              }
           };
           
@@ -298,9 +304,24 @@ export default function MapScreen() {
       // 2. Solicitar ao Satélite (Custo de PUs)
       setLoadingImages(true);
       try {
-        const mapSize = map.getSize();
-        const width = Math.min(mapSize.x, 1024);
-        const height = Math.min(mapSize.y, 1024);
+        // Calcular aspect ratio geográfico real para evitar imagem "esticada"
+        const bounds = polygonLayerRef.current!.getBounds();
+        const dLat = Math.abs(bounds.getNorth() - bounds.getSouth());
+        const dLng = Math.abs(bounds.getEast() - bounds.getWest());
+        const midLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+        const cosLat = Math.cos(midLat * Math.PI / 180);
+        
+        const geoRatio = (dLng * cosLat) / dLat;
+        
+        // Define o maior lado como 1024px e calcula o outro proporcionalmente
+        let width = 1024;
+        let height = 1024;
+        if (geoRatio > 1) {
+          height = Math.max(Math.round(1024 / geoRatio), 256);
+        } else {
+          width = Math.max(Math.round(1024 * geoRatio), 256);
+        }
+        
         let imageUrl = null;
         
         if (overlayType === 'ndvi') imageUrl = await getNDVIImage(geojsonData, selectedImage.date, width, height);
@@ -328,20 +349,27 @@ export default function MapScreen() {
   }, [overlayType, selectedImageIndex, showOverlay, availableImages, geojsonData, activeTab]);
 
   // Load Dates
+  const loadDates = async () => {
+    if (!geojsonData || loadingImages) return;
+    setLoadingImages(true);
+    setDateError(false);
+    try { 
+      const images = await getAvailableDates(geojsonData, 400); 
+      if (images.length === 0) setDateError(true);
+      setAvailableImages(images); 
+    } 
+    catch (e) { 
+        console.error(e); 
+        setDateError(true);
+    } 
+    finally { setLoadingImages(false); }
+  };
+
   useEffect(() => {
-    if (geojsonData && !loadingImages && availableImages.length === 0) {
-      const loadDates = async () => {
-        setLoadingImages(true);
-        try { 
-          const images = await getAvailableDates(geojsonData, 400); 
-          setAvailableImages(images); 
-        } 
-        catch (e) { console.error(e); } 
-        finally { setLoadingImages(false); }
-      };
+    if (geojsonData && availableImages.length === 0 && !loadingImages) {
       loadDates();
     }
-  }, [geojsonData, availableImages.length]);
+  }, [geojsonData]);
 
   useEffect(() => { isDrawingRef.current = isDrawing; }, [isDrawing]);
   useEffect(() => { drawPointsRef.current = drawPoints; }, [drawPoints]);
@@ -529,8 +557,11 @@ export default function MapScreen() {
 
                 {/* 2. DATE SELECTOR CARD */}
                 <div 
-                onClick={() => availableImages.length > 0 && setShowCalendar(true)}
-                className={`bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center relative transition-all active:scale-95 px-3 ${availableImages.length > 0 ? 'cursor-pointer hover:bg-green-50/50 hover:border-green-100' : ''}`}
+                onClick={() => {
+                    if (availableImages.length > 0) setShowCalendar(true);
+                    else if (!loadingImages) loadDates();
+                }}
+                className={`bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center relative transition-all active:scale-95 px-3 cursor-pointer ${availableImages.length > 0 ? 'hover:bg-green-50/50 hover:border-green-100' : 'hover:bg-orange-50/50'}`}
                 >
                 {availableImages.length > 0 ? (
                     <>
@@ -553,10 +584,14 @@ export default function MapScreen() {
                     {loadingImages && <div className="absolute top-1 right-1"><Loader2 className="w-2 h-2 animate-spin text-green-500" /></div>}
                     </>
                 ) : (
-                    <div className="flex flex-col items-center justify-center text-gray-400">
-                        <div className="flex items-center gap-1">
+                    <div className="flex flex-col items-center justify-center">
+                        <div className="flex items-center gap-1 text-gray-400 mb-0.5">
                             {loadingImages ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Calendar className="w-2.5 h-2.5" />}
-                            <span className="text-[8px] font-medium">{loadingImages ? '...' : 'Vazio'}</span>
+                            <span className="text-[7.5px] font-black uppercase tracking-widest">{loadingImages ? 'Buscando...' : 'Sem Datas'}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-gray-500">{loadingImages ? 'Aguarde' : (dateError ? 'Tentar Novamente' : 'Vazio')}</span>
+                            {!loadingImages && dateError && <Undo2 className="w-2.5 h-2.5 text-orange-500" />}
                         </div>
                     </div>
                 )}
@@ -623,7 +658,7 @@ export default function MapScreen() {
        )}
  
 
-      <div className="flex-1 w-full flex flex-col h-[calc(100vh-14rem)]">
+      <div className="w-full flex flex-col">
         <div className="bg-white rounded-t-xl border-t border-x border-gray-200 px-3 sm:px-6 py-4 flex items-center justify-between z-10 relative">
             <div className="flex items-center gap-3 w-full justify-between">
                 {activeTab === 'map' ? (

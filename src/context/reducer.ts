@@ -78,15 +78,19 @@ export function appReducer(state: State, action: any) {
         }
         return { ...state, session: null, userProfile: null, loading: false, fazendaId: null, fazendaNome: 'Fazenda SC (Demo)' };
         
-    case ACTIONS.SET_FAZENDA:
+    case ACTIONS.SET_FAZENDA: {
+        const farmConfig = action.config || {};
+        const params = farmConfig.parametros || ATIVOS_INICIAIS.parametros;
         return { 
             ...state, 
             fazendaId: action.fazendaId, 
             fazendaNome: action.fazendaNome,
             userRole: action.userRole || null,
             fazendasDisponiveis: action.fazendas || state.fazendasDisponiveis, 
+            ativos: { ...state.ativos, parametros: params },
             loading: false
         };
+    }
     case ACTIONS.SET_DB_ASSETS: {
         const { table, records } = action;
         const newDbAssets = { ...state.dbAssets, [table]: records };
@@ -101,6 +105,7 @@ export function appReducer(state: State, action: any) {
         if (table === 'tipos_refeicao') newAtivos.tiposRefeicao = records;
         if (table === 'classes_agronomicas') newAtivos.classes = records;
         if (table === 'tipos_documento') newAtivos.tiposDocumento = records;
+        if (table === 'colaboradores') newAtivos.colaboradores = records;
         
         if (table === 'locais_monitoramento') {
             newAtivos.locais = records.filter((r: any) => r.tipo === 'chuva');

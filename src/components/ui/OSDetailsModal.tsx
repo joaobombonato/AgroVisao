@@ -13,10 +13,13 @@ export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
                     <button onClick={onClose}><XClose className="w-6 h-6 text-gray-500"/></button>
                 </div>
                 <div className="p-6 overflow-y-auto">
-                    <div className="flex justify-between items-start mb-4">
-                        <div><p className="text-2xl font-bold text-gray-800">{os.id}</p><p className="text-sm text-gray-500">{U.formatDate(os.data)}</p></div>
-                        <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${getStatusColor(os.status)}`}>{os.status}</span>
+                <div className="flex justify-between items-start mb-4">
+                    <div>
+                        <p className="text-2xl font-bold text-gray-800">{os.numero ? `#${os.numero}` : os.id.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-sm text-gray-500">{U.formatDate(os.data_abertura || os.data)}</p>
                     </div>
+                    <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${getStatusColor(os.status)}`}>{os.status}</span>
+                </div>
                     <div className="space-y-3">
                         <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500 uppercase font-bold mb-1">Módulo</p><p className="font-medium">{os.modulo}</p></div>
                         <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500 uppercase font-bold mb-1">Descrição Resumida</p><p className="font-medium">{os.descricao}</p></div>

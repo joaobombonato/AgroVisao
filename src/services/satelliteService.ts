@@ -8,12 +8,32 @@
 const COPERNICUS_CLIENT_ID = 'sh-11c9ea5e-2705-46e4-8d84-1d2193e18d60';
 const COPERNICUS_CLIENT_SECRET = 'tD32wvcf3ZHU45rNFxeCxrZ4vCipvR1R';
 
-const CORS_PROXY = 'https://corsproxy.io/?';
-const COPERNICUS_TOKEN_URL = `${CORS_PROXY}https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token`;
-const SENTINEL_HUB_URL = `${CORS_PROXY}https://sh.dataspace.copernicus.eu/api/v1`;
+// Usar Proxies locais do Vite para evitar problemas de CORS e limites de Proxies externos
+const COPERNICUS_TOKEN_URL = '/copernicus-auth';
+const SENTINEL_HUB_URL = '/copernicus-api';
 
 let accessToken: string | null = null;
 let tokenExpiry: number = 0;
+
+/**
+ * Função auxiliar para tentativas automáticas (Resiliência)
+ */
+async function fetchWithRetry(url: string, options: any, retries: number = 3, backoff: number = 1000): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok && retries > 0 && (response.status === 404 || response.status === 403 || response.status >= 500)) {
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    throw error;
+  }
+}
 
 export interface SatelliteImage {
   dt: number;
@@ -48,7 +68,7 @@ const PALETTE_VIGOR = `
 async function getAccessToken(): Promise<string | null> {
   if (accessToken && Date.now() < tokenExpiry) return accessToken;
   try {
-    const response = await fetch(COPERNICUS_TOKEN_URL, {
+    const response = await fetchWithRetry(COPERNICUS_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -57,12 +77,19 @@ async function getAccessToken(): Promise<string | null> {
         client_secret: COPERNICUS_CLIENT_SECRET
       })
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+        const errText = await response.text();
+        console.error('Copernicus Token Error:', response.status, errText);
+        return null;
+    }
     const data = await response.json();
     accessToken = data.access_token;
     tokenExpiry = Date.now() + (data.expires_in - 300) * 1000;
     return accessToken;
-  } catch (error) { return null; }
+  } catch (error) { 
+    console.error('Copernicus Auth Exception:', error);
+    return null; 
+  }
 }
 
 async function processSentinelImage(
@@ -74,7 +101,7 @@ async function processSentinelImage(
   token: string
 ): Promise<string | null> {
   try {
-    const response = await fetch(`${SENTINEL_HUB_URL}/process`, {
+    const response = await fetchWithRetry(`${SENTINEL_HUB_URL}/process`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -103,10 +130,27 @@ async function processSentinelImage(
         evalscript: evalscript
       })
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+        let errText = '';
+        try {
+            errText = await response.text();
+        } catch (e) {
+            errText = 'Could not read error response';
+        }
+        console.error(`Sentinel Process Error (${response.status}):`, errText);
+        
+        // Se for 403, pode ser o proxy. Vamos tentar logar o que o proxy retornou.
+        if (response.status === 403) {
+            console.warn('Dica: Erro 403 geralmente indica que o proxy foi bloqueado pelo Copernicus ou as credenciais expiraram.');
+        }
+        return null;
+    }
     const blob = await response.blob();
     return URL.createObjectURL(blob);
-  } catch (error) { return null; }
+  } catch (error) { 
+    console.error('Sentinel Process Exception:', error);
+    return null; 
+  }
 }
 
 export async function getSAVIImage(p: any, d: string, w: number = 512, h: number = 512) {
@@ -200,20 +244,29 @@ function evaluatePixel(sample) {
 export async function searchSentinelImages(bbox: [number, number, number, number], startDate: Date, endDate: Date, maxCloudCover: number = 100): Promise<SatelliteImage[]> {
   const token = await getAccessToken(); if (!token) return [];
   try {
-    const timeRange = `${startDate.toISOString()}/${endDate.toISOString()}`;
-    const response = await fetch(`${SENTINEL_HUB_URL}/catalog/1.0.0/search`, {
+    const formatDate = (date: Date) => date.toISOString().split('.')[0] + 'Z';
+  const timeRange = `${formatDate(startDate)}/${formatDate(endDate)}`;
+     const response = await fetchWithRetry(`${SENTINEL_HUB_URL}/catalog/1.0.0/search`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ bbox, datetime: timeRange, collections: ['sentinel-2-l2a'], limit: 100, filter: `eo:cloud_cover < ${maxCloudCover}` })
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+        let errText = '';
+        try { errText = await response.text(); } catch (e) {}
+        console.error(`Sentinel Catalog Error (${response.status}):`, errText);
+        return [];
+    }
     const data = await response.json();
     return (data.features || []).map((f: any) => ({
       dt: new Date(f.properties.datetime).getTime() / 1000,
       date: new Date(f.properties.datetime).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
       type: 's2', dc: 100, cl: f.properties['eo:cloud_cover'] || 0, imageUrl: f.id
     }));
-  } catch (error) { return []; }
+  } catch (error) { 
+    console.error('Sentinel Catalog Exception:', error);
+    return []; 
+  }
 }
 
 export async function getAvailableDates(polygon: any, days: number = 400): Promise<{ date: string, cloudCover: number }[]> {

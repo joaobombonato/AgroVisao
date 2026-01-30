@@ -14,7 +14,7 @@ import FazendaPerfilEditor from '../features/settings/components/FazendaPerfilEd
 import MinhaContaEditor from '../features/settings/components/MinhaContaEditor';
 
 export default function ConfiguracoesScreen({ initialTab }: { initialTab?: string }) {
-    const { state, logout, dispatch, setTela } = useAppContext();
+    const { state, logout, dispatch, setTela, genericUpdate } = useAppContext();
     const { userRole, fazendaNome, permissions } = state;
     const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
     
@@ -143,6 +143,12 @@ export default function ConfiguracoesScreen({ initialTab }: { initialTab?: strin
                 color: "text-blue-700",
                 barColor: "bg-blue-600",
                 items: ['tiposDocumento', 'locaisEnergia', 'locaisChuva']
+            },
+            {
+                title: "Recursos Humanos & Equipe",
+                color: "text-indigo-700",
+                barColor: "bg-indigo-600",
+                items: ['colaboradores']
             }
         ];
 
@@ -229,7 +235,6 @@ export default function ConfiguracoesScreen({ initialTab }: { initialTab?: strin
                         safras_lista: state.ativos.safras || []
                     }} 
                     onSave={async (newParams: any) => {
-                        const { genericUpdate, state } = useAppContext();
                         // 1. Atualiza no Banco (PERSISTENTE)
                         const newConfig = { ...(state.fazendaSelecionada?.config || {}), parametros: newParams };
                         await genericUpdate('fazendas', state.fazendaId, { config: newConfig }, {

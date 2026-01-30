@@ -4,11 +4,13 @@ export const U = {
   parseDecimal: (v: any) => {
     if (v === null || v === undefined || v === '') return 0;
     if (typeof v === 'number') return v;
-    const s = String(v).replace(/\s/g, '').replace(',', '.');
+    // Remove pontos de milhar e troca vírgula por ponto
+    const s = String(v).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : 0;
   },
   formatValue: (v: any) => {
+    if (typeof v === 'string' && v.includes(',')) return v; // Já está formatado
     const n = typeof v === 'number' ? v : U.parseDecimal(v);
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   },
@@ -21,7 +23,7 @@ export const U = {
     const parts = iso.split('-');
     if (parts.length !== 3) return iso;
     const [y, m, d] = parts;
-    return `${d}/${m}/${y.slice(2)}`;
+    return `${d}/${m}/${y}`; // Retorna DD/MM/AAAA
   },
   id: (prefix = '') => `${prefix}${Date.now()}`,
   translateAuthError: (msg: string) => {

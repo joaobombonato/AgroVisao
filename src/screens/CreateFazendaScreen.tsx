@@ -1,5 +1,5 @@
-import React, { useState, Suspense, useEffect } from 'react';
-import { Building2, Ruler, MapPin, Check, ChevronLeft, Loader2, Search, Map } from 'lucide-react';
+import React, { useState, Suspense, useEffect, useRef } from 'react';
+import { Building2, Ruler, MapPin, Check, ChevronLeft, Loader2, Search, Map, Camera, X, ZoomIn, ZoomOut, Move, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { useAppContext } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
@@ -16,6 +16,20 @@ export default function CreateFazendaScreen() {
   const [loading, setLoading] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [isAdjusting, setIsAdjusting] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Estados de ajuste (Zoom e Pan)
+  const [adjustConfig, setAdjustConfig] = useState({
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+    rawImage: ''
+  });
+
+  // Estados para Drag-and-Drop
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
   // IBGE Data
   const [estados, setEstados] = useState<any[]>([]);
@@ -33,7 +47,8 @@ export default function CreateFazendaScreen() {
     microregiao: '',
     mesoregiao: '',
     regiao_imediata: '',
-    rec_code: ''
+    rec_code: '',
+    logo_base64: ''
   });
 
   // Load Estados on Mount
@@ -187,6 +202,100 @@ export default function CreateFazendaScreen() {
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+        toast.error("A imagem original deve ter no máximo 2MB.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const base64String = reader.result as string;
+        
+        // Calcular zoom inicial para a imagem ocupar bem o container
+        const img = new Image();
+        img.src = base64String;
+        img.onload = () => {
+            const uiSize = 176; // w-44
+            const initialZoom = Math.max(uiSize / img.width, uiSize / img.height) * 1.2; // 120% da menor dimensão
+            
+            setAdjustConfig({
+                zoom: initialZoom,
+                offsetX: 0,
+                offsetY: 0,
+                rawImage: base64String
+            });
+            setIsAdjusting(true);
+        };
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleApplyAdjustment = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !adjustConfig.rawImage) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.src = adjustConfig.rawImage;
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const canvasSize = canvas.width; // 400
+        const uiSize = 176; // w-44
+        const ratio = canvasSize / uiSize;
+
+        // O que o usuário vê na UI: (img.width * zoom) px em um container de 176px
+        // O que queremos no Canvas: (img.width * zoom * ratio) px em um container de 400px
+        const drawW = img.width * adjustConfig.zoom * ratio;
+        const drawH = img.height * adjustConfig.zoom * ratio;
+
+        const startX = (canvasSize - drawW) / 2 + (adjustConfig.offsetX * ratio);
+        const startY = (canvasSize - drawH) / 2 + (adjustConfig.offsetY * ratio);
+
+        ctx.drawImage(img, startX, startY, drawW, drawH);
+
+        const adjustedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        
+        if (adjustedBase64.length > 250 * 1024) {
+             toast.error("A imagem ficou muito pesada. Tente reduzir o zoom.");
+             return;
+        }
+
+        setFormData(prev => ({ ...prev, logo_base64: adjustedBase64 }));
+        setIsAdjusting(false);
+        toast.success("Ajuste aplicado!");
+    };
+  };
+
+  const onStartDrag = (e: any) => {
+    setIsDragging(true);
+    const touch = e.touches ? e.touches[0] : e;
+    setDragStart({
+        x: touch.clientX - adjustConfig.offsetX,
+        y: touch.clientY - adjustConfig.offsetY
+    });
+  };
+
+  const onMoveDrag = (e: any) => {
+    if (!isDragging) return;
+    const touch = e.touches ? e.touches[0] : e;
+    const deltaX = touch.clientX - dragStart.x;
+    const deltaY = touch.clientY - dragStart.y;
+    setAdjustConfig(prev => ({ ...prev, offsetX: deltaX, offsetY: deltaY }));
+  };
+
+  const onEndDrag = () => {
+    setIsDragging(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!session?.user?.id) return;
@@ -206,9 +315,10 @@ export default function CreateFazendaScreen() {
                 proprietario: formData.proprietario,
                 latitude: formData.latitude,
                 longitude: formData.longitude,
-                created_at: new Date(),
                 // Configuração inicial padrão com dados regionais
                 config: {
+                    logo_base64: formData.logo_base64,
+                    logo_url: formData.logo_base64, // Alias para compatibilidade com o editor de perfil
                     parametros: {},
                     menuOrder: [],
                     regional: {
@@ -236,6 +346,25 @@ export default function CreateFazendaScreen() {
         }]);
 
        toast.success("Propriedade cadastrada! Agora ajuste as configurações.");
+       
+       // Limpar dados para evitar duplicidade se voltar
+       setFormData({
+           nome: '',
+           tamanho_ha: '',
+           cidade: '',
+           estado: '',
+           proprietario: '',
+           latitude: null,
+           longitude: null,
+           microregiao: '',
+           mesoregiao: '',
+           regiao_imediata: '',
+           rec_code: '',
+           logo_base64: ''
+       });
+       setAdjustConfig({ zoom: 1, offsetX: 0, offsetY: 0, rawImage: '' });
+       setShowMap(false);
+
        setTela('fazenda_selection'); // Volta para seleção para ver a nova fazenda
 
     } catch (error: any) {
@@ -258,15 +387,144 @@ export default function CreateFazendaScreen() {
         </button>
 
         <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Nova Propriedade</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2 tracking-tight">Nova Propriedade</h1>
             <p className="text-gray-500 text-sm">Cadastre os dados básicos da sua fazenda para começar.</p>
         </div>
 
+        {/* Modal de Ajuste de Imagem */}
+        {isAdjusting && (
+            <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
+                    <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
+                        <h3 className="font-bold text-gray-800 text-sm tracking-tight">Ajustar Logotipo</h3>
+                        <button onClick={() => setIsAdjusting(false)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                            <X className="w-5 h-5 text-gray-400" />
+                        </button>
+                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
+                        <div 
+                            className={`w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-green-500 relative overflow-hidden bg-gray-100 flex items-center justify-center shadow-inner cursor-move select-none ${isDragging ? 'border-green-600 ring-4 ring-green-100' : ''}`}
+                            onMouseDown={onStartDrag}
+                            onMouseMove={onMoveDrag}
+                            onMouseUp={onEndDrag}
+                            onMouseLeave={onEndDrag}
+                            onTouchStart={onStartDrag}
+                            onTouchMove={onMoveDrag}
+                            onTouchEnd={onEndDrag}
+                        >
+                            <img 
+                                src={adjustConfig.rawImage} 
+                                alt="Ajuste" 
+                                className="max-w-none transition-all duration-75 block pointer-events-none"
+                                style={{
+                                    width: 'auto',
+                                    height: 'auto',
+                                    transformOrigin: 'center center',
+                                    transform: `translate(${adjustConfig.offsetX}px, ${adjustConfig.offsetY}px) scale(${adjustConfig.zoom})`
+                                }}
+                            />
+                        </div>
+
+                        <p className="text-[9px] font-medium text-gray-400 uppercase tracking-widest text-center">
+                            Arraste a imagem para centralizar
+                        </p>
+
+                        <div className="w-full space-y-4">
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                                    <span className="flex items-center gap-1"><ZoomOut className="w-3 h-3"/> Zoom Out</span>
+                                    <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{(adjustConfig.zoom * 100).toFixed(0)}%</span>
+                                    <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3"/> Zoom In</span>
+                                </div>
+                                <input 
+                                    type="range" 
+                                    min="0.1" 
+                                    max="4" 
+                                    step="0.01"
+                                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                    value={adjustConfig.zoom}
+                                    onChange={e => setAdjustConfig(prev => ({ ...prev, zoom: parseFloat(e.target.value) }))}
+                                />
+                            </div>
+
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    <div />
+                                    <button type="button" onClick={() => setAdjustConfig(prev => ({ ...prev, offsetY: prev.offsetY - 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronUp className="w-4 h-4 text-gray-600"/></button>
+                                    <div />
+                                    <button type="button" onClick={() => setAdjustConfig(prev => ({ ...prev, offsetX: prev.offsetX - 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronLeft className="w-4 h-4 text-gray-600"/></button>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => {
+                                            const img = new Image();
+                                            img.src = adjustConfig.rawImage;
+                                            img.onload = () => {
+                                                const uiSize = 176;
+                                                const initialZoom = Math.max(uiSize / img.width, uiSize / img.height) * 1.2;
+                                                setAdjustConfig(prev => ({ ...prev, offsetX: 0, offsetY: 0, zoom: initialZoom }));
+                                            };
+                                        }} 
+                                        className="w-14 h-9 flex items-center justify-center bg-green-600 text-white rounded-lg font-black text-[9px] shadow-md hover:bg-green-700 transition-all active:scale-95"
+                                    >
+                                        RESET
+                                    </button>
+                                    <button type="button" onClick={() => setAdjustConfig(prev => ({ ...prev, offsetX: prev.offsetX + 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronRight className="w-4 h-4 text-gray-600"/></button>
+                                    <div />
+                                    <button type="button" onClick={() => setAdjustConfig(prev => ({ ...prev, offsetY: prev.offsetY + 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronDown className="w-4 h-4 text-gray-600"/></button>
+                                    <div />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="p-4 bg-gray-50/80 border-t flex gap-2">
+                        <button type="button" onClick={() => setIsAdjusting(false)} className="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors">Cancelar</button>
+                        <button 
+                            type="button" 
+                            onClick={handleApplyAdjustment}
+                            className="flex-1 bg-green-600 text-white py-3 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-95 transition-all text-xs"
+                        >
+                            <Check className="w-4 h-4" /> Aplicar
+                        </button>
+                    </div>
+                </div>
+                <canvas ref={canvasRef} width={400} height={400} className="hidden" />
+            </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5">
+            
+            {/* Seletor de Logo */}
+            <div className="flex flex-col items-center mb-8">
+                <div className="relative group">
+                    <div className="w-28 h-28 rounded-full border-4 border-gray-100 overflow-hidden bg-gray-50 flex items-center justify-center shadow-inner">
+                        {formData.logo_base64 ? (
+                            <img src={formData.logo_base64} alt="Logo" className="w-full h-full object-cover" />
+                        ) : (
+                            <Building2 className="w-10 h-10 text-gray-300" />
+                        )}
+                    </div>
+                    <label className="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full shadow-lg border-2 border-white cursor-pointer hover:bg-green-700 transition-colors">
+                        <Camera className="w-4 h-4" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                    </label>
+                </div>
+                {formData.logo_base64 && (
+                    <button 
+                        type="button"
+                        onClick={() => setIsAdjusting(true)}
+                        className="mt-3 text-[10px] font-black text-green-600 flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full hover:bg-green-100 transition-all uppercase tracking-widest"
+                    >
+                        <Move className="w-3 h-3"/> Ajustar Logo
+                    </button>
+                )}
+                <p className="mt-4 text-[10px] text-gray-400 font-bold uppercase tracking-widest text-center">Toque na câmera para adicionar o logotipo</p>
+            </div>
             
             <div className="space-y-4">
                 <div>
-                     <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Fazenda</label>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Propriedade</label>
                      <div className="relative">
                         <Building2 className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                         <input 

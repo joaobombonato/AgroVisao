@@ -78,6 +78,8 @@ export default function RecomendacoesScreen() {
 
       const novo = { 
           ...header, 
+          data_recomendacao: header.data,
+          data: undefined,
           itens: itensAdicionados, // Guarda a lista completa
           id: U.id('RC-') 
       }; 
@@ -97,10 +99,21 @@ export default function RecomendacoesScreen() {
 
       dispatch({ 
           type: ACTIONS.ADD_RECORD, 
+          modulo: 'os', 
+          record: {
+              id: U.id('OS-RC-'),
+              modulo: 'Recomendação',
+              descricao: `Aplicação: ${header.talhao} (${itensAdicionados.length} produtos)`,
+              detalhes: detalhesOS,
+              status: 'Pendente',
+              data_abertura: new Date().toISOString()
+          }
+      }); 
+      
+      dispatch({ 
+          type: ACTIONS.ADD_RECORD, 
           modulo: 'recomendacoes', 
-          record: novo, 
-          osDescricao: `Aplicação: ${header.talhao} (${itensAdicionados.length} produtos)`, 
-          osDetalhes: detalhesOS 
+          record: novo
       }); 
       
       setItensAdicionados([]); // Limpa a lista
@@ -142,7 +155,7 @@ export default function RecomendacoesScreen() {
       // Verifica nos itens internos também (Busca Universal)
       const itensTexto = i.itens ? i.itens.map((it:any) => it.produto).join(' ') : (i.produto || '');
       
-      const matchData = !filterData || i.data === filterData;
+      const matchData = !filterData || (i.data_recomendacao || i.data) === filterData;
       const matchText = !filterText || 
           (i.safra || '').toLowerCase().includes(txt) || 
           (i.talhao || '').toLowerCase().includes(txt) || 
@@ -297,7 +310,7 @@ export default function RecomendacoesScreen() {
                             
                             return (
                                 <Row key={item.id} onDelete={() => excluir(item.id)}>
-                                    <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data)}</td>
+                                    <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data_recomendacao || item.data)}</td>
                                     <td className="px-3 py-2 text-gray-700 text-xs">{item.safra}</td>
                                     <td className="px-3 py-2 text-xs">
                                         <div className="font-bold text-green-700">{item.talhao}</div>

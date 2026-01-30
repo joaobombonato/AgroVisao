@@ -20,7 +20,7 @@ export default function EnergiaScreen() {
   const { dados, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
   
   const [form, setForm] = useState({ 
-      data: U.todayIso(), 
+      data_leitura: U.todayIso(), 
       ponto: '', 
       medidor: '', 
       leituraAnterior: '', 
@@ -101,7 +101,7 @@ export default function EnergiaScreen() {
             "Estimativa": `R$ ${valorEstimado}`
         },
         status: 'Pendente',
-        data: new Date().toISOString()
+        data_abertura: new Date().toISOString()
     };
 
     genericSave('os', novaOS, {
@@ -110,7 +110,7 @@ export default function EnergiaScreen() {
         record: novaOS
     });
     
-    setForm({ data: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '', centroCusto: '' });
+    setForm({ data_leitura: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '', centroCusto: '' });
     toast.success('Leitura de energia registrada!');
   };
 
@@ -118,7 +118,7 @@ export default function EnergiaScreen() {
   
   const listFilter = useMemo(() => (dados.energia || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
-      return (!filterData || i.data === filterData) && 
+      return (!filterData || (i.data_leitura || i.data) === filterData) && 
              (!filterText || i.ponto.toLowerCase().includes(txt) || i.medidor.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt));
   }).reverse(), [dados.energia, filterData, filterText]);
 
@@ -138,8 +138,8 @@ export default function EnergiaScreen() {
             <label className="block text-xs font-bold text-gray-700">Data da Leitura <span className="text-red-500">*</span></label>
                 <input 
                     type="date" 
-                    value={form.data} 
-                    onChange={(e) => setForm({ ...form, data: e.target.value })} 
+                    value={form.data_leitura} 
+                    onChange={(e) => setForm({ ...form, data_leitura: e.target.value })} 
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-yellow-500 focus:outline-none"
                     required
                 />
@@ -270,7 +270,7 @@ export default function EnergiaScreen() {
                     <tbody className="divide-y">
                         {items.map(item => (
                             <Row key={item.id} onDelete={() => excluir(item.id)}>
-                                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data)}</td>
+                                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data_leitura || item.data)}</td>
                                 <td className="px-3 py-2 text-gray-700 text-xs">
                                     <div className="font-bold">{item.local}</div>
                                     <div className="text-[10px] text-gray-500">MED: {item.medidor}</div>

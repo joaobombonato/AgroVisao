@@ -19,7 +19,7 @@ export default function RefeicoesScreen() {
   const { dados, dispatch, setTela, ativos, genericSave } = useAppContext();
   
   const [form, setForm] = useState({ 
-      data: U.todayIso(), 
+      data_refeicao: U.todayIso(), 
       tipo: '', 
       qtd: '', 
       valorUnitario: '', 
@@ -105,30 +105,35 @@ export default function RefeicoesScreen() {
         descricao: descOS,
         detalhes: detalheOS,
         status: 'Pendente',
-        data: new Date().toISOString()
+        data_abertura: new Date().toISOString()
     };
-    genericSave('os', novaOS, {
+    genericSave('refeicoes', { ...novo, data: undefined }, { 
         type: ACTIONS.ADD_RECORD,
-        modulo: 'os',
-        record: novaOS
+        modulo: 'refeicoes',
+        record: novo
     });
     
-    setForm({ data: U.todayIso(), tipo: '', qtd: '', valorUnitario: '', centroCusto: '', obs: '' });
+    setForm({ data_refeicao: U.todayIso(), tipo: '', qtd: '', valorUnitario: '', centroCusto: '', obs: '' });
     setShowObs(false);
     toast.success('Refeição lançada!');
   };
 
-  const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir lançamento?', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'refeicoes', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
-  
   const listFilter = useMemo(() => (dados.refeicoes || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
-      return (!filterData || i.data === filterData) && 
+      return (!filterData || (i.data_refeicao || i.data) === filterData) && 
              (!filterText || i.tipo.toLowerCase().includes(txt) || i.centroCusto.toLowerCase().includes(txt));
   }).reverse(), [dados.refeicoes, filterData, filterText]);
 
+  const getBadgeColor = (tipo: string) => {
+    if (tipo.includes('Almoço')) return 'bg-orange-100 text-orange-700 border-orange-200';
+    if (tipo.includes('Janta')) return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+    return 'bg-gray-100 text-gray-700 border-gray-200';
+  };
+
+  const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir lançamento?', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'refeicoes', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
+
   return (
     <div className="space-y-4 p-4 pb-24">
-      <PageHeader setTela={setTela} title="Refeições" icon={Utensils} colorClass="bg-orange-500" />
       
       {/* CARD DE RESUMO MENSAL */}
       <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 shadow-md">
@@ -138,7 +143,7 @@ export default function RefeicoesScreen() {
                 type="month" 
                 value={selectedMonth} 
                 onChange={e => setSelectedMonth(e.target.value)} 
-                className="text-xs font-bold text-orange-900 bg-white border border-orange-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer shadow-sm" 
+                className="text-xs font-bold text-orange-900 bg-white border border-orange-300 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-orange-400 cursor-pointer shadow-sm uppercase" 
               />
           </div>
           <div className="grid grid-cols-2 gap-4">
@@ -162,11 +167,11 @@ export default function RefeicoesScreen() {
         <form onSubmit={enviar} className="space-y-3">
           
           <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700">Data do Lançamento <span className="text-red-500">*</span></label>
+             <label className="block text-xs font-bold text-gray-700 uppercase">Data do Lançamento (DD/MM/AAAA) <span className="text-red-500">*</span></label>
              <input 
                 type="date" 
-                value={form.data} 
-                onChange={(e) => setForm({ ...form, data: e.target.value })} 
+                value={form.data_refeicao} 
+                onChange={(e) => setForm({ ...form, data_refeicao: e.target.value })} 
                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none" 
                 required 
              />
@@ -235,17 +240,20 @@ export default function RefeicoesScreen() {
           <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                  <label className="block text-xs font-bold text-gray-700">Quantidade <span className="text-red-500">*</span></label>
-                 <div className="relative">
-                     <Users className="absolute left-2 top-2.5 w-4 h-4 text-orange-400" />
-                     <input 
-                        type="number" 
-                        value={form.qtd} 
-                        onChange={(e) => setForm({...form, qtd: e.target.value})}
-                        className="w-full pl-8 pr-2 py-2 border-2 border-orange-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="Informe a Qtd..."
-                        required
-                     />
-                 </div>
+                  <div className="relative">
+                      <Users className="absolute left-2 top-2.5 w-4 h-4 text-orange-400" />
+                      <input 
+                         type="text" 
+                         value={form.qtd} 
+                         onChange={(e: any) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            setForm({...form, qtd: val});
+                         }}
+                         className="w-full pl-8 pr-2 py-2 border-2 border-orange-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:bg-orange-50"
+                         placeholder="Qtd..."
+                         required
+                      />
+                  </div>
               </div>
               
               <div className="space-y-1">
@@ -295,12 +303,17 @@ export default function RefeicoesScreen() {
                     <tbody className="divide-y">
                         {items.map(item => (
                             <Row key={item.id} onDelete={() => excluir(item.id)}>
-                                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data)}</td>
                                 <td className="px-3 py-2 text-gray-700 text-xs">
-                                    <div className="font-bold text-orange-700">{item.tipo}</div>
-                                    <div className="text-[10px] text-gray-400">{item.centroCusto}</div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getBadgeColor(item.tipo)}`}>{item.tipo}</span>
+                                        <span className="text-[10px] text-gray-400">{U.formatDate(item.data_refeicao || item.data)}</span>
+                                    </div>
+                                    <div className="font-bold">{item.centroCusto}</div>
                                 </td>
-                                <td className="px-3 py-2 text-right text-xs font-bold text-gray-700">{item.qtd}</td>
+                                <td className="px-3 py-2 text-right">
+                                    <div className="font-bold text-orange-600 text-sm">{item.qtd}</div>
+                                    <div className="text-[10px] text-gray-500">unid.</div>
+                                </td>
                                 <td className="px-3 py-2 text-right text-xs font-bold text-green-600">R$ {U.formatValue(item.valorTotal)}</td>
                             </Row>
                         ))}

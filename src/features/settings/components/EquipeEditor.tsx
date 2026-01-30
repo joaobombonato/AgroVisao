@@ -17,10 +17,12 @@ export default function EquipeEditor() {
     const { fazendaId, session, fazendaNome } = useAppContext();
     const [loading, setLoading] = useState(false);
     const [membros, setMembros] = useState<any[]>([]);
+    const [convites, setConvites] = useState<any[]>([]);
     const [email, setEmail] = useState('');
     const [role, setRole] = useState('Operador');
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [pendingInviteMsg, setPendingInviteMsg] = useState('');
+    const [pendingInviteData, setPendingInviteData] = useState<any>(null);
 
     useEffect(() => {
         if (fazendaId) loadMembros();
@@ -30,28 +32,33 @@ export default function EquipeEditor() {
         if (!fazendaId) return;
         try {
             setLoading(true);
-            // Busca membros com e-mail do perfil associado
-            const { data, error } = await supabase
+            
+            // 1. Busca membros efetivos
+            const { data: membrosDb, error: errMembros } = await supabase
                 .from('fazenda_membros')
                 .select('id, user_id, fazenda_id, role, profiles(email)')
                 .eq('fazenda_id', fazendaId);
             
-            if (error) {
-                console.error("Erro Supabase Equipe:", error);
-                throw error;
-            }
-            
-            console.log("DEBUG EQUIPE: dados brutos:", data);
+            if (errMembros) throw errMembros;
 
-            const sorted = (data || []).sort((a, b) => {
+            // 2. Busca convites pendentes
+            const { data: convitesDb, error: errConvites } = await supabase
+                .from('fazenda_convites')
+                .select('*')
+                .eq('fazenda_id', fazendaId);
+
+            if (errConvites) throw errConvites;
+            
+            const sortedMembros = (membrosDb || []).sort((a, b) => {
                 const order: any = { 'Proprietário': 0, 'Administrativo': 1, 'Gerente': 2, 'Operador': 3, 'Consultor Agrícola': 4 };
                 return (order[a.role] ?? 5) - (order[b.role] ?? 5);
             });
 
-            setMembros(sorted);
+            setMembros(sortedMembros);
+            setConvites(convitesDb || []);
         } catch (err: any) {
             console.error("Falha ao carregar equipe:", err);
-            toast.error("Erro ao carregar equipe. Tente recarregar a página.");
+            toast.error("Erro ao carregar equipe.");
         } finally {
             setLoading(false);
         }
@@ -73,8 +80,11 @@ export default function EquipeEditor() {
             if (searchError) throw searchError;
 
             if (!profile) {
+                // Usuário não existe -> Criar Convite Pendente no Banco
+                setPendingInviteData({ email: email.trim().toLowerCase(), role });
+                
                 const appLink = window.location.origin;
-                const inviteMsg = `Olá! Convido você para a equipe da *${fazendaNome || 'nossa propriedade'}* no aplicativo *AgroVisão*.\n\nPara começar, crie sua conta em: ${appLink}\n(Cadastre-se com o e-mail: ${email.trim().toLowerCase()} para que eu possa liberar seu acesso).`;
+                const inviteMsg = `Olá! Pré-autorizei seu acesso como *${role}* na equipe da *${fazendaNome || 'nossa propriedade'}* no AgroVisão.\n\nCrie sua conta agora para acessar os dados: ${appLink}\n(Use o e-mail: ${email.trim().toLowerCase()})`;
 
                 setPendingInviteMsg(inviteMsg);
                 setShowInviteModal(true);
@@ -126,14 +136,72 @@ export default function EquipeEditor() {
             const { error } = await supabase
                 .from('fazenda_membros')
                 .delete()
-                .eq('id', id)
-                .eq('fazenda_id', fazendaId);
+                .eq('id', id);
             
             if (error) throw error;
             toast.success("Membro removido.");
             loadMembros();
         } catch (err: any) {
             toast.error("Erro ao remover: " + err.message);
+        }
+    };
+
+    const handleRemoverConvite = async (id: string, emailDoc: string) => {
+        if (!window.confirm(`Cancelar convite para ${emailDoc}?`)) return;
+        try {
+            const { error } = await supabase
+                .from('fazenda_convites')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            toast.success("Convite cancelado.");
+            loadMembros();
+        } catch (err: any) {
+            toast.error("Erro ao cancelar: " + err.message);
+        }
+    };
+
+    const confirmarConvitePendente = async () => {
+        if (!pendingInviteData) return;
+        try {
+            setLoading(true);
+            
+            // 1. Salvar no banco (Convite Pendente)
+            const { error: dbError } = await supabase
+                .from('fazenda_convites')
+                .insert([{
+                    fazenda_id: fazendaId,
+                    email: pendingInviteData.email,
+                    role: pendingInviteData.role,
+                    convidado_por: session?.user?.id
+                }]);
+
+            if (dbError) throw dbError;
+
+            // 2. Disparar E-mail Oficial via Edge Function
+            try {
+                const { error: funcError } = await supabase.functions.invoke('invite-staff', {
+                    body: { 
+                        email: pendingInviteData.email,
+                        redirectTo: window.location.origin
+                    }
+                });
+                if (funcError) console.warn("Erro ao disparar e-mail (provável limite atingido):", funcError);
+                else toast.success("E-mail de convite enviado!");
+            } catch (fErr) {
+                console.warn("Falha silenciosa na função de e-mail:", fErr);
+            }
+
+            toast.success("Convite registrado no sistema!");
+            setEmail('');
+            loadMembros();
+            setShowInviteModal(false);
+        } catch (err: any) {
+            console.error("Erro no processo de convite:", err);
+            toast.error("Erro ao registrar convite.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -221,13 +289,14 @@ export default function EquipeEditor() {
                 </div>
 
                 <div className="divide-y divide-gray-50">
-                    {membros.length === 0 && !loading && (
+                    {(membros.length === 0 && convites.length === 0) && !loading && (
                         <div className="p-12 text-center">
                             <Shield className="w-12 h-12 text-gray-100 mx-auto mb-3" />
                             <p className="text-gray-400 text-sm font-medium">Nenhum membro cadastrado.</p>
                         </div>
                     )}
 
+                    {/* Membros Ativos */}
                     {membros.map(m => (
                         <div key={m.id} className={`p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors ${m.user_id === session?.user?.id ? 'bg-indigo-50/20' : ''}`}>
                             <div className="flex items-center gap-4">
@@ -240,7 +309,10 @@ export default function EquipeEditor() {
                                     <p className="text-sm font-bold text-gray-800">
                                         {m.profiles?.email || 'Membro Externo'}
                                     </p>
-                                    <span className="text-[10px] font-black uppercase text-indigo-600/70">{m.role}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-indigo-600/70">{m.role}</span>
+                                        <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter">Ativo</span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -252,6 +324,33 @@ export default function EquipeEditor() {
                                     <X className="w-5 h-5" />
                                 </button>
                             )}
+                        </div>
+                    ))}
+
+                    {/* Convites Pendentes */}
+                    {convites.map(c => (
+                        <div key={c.id} className="p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors bg-amber-50/10">
+                            <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600 border border-amber-200 border-dashed animate-pulse">
+                                    <Clock className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-gray-800">
+                                        {c.email}
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-amber-600/70">{c.role}</span>
+                                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter">Aguardando Cadastro</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button 
+                                onClick={() => handleRemoverConvite(c.id, c.email)}
+                                className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
                     ))}
                 </div>
@@ -297,13 +396,11 @@ export default function EquipeEditor() {
             <ConfirmModal
                 isOpen={showInviteModal}
                 onClose={() => setShowInviteModal(false)}
-                onConfirm={() => {
-                    window.open(`https://wa.me/?text=${encodeURIComponent(pendingInviteMsg)}`, '_blank');
-                }}
-                title="Usuário Não Encontrado"
-                message={`O e-mail "${email}" ainda não possui conta no AgroVisão.\n\nA mensagem de convite já foi COPIADA para sua área de transferência! Deseja enviar agora via WhatsApp?`}
-                confirmText="Enviar WhatsApp"
-                cancelText="Fechar"
+                onConfirm={confirmarConvitePendente}
+                title="Novo Convite"
+                message={`O e-mail "${email}" ainda não possui conta no AgroVisão.\n\nDeseja PRÉ-AUTORIZAR este e-mail como ${role}? Assim que o colaborador se cadastrar, ele terá acesso automático!\n\nA mensagem para WhatsApp também já foi copiada.`}
+                confirmText="Autorizar e Enviar"
+                cancelText="Cancelar"
                 variant="info"
                 icon="warning"
             />

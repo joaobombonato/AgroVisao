@@ -18,7 +18,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
   
   // Estado do Formulário
   const [form, setForm] = useState({ 
-      data: U.todayIso(), 
+      data_leitura: U.todayIso(), 
       local: '', 
       milimetros: '' 
   });
@@ -35,9 +35,9 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
     if (!form.local || !form.milimetros) { toast.error("Preencha Local e Milímetros"); return; }
     
     // --- VERIFICAÇÃO DE DUPLICIDADE ---
-    const jaExiste = (dados.chuvas || []).some((c: any) => c.data === form.data && c.local === form.local);
+    const jaExiste = (dados.chuvas || []).some((c: any) => (c.data_leitura || c.data) === form.data_leitura && c.local === form.local);
     if (jaExiste) {
-        toast.error(`Já existe um registro para ${form.local} nesta data (${U.formatDate(form.data)}).`);
+        toast.error(`Já existe um registro para ${form.local} nesta data (${U.formatDate(form.data_leitura)}).`);
         return;
     }
     // ----------------------------------
@@ -55,7 +55,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
         descricao: descOS,
         detalhes: { "Local": form.local, "Volume": `${mm} mm` },
         status: 'Pendente',
-        data: new Date().toISOString()
+        data_abertura: new Date().toISOString()
     };
 
     genericSave('os', novaOS, {
@@ -64,7 +64,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
         record: novaOS
     });
     
-    setForm({ data: U.todayIso(), local: '', milimetros: '' });
+    setForm({ data_leitura: U.todayIso(), local: '', milimetros: '' });
     toast.success('Registro de chuva salvo!');
   };
 
@@ -85,7 +85,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
   
   const listFilter = useMemo(() => (dados.chuvas || []).filter((i:any) => {
       const txt = filterText.toLowerCase();
-      return (!filterData || i.data === filterData) && 
+      return (!filterData || (i.data_leitura || i.data) === filterData) && 
              (!filterText || i.local?.toLowerCase().includes(txt));
   }).reverse(), [dados.chuvas, filterData, filterText]);
 
@@ -129,12 +129,12 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
               <form onSubmit={enviar} className="space-y-4">
                 {/* Campo Data Manual */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-gray-700">Data da Coleta <span className="text-red-500">*</span></label>
+                   <label className="block text-xs font-bold text-gray-700 uppercase">Data da Coleta (DD/MM/AAAA) <span className="text-red-500">*</span></label>
                   <div className="relative">
-                      <input 
+                       <input 
                           type="date" 
-                          value={form.data} 
-                          onChange={(e) => setForm({ ...form, data: e.target.value })} 
+                          value={form.data_leitura} 
+                          onChange={(e) => setForm({ ...form, data_leitura: e.target.value })} 
                           className="w-full pl-3 pr-3 py-3 border-2 border-gray-300 rounded-lg text-sm focus:border-cyan-500 focus:outline-none"
                           required
                       />
@@ -153,15 +153,14 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
                 
                 <div className="space-y-1">
                    <div className="relative">
-                        <Input 
-                           label="Volume (mm)"
-                           type="text" 
-                           value={form.milimetros} 
-                           onChange={(e: any) => setForm({...form, milimetros: e.target.value})}
-                           numeric={true}
-                           placeholder="Ex: 12,5"
-                           required
-                        />
+                         <Input 
+                            label="Volume (mm)"
+                            mask="metric"
+                            value={form.milimetros} 
+                            onChange={(e: any) => setForm({...form, milimetros: e.target.value})}
+                            placeholder="Ex: 12"
+                            required
+                         />
                         <span className="absolute right-4 top-8 text-sm font-bold text-gray-400">mm</span>
                    </div>
                 </div>
@@ -199,7 +198,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
                         <tbody className="divide-y">
                             {items.map(item => (
                                 <Row key={item.id} onDelete={() => excluir(item.id)}>
-                                    <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data)}</td>
+                                    <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data_leitura || item.data)}</td>
                                     <td className="px-3 py-2 text-gray-700 text-xs font-medium">{item.local || item.estacao}</td>
                                     <td className="px-3 py-2 text-right">
                                         <div className="font-bold text-cyan-600 text-sm">{item.milimetros} mm</div>

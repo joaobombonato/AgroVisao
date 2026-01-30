@@ -78,19 +78,19 @@ export default function DashboardScreen() {
      
      // Adiciona OS Recentes
      items.push(...os.map((o:any) => ({ 
-         type: 'os', date: o.data || o.created_at, sortDate: new Date(o.data || o.created_at || 0).getTime(),
+         type: 'os', date: o.data_abertura || o.created_at, sortDate: new Date(o.data_abertura || o.created_at || 0).getTime(),
          title: `OS: ${o.modulo}`, desc: o.descricao, status: o.status, id: o.id 
      })));
 
      // Adiciona Abastecimentos Recentes
      items.push(...(dados.abastecimentos || []).map((a:any) => ({
-         type: 'fuel', date: a.data, sortDate: new Date(a.data).getTime(),
+         type: 'fuel', date: a.data_operacao || a.data, sortDate: new Date(a.data_operacao || a.data).getTime(),
          title: `Abastecimento`, desc: `${a.maquina} - ${a.qtd}L`, id: a.id
      })));
 
      // Adiciona Chuvas Recentes
      items.push(...(dados.chuvas || []).map((c:any) => ({
-         type: 'rain', date: c.data, sortDate: new Date(c.data).getTime(),
+         type: 'rain', date: c.data_leitura || c.data, sortDate: new Date(c.data_leitura || c.data).getTime(),
          title: `Registro de Chuva`, desc: `${c.local}: ${c.milimetros}mm`, id: c.id
      })));
 

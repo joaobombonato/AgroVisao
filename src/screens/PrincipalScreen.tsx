@@ -35,7 +35,7 @@ export default function PrincipalScreen() {
       </div>
 
       {/* Sistema de Passos de Boas-vindas (Checklist Dinâmico) */}
-      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.precoDiesel) && (
+      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.financeiro?.precoDiesel) && (
         <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-6 shadow-xl animate-in zoom-in duration-500 overflow-hidden relative">
            {/* Detalhe de luz suave no fundo */}
            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
@@ -88,52 +88,52 @@ export default function PrincipalScreen() {
               {/* PASSO 3: PARÂMETROS GERAIS */}
               <button 
                 onClick={() => setTela('config:parametros')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.parametros?.precoDiesel > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.parametros?.financeiro?.precoDiesel ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.parametros?.precoDiesel > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {ativos?.parametros?.precoDiesel > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">3</span>}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.parametros?.financeiro?.precoDiesel ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.parametros?.financeiro?.precoDiesel ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">3</span>}
                     </div>
                     <div className="text-left">
-                       <p className={`text-sm font-bold ${ativos?.parametros?.precoDiesel > 0 ? 'text-green-700' : 'text-gray-700'}`}>Parâmetros Gerais</p>
+                       <p className={`text-sm font-bold ${ativos?.parametros?.financeiro?.precoDiesel ? 'text-green-700' : 'text-gray-700'}`}>Parâmetros Gerais</p>
                        <p className="text-[10px] text-gray-400">Energia elétrica, abastecimento e manutenção</p>
                     </div>
                  </div>
-                 {!(ativos?.parametros?.precoDiesel > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+                 {!ativos?.parametros?.financeiro?.precoDiesel && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
-              {/* PASSO 4: CADASTROS OPERACIONAIS */}
+              {/* PASSO 4: CADASTROS OPERACIONAIS (TALHÕES) */}
               <button 
-                onClick={() => setTela('config:listas')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+                onClick={() => setTela('config:editor:talhoes')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.talhoes?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">4</span>}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.talhoes?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.talhoes?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">4</span>}
                     </div>
                     <div className="text-left">
-                       <p className={`text-sm font-bold ${ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Cadastros Operacionais</p>
-                       <p className="text-[10px] text-gray-400">Safras, Culturas e Centros de Custo</p>
+                       <p className={`text-sm font-bold ${ativos?.talhoes?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Cadastros Operacionais</p>
+                       <p className="text-[10px] text-gray-400">Talhões, Safras e Centros de Custo</p>
                     </div>
                  </div>
-                 {!(ativos?.safras?.length > 0 && ativos?.centros_custos?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+                 {!(ativos?.talhoes?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
               {/* PASSO 5: GESTÃO DE EQUIPE & PERMISSÕES */}
               <button 
                 onClick={() => setTela('config:equipe')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.dbAssets?.membros?.length > 1 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.dbAssets?.fazenda_membros?.length > 1 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.dbAssets?.membros?.length > 1 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {state.dbAssets?.membros?.length > 1 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">5</span>}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.dbAssets?.fazenda_membros?.length > 1 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {state.dbAssets?.fazenda_membros?.length > 1 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">5</span>}
                     </div>
                     <div className="text-left">
-                       <p className={`text-sm font-bold ${state.dbAssets?.membros?.length > 1 ? 'text-green-700' : 'text-gray-700'}`}>Gestão de Equipe & Permissões</p>
+                       <p className={`text-sm font-bold ${state.dbAssets?.fazenda_membros?.length > 1 ? 'text-green-700' : 'text-gray-700'}`}>Gestão de Equipe & Permissões</p>
                        <p className="text-[10px] text-gray-400">Convide seu time e ajuste o que cada um pode ver</p>
                     </div>
                  </div>
-                 {!(state.dbAssets?.membros?.length > 1) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+                 {!(state.dbAssets?.fazenda_membros?.length > 1) && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
               {/* PASSO 6: MINHA CONTA */}

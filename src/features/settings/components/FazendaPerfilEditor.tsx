@@ -193,13 +193,22 @@ export default function FazendaPerfilEditor() {
         const reader = new FileReader();
         reader.onloadend = () => {
             const base64String = reader.result as string;
-            setAdjustConfig({
-                zoom: 1,
-                offsetX: 0,
-                offsetY: 0,
-                rawImage: base64String
-            });
-            setIsAdjusting(true);
+            
+            // Calcular zoom inicial para a imagem ocupar bem o container
+            const img = new Image();
+            img.src = base64String;
+            img.onload = () => {
+                const uiSize = 176; // w-44
+                const initialZoom = Math.max(uiSize / img.width, uiSize / img.height) * 1.2;
+                
+                setAdjustConfig({
+                    zoom: initialZoom,
+                    offsetX: 0,
+                    offsetY: 0,
+                    rawImage: base64String
+                });
+                setIsAdjusting(true);
+            };
         };
         reader.readAsDataURL(file);
     };
@@ -218,20 +227,17 @@ export default function FazendaPerfilEditor() {
             ctx.fillStyle = '#FFFFFF';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            const size = canvas.width;
-            const aspect = img.width / img.height;
-            
-            let drawW, drawH;
-            if (aspect > 1) {
-                drawH = size * adjustConfig.zoom;
-                drawW = drawH * aspect;
-            } else {
-                drawW = size * adjustConfig.zoom;
-                drawH = drawW / aspect;
-            }
+            const canvasSize = canvas.width; // 400
+            const uiSize = 176; // w-44
+            const ratio = canvasSize / uiSize;
 
-            const startX = (size - drawW) / 2 + (adjustConfig.offsetX * adjustConfig.zoom);
-            const startY = (size - drawH) / 2 + (adjustConfig.offsetY * adjustConfig.zoom);
+            // O que o usuário vê na UI: (img.width * zoom) px em um container de 176px
+            // O que queremos no Canvas: (img.width * zoom * ratio) px em um container de 400px
+            const drawW = img.width * adjustConfig.zoom * ratio;
+            const drawH = img.height * adjustConfig.zoom * ratio;
+
+            const startX = (canvasSize - drawW) / 2 + (adjustConfig.offsetX * ratio);
+            const startY = (canvasSize - drawH) / 2 + (adjustConfig.offsetY * ratio);
 
             ctx.drawImage(img, startX, startY, drawW, drawH);
 
@@ -388,7 +394,21 @@ export default function FazendaPerfilEditor() {
                                         <button onClick={() => setAdjustConfig(prev => ({ ...prev, offsetY: prev.offsetY - 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronUp className="w-4 h-4 text-gray-600"/></button>
                                         <div />
                                         <button onClick={() => setAdjustConfig(prev => ({ ...prev, offsetX: prev.offsetX - 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronLeft className="w-4 h-4 text-gray-600"/></button>
-                                        <button onClick={() => setAdjustConfig(prev => ({ ...prev, offsetX: 0, offsetY: 0, zoom: 1 }))} className="w-14 h-9 flex items-center justify-center bg-green-600 text-white rounded-lg font-black text-[9px] shadow-md hover:bg-green-700 transition-all active:scale-95">RESET</button>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                const img = new Image();
+                                                img.src = adjustConfig.rawImage;
+                                                img.onload = () => {
+                                                    const uiSize = 176;
+                                                    const initialZoom = Math.max(uiSize / img.width, uiSize / img.height) * 1.2;
+                                                    setAdjustConfig(prev => ({ ...prev, offsetX: 0, offsetY: 0, zoom: initialZoom }));
+                                                };
+                                            }} 
+                                            className="w-14 h-9 flex items-center justify-center bg-green-600 text-white rounded-lg font-black text-[9px] shadow-md hover:bg-green-700 transition-all active:scale-95"
+                                        >
+                                            RESET
+                                        </button>
                                         <button onClick={() => setAdjustConfig(prev => ({ ...prev, offsetX: prev.offsetX + 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronRight className="w-4 h-4 text-gray-600"/></button>
                                         <div />
                                         <button onClick={() => setAdjustConfig(prev => ({ ...prev, offsetY: prev.offsetY + 10 }))} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronDown className="w-4 h-4 text-gray-600"/></button>

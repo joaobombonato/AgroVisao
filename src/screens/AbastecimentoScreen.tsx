@@ -65,52 +65,39 @@ function CompraCombustivelForm({ onClose }: any) {
         
         <form onSubmit={enviar} className="p-4 space-y-3">
           <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700">Data da Compra <span className="text-red-500">*</span></label>
+             <label className="block text-xs font-bold text-gray-700 uppercase">Data da Compra (DD/MM/AAAA) <span className="text-red-500">*</span></label>
              <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none" required />
           </div>
           
           <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700">Nota Fiscal <span className="text-red-500">*</span></label>
-             <input 
-                type="text" 
+             <Input 
+                label="Nota Fiscal" 
+                mask="metric"
                 placeholder="Informe o Nº da NF" 
                 value={form.notaFiscal} 
-                onChange={(e) => setForm({ ...form, notaFiscal: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none"
+                onChange={(e: any) => setForm({ ...form, notaFiscal: e.target.value })}
                 required
              />
           </div>
           
           <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                 <label className="block text-xs font-bold text-gray-700">Litros (L) <span className="text-red-500">*</span></label>
-                 <input 
-                    type="text" 
-                    placeholder="Ex: 500,0" 
+                 <Input 
+                    label="Litros (L)" 
+                    mask="metric"
+                    placeholder="Ex: 500" 
                     value={form.litros} 
-                    onChange={(e: any) => {
-                       const val = e.target.value;
-                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
-                           setForm({ ...form, litros: val });
-                       }
-                    }}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none"
+                    onChange={(e: any) => setForm({ ...form, litros: e.target.value })}
                     required
                  />
               </div>
               <div className="space-y-1">
-                 <label className="block text-xs font-bold text-gray-700">Valor Unitário <span className="text-red-500">*</span></label>
-                 <input 
-                    type="text" 
+                 <Input 
+                    label="Valor Unitário" 
+                    mask="decimal"
                     placeholder="Ex: 6,45" 
                     value={form.valorUnitario} 
-                    onChange={(e: any) => {
-                       const val = e.target.value;
-                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
-                           setForm({ ...form, valorUnitario: val });
-                       }
-                    }}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:bg-green-50 focus:outline-none"
+                    onChange={(e: any) => setForm({ ...form, valorUnitario: e.target.value })}
                     required
                  />
               </div>
@@ -123,8 +110,8 @@ function CompraCombustivelForm({ onClose }: any) {
              </button>
              {showFrete && (
                  <div className="grid grid-cols-2 gap-3 bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-1">
-                     <Input label="NF Frete" placeholder="Nº da NF Frete" value={form.nfFrete} onChange={(e:any) => setForm({ ...form, nfFrete: e.target.value })} />
-                     <Input label="Valor Frete (R$)" type="text" numeric={true} placeholder="Ex: 150,00" value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value })} />
+                     <Input label="NF Frete" mask="metric" placeholder="Nº da NF Frete" value={form.nfFrete} onChange={(e:any) => setForm({ ...form, nfFrete: e.target.value })} />
+                     <Input label="Valor Frete (R$)" mask="currency" placeholder="Ex: 150,00" value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value })} />
                  </div>
              )}
           </div>
@@ -267,7 +254,7 @@ export default function AbastecimentoScreen() {
     // --- TRAVA DE DUPLICIDADE (ABASTECIMENTO) ---
     const jaExiste = (dados.abastecimentos || []).some((a: any) => 
         a.maquina === form.maquina && 
-        a.data === form.data && 
+        (a.data_operacao || a.data) === form.data && 
         U.parseDecimal(a.horimetroAtual) === U.parseDecimal(form.horimetroAtual)
     );
 
@@ -288,6 +275,8 @@ export default function AbastecimentoScreen() {
 
     const novo = { 
         ...form, 
+        data_operacao: form.data,
+        data: undefined,
         qtd: litrosCalculados, 
         media: mediaConsumo,
         custo: custoEstimado,
@@ -336,15 +325,10 @@ export default function AbastecimentoScreen() {
     const novaOS = {
         id: U.id('OS-'),
         modulo: 'Abastecimento',
-        descricao: `Abastecimento: ${form.maquina} (${litrosCalculados}L)`,
-        detalhes: {
-            "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
-            "Consumo": `${mediaConsumo} L/h (Média)`,
-            "Custo": `R$ ${U.formatValue(custoEstimado)}`,
-            "Obs": form.obs || '-'
-        },
-        status: 'Pendente',
-        data: new Date().toISOString()
+        descricao: descOS,
+        detalhes: detalhesOS,
+        status: 'Concluída',
+        data_abertura: new Date().toISOString()
     };
 
     genericSave('os', novaOS, {
@@ -404,11 +388,12 @@ export default function AbastecimentoScreen() {
 
   const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir registro? O estoque será corrigido.', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'abastecimentos', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
   
-  const listFilter = useMemo(() => (dados?.abastecimentos || []).filter((i:any) => {
-      const txt = (filterText || '').toLowerCase();
-      return (!filterData || i.data === filterData) && 
-             (!filterText || (i.maquina || '').toLowerCase().includes(txt));
-  }).reverse(), [dados?.abastecimentos, filterData, filterText]);
+  const listFilter = useMemo(() => (dados.abastecimentos || []).filter((i:any) => {
+      const txt = filterText.toLowerCase();
+      const matchText = i.maquina.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt);
+      const matchData = !filterData || (i.data_operacao || i.data) === filterData;
+      return matchText && matchData;
+  }).reverse(), [dados.abastecimentos, filterData, filterText]);
 
   return (
     <div className="space-y-4 p-4 pb-24">
@@ -459,7 +444,7 @@ export default function AbastecimentoScreen() {
         <form onSubmit={enviar} className="space-y-4">
           
           <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700">Data do Consumo <span className="text-red-500">*</span></label>
+             <label className="block text-xs font-bold text-gray-700 uppercase">Data do Consumo (DD/MM/AAAA) <span className="text-red-500">*</span></label>
              <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-red-500 focus:outline-none" required />
           </div>
 
@@ -515,7 +500,7 @@ export default function AbastecimentoScreen() {
 				      <div className="absolute left-2 top-2 w-4 h-4 text-red-400" />
                       <input 
 					      type="text" 
-						 value={form.bombaInicial} 
+						 value={U.formatValue(form.bombaInicial)} 
 						 readOnly
 						 className="w-full bg-transparent font-bold text-red-800 outline-none text-center" 
 						 placeholder="-" 
@@ -524,18 +509,12 @@ export default function AbastecimentoScreen() {
               </div>
               
               <div className="space-y-1">
-                 <label className="block text-xs font-bold text-gray-700 text-center">Final <span className="text-red-500">*</span></label>
-                 <input 
-                    type="text" 
+                 <Input 
+                    label="Final" 
+                    mask="decimal"
+                    placeholder="Ex: 12.550,5"
                     value={form.bombaFinal} 
-                    onChange={(e: any) => {
-                       const val = e.target.value;
-                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
-                           setForm({...form, bombaFinal: val});
-                       }
-                    }}
-                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center"
-                    placeholder="Ex: 12550,5"
+                    onChange={(e: any) => setForm({...form, bombaFinal: e.target.value})}
                     required
                  />
               </div>
@@ -561,18 +540,12 @@ export default function AbastecimentoScreen() {
               </div>
 
               <div className="space-y-1">
-                 <label className="block text-xs font-bold text-gray-700 text-center">Atual <span className="text-red-500">*</span></label>
-                 <input 
-                    type="text" 
-                    value={form.horimetroAtual} 
-                    onChange={(e: any) => {
-                       const val = e.target.value;
-                       if (/^[0-9]*[.,]?[0-9]*$/.test(val)) {
-                           setForm({...form, horimetroAtual: val});
-                       }
-                    }}
-                    className="w-full px-2 py-2 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-red-500 focus:outline-none text-center"
+                 <Input 
+                    label="Atual" 
+                    mask="decimal"
                     placeholder="Ex: 501,5"
+                    value={form.horimetroAtual} 
+                    onChange={(e: any) => setForm({...form, horimetroAtual: e.target.value})}
                     required 
                  />
               </div>
@@ -626,9 +599,9 @@ export default function AbastecimentoScreen() {
                         </tr>
                     </thead>
                     <tbody className="divide-y">
-                        {items.map((item: Abastecimento) => (
+                        {items.map((item: any) => (
                             <Row key={item.id} onDelete={() => excluir(item.id)}>
-                                <td className="px-2 py-2 text-center text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data).slice(0,5)}</td>
+                                <td className="px-3 py-2 text-gray-700 text-xs whitespace-nowrap">{U.formatDate(item.data_operacao || item.data).slice(0,5)}</td>
                                 <td className="px-2 py-2 text-center text-gray-700 text-xs">
                                     <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">{item.maquina}</div>
                                     <div className="text-[9px] text-gray-400">Km: {item.horimetro}</div>

@@ -142,11 +142,11 @@ export default function DocumentosScreen() {
         detalhes: { 
            "Documento": form.nome,
            "Tipo": form.tipo,
-           "Fluxo": fluxo,
+            "Fluxo": fluxo,
            "Obs": form.obs || '-'
         },
         status: 'Pendente',
-        data: new Date().toISOString()
+        data_abertura: new Date().toISOString()
     });
     
     setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', remetente: 'Gerência Rural', destinatario: '', obs: '', parentId: '' });

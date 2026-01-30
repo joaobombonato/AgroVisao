@@ -44,11 +44,12 @@ export const ASSET_DEFINITIONS: any = {
         legend: "Informações essenciais para identificação e relatórios operacionais."
       },
       { key: "nome", label: "Código de Identificação", placeholder: "Ex: M00 (Máquina), V00 (Veículo)", required: true, showInList: true },
-      { key: "descricao", label: "Descrição (Fabricante/Modelo/CV)", placeholder: "Ex: Trator John Deere 6125J - 125 cavalos", required: true, showInList: true },
-      { key: "horimetro_inicial", label: "Horímetro/Km Inicial", type: "text", numeric: true, placeholder: "Leitura no dia do registro", required: true, showInList: true },
-      { key: "ultima_revisao", label: "Última Revisão Realizada (Horas/Km)", type: "text", numeric: true, placeholder: "Ex: 5.370", required: true, showInList: true },
-      { key: "intervalo_revisao", label: "Intervalo de Manutenção (Horas/Km)", type: "text", numeric: true, placeholder: "Ex: 250 em 250", required: true, showInList: true },
-      { key: "data_inicial_app", label: "Data do Registro", type: "date", default: new Date().toISOString().split('T')[0], hidden: true },
+      { key: "fabricante", label: "Máquina e Fabricante", placeholder: "Ex: Trator John Deere, Colheitadeira Case", showInList: true },
+      { key: "descricao", label: "Modelo / Potência", placeholder: "Ex: 6125J - 125 CV", required: true, showInList: true },
+      { key: "horimetro_inicial", label: "Horímetro/Km Inicial", type: "text", mask: "decimal", placeholder: "Ex: 6.500,50", required: true, showInList: true },
+      { key: "ultima_revisao", label: "Última Revisão Realizada (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 5.370,00", required: true, showInList: true },
+      { key: "intervalo_revisao", label: "Intervalo de Manutenção (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 250", required: true, showInList: true },
+      { key: "data_inicial_app", label: "Data do Registro (DD/MM/AAAA)", type: "date", default: new Date().toISOString().split('T')[0], hidden: true },
 
       { 
         key: "header_comp", 
@@ -59,7 +60,7 @@ export const ASSET_DEFINITIONS: any = {
         legend: "Informações técnicas adicionais para o prontuário da máquina."
       },
       { key: "placa", label: "Placa", placeholder: "Ex: ABC-1A23", showInList: true },
-      { key: "chassis", label: "Número do Chassi", placeholder: "Informe o chassi..." },
+      { key: "chassis", label: "Número do Chassis", placeholder: "Informe o chassis..." },
       { key: "renavam_serie", label: "Renavam ou Nº de Série", placeholder: "Ex: 123456789" },
       { key: "ano_modelo", label: "Ano Fabricação / Modelo", placeholder: "Ex: 2022/2023" },
       
@@ -72,8 +73,8 @@ export const ASSET_DEFINITIONS: any = {
         legend: "Histórico de aquisição para controle de patrimônio."
       },
       { key: "data_compra", label: "Data da Compra", type: "date" },
-      { key: "nota_fiscal", label: "Nº Nota Fiscal", placeholder: "Ex: 1542" },
-      { key: "valor_pago", label: "Valor Pago (R$)", type: "text", numeric: true, placeholder: "Ex: 450.000,00" },
+      { key: "nota_fiscal", label: "Nº Nota Fiscal", mask: "metric", placeholder: "Ex: 1.542" },
+      { key: "valor_pago", label: "Valor Pago (R$)", type: "text", mask: "currency", placeholder: "Ex: 450.000,00" },
       { key: "fornecedor", label: "Fornecedor", placeholder: "Ex: Concessionária MaqCampo" },
       
       { 
@@ -84,28 +85,26 @@ export const ASSET_DEFINITIONS: any = {
         icon: CreditCard,
         legend: "Controle de financiamentos e alienações bancárias."
       },
-      { key: "situacao_financeira", label: "Situação", type: "select", options: ["Quitado", "Alienado"], default: "" },
-      { key: "banco_alienacao", label: "Banco (se Alienado)", placeholder: "Ex: Banco do Brasil", dependsOn: { key: "situacao_financeira", value: "Alienado" } },
-      { key: "data_final_alienacao", label: "Previsão Final Quitação", type: "date", dependsOn: { key: "situacao_financeira", value: "Alienado" } },
-      { key: "numero_contrato", label: "Nº do Contrato", placeholder: "Informe o contrato...", dependsOn: { key: "situacao_financeira", value: "Alienado" } },
+      { key: "situacao_financeira", label: "Situação", type: "select", options: ["Quitado", "Alienado", "Financiado (liquidado)"], default: "" },
+      { key: "banco_alienacao", label: "Banco (se Alienado)", placeholder: "Ex: Banco do Brasil", dependsOn: { key: "situacao_financeira", value: ["Alienado", "Financiado (liquidado)"] } },
+      { key: "data_final_alienacao", label: "Previsão Final Quitação", type: "date", dependsOn: { key: "situacao_financeira", value: ["Alienado", "Financiado (liquidado)"] } },
+      { key: "numero_contrato", label: "Nº do Contrato", placeholder: "Informe o contrato...", dependsOn: { key: "situacao_financeira", value: ["Alienado", "Financiado (liquidado)"] } },
 
       { 
-        key: "header_seguro", 
-        label: "SEGURO / APÓLICE", 
+        key: "header_final", 
+        label: "OBSERVAÇÕES E NOTAS", 
         isHeader: true, 
-        isCollapsible: true,
-        icon: ShieldCheck,
-        legend: "Preencha para ter alerta automático de renovação com 30 dias de antecedência."
+        isCollapsible: false, 
+        icon: Info,
+        legend: "Informações finais sobre o cadastro."
       },
-      { key: "vencimento_seguro", label: "Vencimento do Seguro", type: "date", showInList: true },
-      { key: "seguradora", label: "Seguradora", placeholder: "Ex: Porto Seguro" },
-      { key: "corretora", label: "Corretora", placeholder: "Ex: Corretora Terra Fertil" },
-      { key: "numero_apolice", label: "Nº da Apólice", placeholder: "Ex: 12345" },
-      { key: "classe_bonus", label: "Classe de Bônus", placeholder: "Ex: Classe 10" },
-      { key: "valor_seguro_pago", label: "Valor Pago (R$)", type: "text", numeric: true, placeholder: "Ex: 3.500,00" },
-      { key: "valor_cobertura", label: "Valor da Cobertura (R$)", type: "text", numeric: true, placeholder: "Ex: 200.000,00" },
-      { key: "franquia_geral", label: "Franquia Geral (R$)", type: "text", numeric: true, placeholder: "Ex: 5.000,00" },
-      { key: "franquia_vidros", label: "Franquia Vidros/Retrovisores (R$)", type: "text", numeric: true, placeholder: "Ex: 800,00" },
+      { key: "obs", label: "Observações Gerais", placeholder: "Informações adicionais..." },
+      { 
+        key: "info_seguro", 
+        type: "info", 
+        label: "💡 Nota Informativa",
+        legend: "Caso possua seguro e queira controlar os vencimentos (agendamentos e custos), você pode lançar o seguro individual ou da frota na aba **Registros** após cadastrar o maquinário."
+      },
     ],
   },
   // Tabela: talhoes
@@ -130,7 +129,7 @@ export const ASSET_DEFINITIONS: any = {
     color: "orange",
     type: "complex",
     label: "Centro de Custo",
-    placeholder: "Ex: Plantio Soja 2024 / Manutenção Geral",
+    placeholder: "Ex: Plantio Soja 2026 / Manutenção Geral",
     icon: DollarSign,
     fields: [
       { key: "nome", label: "Nome do Centro de Custo", placeholder: "Ex: Colheita de Milho", showInList: true, required: true },
@@ -175,7 +174,9 @@ export const ASSET_DEFINITIONS: any = {
     placeholder: "Ex: Glifosato 480 / Fertilizante 04-14-08",
     icon: ShoppingBag,
     fields: [
-      { key: "nome", label: "Nome do Produto", placeholder: "Ex: Glifosato 480 / Fertilizante 04-14-08", showInList: true, required: true },
+      { key: "nome", label: "Princípio Ativo / Técnico", placeholder: "Ex: Glifosato 480 / Fertilizante 04-14-08", showInList: true, required: true },
+      { key: "nome_comercial", label: "Nome Comercial (Marca)", placeholder: "Ex: Roundup, Zapp, G-Max", showInList: true },
+      { key: "fabricante", label: "Fabricante", placeholder: "Ex: Bayer, Syngenta, Ihara" },
       { 
         key: "operacao_id", 
         label: "Operação Destinada", 
@@ -244,10 +245,10 @@ export const ASSET_DEFINITIONS: any = {
     color: "green",
     type: "complex",
     label: "Safra",
-    placeholder: "Ex: 2024/2025",
+    placeholder: "Ex: 2025/2026",
     icon: Sprout,
     fields: [
-      { key: "nome", label: "Ano Safra", placeholder: "Ex: 2024/2025", showInList: true, required: true },
+      { key: "nome", label: "Ano Safra", placeholder: "Ex: 2025/2026", showInList: true, required: true },
     ],
   },
   culturas: {
@@ -272,7 +273,7 @@ export const ASSET_DEFINITIONS: any = {
     placeholder: "Ex: Almoço Padrão / Janta Extra",
     fields: [
       { key: "nome", label: "Descrição da Refeição", placeholder: "Ex: Marmitex G", showInList: true, required: true },
-      { key: "valor", label: "Custo Unitário (R$)", type: "text", numeric: true, placeholder: "Ex: 18,50", showInList: true, required: true },
+      { key: "valor", label: "Custo Unitário (R$)", type: "text", mask: "currency", placeholder: "Ex: 18,50", showInList: true, required: true },
     ],
   },
   classes: {
@@ -321,6 +322,22 @@ export const ASSET_DEFINITIONS: any = {
     icon: Activity,
     fields: [
       { key: "nome", label: "Nome da Operação", placeholder: "Ex: Correção de Solo", showInList: true, required: true },
+    ],
+  },
+  colaboradores: {
+    title: "Colaboradores (Equipe)",
+    table: "colaboradores",
+    color: "blue",
+    type: "complex",
+    label: "Colaborador",
+    placeholder: "Nome do Colaborador",
+    icon: Users,
+    fields: [
+      { key: "nome", label: "Nome Completo", placeholder: "Ex: João da Silva", showInList: true, required: true },
+      { key: "cargo", label: "Cargo / Função", placeholder: "Ex: Operador de Máquinas", showInList: true },
+      { key: "data_nascimento", label: "Data de Nascimento", type: "date", showInList: true },
+      { key: "vencimento_cnh", label: "Vencimento CNH", type: "date", showInList: true },
+      { key: "whatsapp", label: "WhatsApp", placeholder: "Ex: (00) 00000-0000", mask: "phone" },
     ],
   },
 };

@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { Bell, Search, Eye, Filter, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
+import { U } from '../data/utils';
+
+// BUILD: 1.0.2
 
 export default function OsScreen() {
   const { state, os, dispatch, setTela } = useAppContext();
@@ -77,15 +80,24 @@ export default function OsScreen() {
 
         <div className="space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar">
             {osFiltradas.slice(0, 50).map((item:any) => (
-            <div key={item.id} className="p-3 rounded-lg border hover:shadow-md transition-shadow cursor-pointer bg-gray-50 group hover:border-indigo-300" onClick={() => dispatch({ type: ACTIONS.SET_SELECTED_OS, os: item })}>
+            <div 
+                key={item.id} 
+                className="p-3 rounded-lg border hover:shadow-md transition-shadow cursor-pointer bg-gray-50 group hover:border-indigo-300" 
+                onClick={() => {
+                    dispatch({ type: ACTIONS.SET_SELECTED_OS, os: item });
+                    dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, type: 'os-details' } });
+                }}
+            >
                 <div className="flex justify-between items-start mb-1">
-                    <p className="font-bold text-xs text-indigo-600 tracking-wide bg-indigo-50 px-2 py-0.5 rounded-md group-hover:bg-indigo-600 group-hover:text-white transition-colors">{item.id}</p>
+                    <p className="font-bold text-xs text-indigo-600 tracking-wide bg-indigo-50 px-2 py-0.5 rounded-md group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                        {item.numero ? `#${item.numero}` : (String(item.id).startsWith('temp') ? 'Salvando...' : item.id.slice(0, 8).toUpperCase())}
+                    </p>
                     <span className={`w-2 h-2 rounded-full ${getStatusColor(item.status)}`}></span>
                 </div>
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-800 mb-0.5">{item.modulo}</p>
-                        <p className="text-xs text-gray-500">{item.data || 'Sem data'}</p>
+                        <p className="text-xs text-gray-500">{U.formatDate(item.data_abertura || item.data) || 'Sem data'}</p>
                     </div>
                 </div>
                 <p className="text-xs text-gray-600 line-clamp-2 mt-2 bg-white p-2 rounded border border-gray-100 italic">"{item.descricao}"</p>
@@ -93,7 +105,8 @@ export default function OsScreen() {
                     <button 
                         onClick={(e) => {
                             e.stopPropagation();
-                            const texto = encodeURIComponent(`*Fazenda São Caetano - OS*\n\n*ID:* ${item.id}\n*Módulo:* ${item.modulo}\n*Data:* ${item.data || '-'}\n*Descrição:* ${item.descricao}`);
+                            const idLabel = item.numero ? `#${item.numero}` : item.id.slice(0, 8).toUpperCase();
+                            const texto = encodeURIComponent(`*Fazenda São Caetano - OS ${idLabel}*\n\n*Módulo:* ${item.modulo}\n*Data:* ${U.formatDate(item.data_abertura || item.data) || '-'}\n*Descrição:* ${item.descricao}`);
                             window.open(`https://wa.me/?text=${texto}`, '_blank');
                         }}
                         className="text-green-600 flex items-center gap-1 hover:bg-green-50 p-1 rounded"

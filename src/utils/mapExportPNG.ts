@@ -57,10 +57,10 @@ export const handleExportPNG = async ({
       loadImage('/logo-full-praticoapp.png')
     ]);
     
-    // CONFIGURAÇÕES DO RELATÓRIO
-    const headerHeight = 110;
-    const footerHeight = 110;
-    const padding = 50;
+    // CONFIGURAÇÕES DO RELATÓRIO (Aumentadas para legibilidade e alta resolução)
+    const headerHeight = 160;
+    const footerHeight = 160;
+    const padding = 60;
     const canvasWidth = satImg.width + (padding * 2);
     const canvasHeight = satImg.height + headerHeight + footerHeight;
 
@@ -70,37 +70,37 @@ export const handleExportPNG = async ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // FUNDO TRANSPARENTE (Não preenchemos com branco)
+    // 1. FUNDO TRANSPARENTE (Solicitado para uso versátil do usuário)
     ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     
-    // 1. CABEÇALHO (INVERTIDO: INFO À ESQUERDA, LOGO À DIREITA)
+    // 2. CABEÇALHO (LEGIBILIDADE AUMENTADA)
     const dateRaw = availableImages[selectedImageIndex]?.date || 'Data';
     const [year, month, day] = dateRaw.split('-');
     const dateBR = `${day}/${month}/${year}`;
     const dateFile = `${day}-${month}-${year}`;
     
-    // Dados discretos (Esquerda)
+    // Dados da Fazenda (Esquerda)
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#374151'; // Cinza escuro elegante
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText(fazendaNome || 'Fazenda', padding, 60);
+    ctx.fillStyle = '#111827'; 
+    ctx.font = 'bold 36px sans-serif'; 
+    ctx.fillText(fazendaNome || 'Fazenda', padding, 70);
     
     const displayType = overlayType === 'truecolor' ? 'REAL' : overlayType.toUpperCase();
     
-    ctx.font = 'normal 13px sans-serif';
-    ctx.fillStyle = '#6b7280';
+    ctx.font = '600 20px sans-serif';
+    ctx.fillStyle = '#4b5563';
+    ctx.fillText(`ANÁLISE: ${displayType}  |  IMAGEM: ${dateBR}`, padding, 110);
+    
+    ctx.font = 'normal 18px sans-serif';
     const areaText = areaHectares ? areaHectares.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00';
-    ctx.fillText(`ANÁLISE: ${displayType}  |  IMAGEM: ${dateBR}`, padding, 82);
-    ctx.fillText(`ÁREA MONITORADA: ${areaText} ha`, padding, 100);
+    ctx.fillText(`ÁREA MONITORADA: ${areaText} ha`, padding, 138);
 
-    // Logo AgroVisão (Direita)
-    const logoW = 150; 
+    // Logo AgroVisão (Direita - Maior)
+    const logoW = 240; 
     const logoH = (logoImg.height / logoImg.width) * logoW;
-    ctx.drawImage(logoImg, canvasWidth - padding - logoW, 40, logoW, logoH);
+    ctx.drawImage(logoImg, canvasWidth - padding - logoW, 55, logoW, logoH);
 
-    ctx.textAlign = 'left';
-
-    // 2. MAPA (RECORTE + FUNDO INTERNO BRANCO)
+    // 3. MAPA (RECORTE + FUNDO BRANCO PARA NUVENS)
     ctx.save();
     ctx.translate(padding, headerHeight);
 
@@ -123,52 +123,48 @@ export const handleExportPNG = async ({
     });
     ctx.closePath();
     
-    // AQUI ESTÁ O TRUQUE: Preencher com branco ANTES do satélite
-    // Assim, onde tiver nuvem (transparência), aparecerá o branco por baixo
+    // FUNDO BRANCO (Conforme nota técnica: representa nuvens/áreas sem dados)
     ctx.fillStyle = '#ffffff';
     ctx.fill();
 
-    // Clip e desenho
+    // Clip e desenho da imagem do satélite
     ctx.save();
     ctx.clip();
     ctx.drawImage(satImg, 0, 0);
     ctx.restore();
 
-    // Contorno Marrom Café Técnico (Elegante)
-    ctx.strokeStyle = '#5d4037';
-    ctx.lineWidth = 1;
+    // Contorno Verde AgroVisão (Combina com o App)
+    ctx.strokeStyle = '#16a34a';
+    ctx.lineWidth = 3;
     ctx.stroke();
     ctx.restore();
 
-    // 3. ASSINATURA PRÁTICO APP (CANTO DIREITO)
-    const devW = 85; 
+    // 4. ASSINATURA PRÁTICO APP (CANTO DIREITO - MAIOR)
+    const devW = 140; 
     const devH = (devImg.height / devImg.width) * devW;
     
     ctx.textAlign = 'right';
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = 'normal 9px sans-serif';
-    ctx.fillText('DESENVOLVIDO POR:', canvasWidth - padding, canvasHeight - footerHeight - devH - 5);
+    ctx.fillStyle = '#6b7280';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('DESENVOLVIDO POR:', canvasWidth - padding, canvasHeight - footerHeight - devH + 15);
     
-    ctx.globalAlpha = 0.9;
-    ctx.drawImage(devImg, canvasWidth - padding - devW, canvasHeight - footerHeight - devH + 5, devW, devH);
     ctx.globalAlpha = 1.0;
+    ctx.drawImage(devImg, canvasWidth - padding - devW, canvasHeight - footerHeight - devH + 35, devW, devH);
 
-    // 4. RODAPÉ E LEGENDA (APENAS SE NÃO FOR REAL)
+    // 5. RODAPÉ E LEGENDA (LEGIBILIDADE AUMENTADA)
     if (overlayType !== 'truecolor') {
-      ctx.beginPath();
-      
-      const legendW = 300;
-      const legendH = 12;
+      const legendW = 500;
+      const legendH = 20;
       const legendX = (canvasWidth / 2) - (legendW / 2);
-      const legendY = canvasHeight - 65;
+      const legendY = canvasHeight - 95;
 
-      ctx.fillStyle = '#6b7280';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#374151';
+      ctx.font = 'bold 16px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText('MENOR DENSIDADE', legendX, legendY - 12);
+      ctx.fillText('MENOR DENSIDADE', legendX, legendY - 15);
       
       ctx.textAlign = 'right';
-      ctx.fillText('MAIOR DENSIDADE', legendX + legendW, legendY - 12);
+      ctx.fillText('MAIOR DENSIDADE', legendX + legendW, legendY - 15);
 
       const grad = ctx.createLinearGradient(legendX, 0, legendX + legendW, 0);
       grad.addColorStop(0, '#8B4513');
@@ -178,18 +174,34 @@ export const handleExportPNG = async ({
       grad.addColorStop(1, '#006400');
       
       ctx.fillStyle = grad;
+      
+      // Barra Arredondada (Conforme o App)
       if (ctx.roundRect) {
-         ctx.roundRect(legendX, legendY, legendW, legendH, 6);
+         ctx.beginPath();
+         ctx.roundRect(legendX, legendY, legendW, legendH, legendH / 2);
          ctx.fill();
       } else {
          ctx.fillRect(legendX, legendY, legendW, legendH);
       }
+      
+      // Borda Suave
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 1;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(legendX, legendY, legendW, legendH, legendH / 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(legendX, legendY, legendW, legendH);
+      }
     }
     
-    // Watermark técnica (CENTRALIZADA NO FINAL)
+    // Nota Técnica e Watermark Final
     ctx.textAlign = 'center';
-    ctx.font = 'italic 10px sans-serif';
-    ctx.fillStyle = '#9ca3af';
+    ctx.fillStyle = '#6b7280';
+    ctx.font = 'italic 14px sans-serif';
+    ctx.fillText('Nota: Pontos brancos na propriedade representam cobertura de nuvens.', canvasWidth / 2, canvasHeight - 50);
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillText('Processamento Técnico via Sentinel-2 | AgroVisão', canvasWidth / 2, canvasHeight - 25);
     
     ctx.textAlign = 'left'; // Reset final

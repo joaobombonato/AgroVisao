@@ -80,7 +80,7 @@ export default function RelatoriosScreen() {
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-tighter text-indigo-500">{rel.categoria}</span>
                     <h3 className="font-bold text-gray-800 text-base">{rel.titulo}</h3>
-                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">{rel.desc}</p>
+                    <p className="text-[9px] text-gray-400 mt-1 leading-tight">{rel.desc}</p>
                   </div>
                 </div>
                 <button className="text-gray-300 hover:text-indigo-600 p-1">

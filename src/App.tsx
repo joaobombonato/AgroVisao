@@ -48,9 +48,15 @@ const RestrictedScreen = ({ onBackHome }: { onBackHome: () => void }) => (
     </div>
 );
 
+const TOAST_OPTIONS = {
+    duration: 15000, 
+    style: { maxWidth: '500px' }
+};
+
 // -- [MainLayout: Layout para usuários logados com fazenda selecionada] --
 const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: any, handleInstallClick: () => void }) => {
-  const { state, tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda } = useAppContext();
+  const { state, tela, setTela, modal, selectedOS, os, dispatch, fazendaSelecionada, genericUpdate, isOnline, logout, trocarFazenda, updateOsStatus } = useAppContext();
+  
   const { userRole } = state;
   const [showTrocarModal, setShowTrocarModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false); 
@@ -121,7 +127,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-        {/* <GlobalStyles /> */}
+        <GlobalStyles />
         <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-50">
           <div className="px-4 py-3 flex items-center justify-between max-w-md mx-auto w-full"> 
             <div className="flex items-center gap-2">
@@ -233,7 +239,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
                   <OSDetailsModal 
                     os={selectedOS} 
                     onClose={() => dispatch({ type: ACTIONS.CLOSE_MODAL })} 
-                    onUpdate={(updatedOS:any) => genericUpdate('manutencoes', updatedOS.id, updatedOS)} 
+                    onUpdateStatus={updateOsStatus}
                   />
               )}
            </div>
@@ -334,7 +340,7 @@ const AppContent = () => {
 export default function App() {
   return (
     <AppProvider> 
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster position="top-center" reverseOrder={false} toastOptions={TOAST_OPTIONS} />
       <ReloadPrompt />
       <AppContent />
     </AppProvider>

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon, Pencil, X, Lock, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { PageHeader, Input, Select } from '../../../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { U } from '../../../data/utils';
 import { ASSET_DEFINITIONS } from '../../../data/assets';
 import TalhaoMapEditor from './TalhaoMapEditor';
+import FleetRenewalWizard from './FleetRenewalWizard';
+import MaquinaTimeline from './MaquinaTimeline';
 
 export default function AssetListEditor({ assetKey, setView }: any) {
-    const { ativos, dbAssets, dispatch, genericSave, genericDelete, updateAtivos, dados, fazendaId, fazendaSelecionada } = useAppContext();
+    const { ativos, dbAssets, dispatch, genericSave, genericUpdate, genericDelete, updateAtivos, dados, fazendaId, fazendaSelecionada } = useAppContext();
     const { title, table, color, type, label, fields, placeholder, icon: Icon } = ASSET_DEFINITIONS[assetKey];
     
     // ABA ATIVA (novo)
@@ -20,6 +22,10 @@ export default function AssetListEditor({ assetKey, setView }: any) {
     const [newItemName, setNewItemName] = useState('');
     const [newItemFields, setNewItemFields] = useState<any>({});
     const [openSections, setOpenSections] = useState<{[key: string]: boolean}>({});
+    const [editingItem, setEditingItem] = useState<any>(null);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isWizardOpen, setIsWizardOpen] = useState(false);
+    const [formTab, setFormTab] = useState<'dados' | 'historico'>('dados');
     
     const isDbAsset = !!table;
 
@@ -30,13 +36,36 @@ export default function AssetListEditor({ assetKey, setView }: any) {
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // --- VERIFICAÇÃO DE DUPLICIDADE ---
-        const nomeParaCheck = (type === 'simple' ? newItemName : newItemFields.nome || '').trim().toLowerCase();
-        const jaExiste = listToRender.some((item: any) => item.nome?.toLowerCase() === nomeParaCheck || (type === 'simple' && String(item.id || item).toLowerCase() === nomeParaCheck));
-        
-        if (jaExiste) {
-            toast.error(`Já existe um(a) ${label} com este nome/código.`);
+        // --- VERIFICAÇÃO DE DUPLICIDADE AVANÇADA ---
+        const fieldsToCheck = type === 'complex' ? newItemFields : { nome: newItemName };
+        const jaExisteNome = listToRender.some((item: any) => {
+            if (editingItem && item.id === editingItem.id) return false;
+            const nomeIn = (item.nome || '').trim().toLowerCase();
+            const nomeNew = (fieldsToCheck.nome || '').trim().toLowerCase();
+            return nomeIn === nomeNew;
+        });
+
+        if (jaExisteNome) {
+            toast.error(`Já existe um(a) ${label} com esse Código/Nome.`);
             return;
+        }
+
+        // Check Unique Fields (Chassis / Serial)
+        if (type === 'complex') {
+            const uniqueKeys = ['chassis', 'renavam_serie', 'identificador_externo'];
+            for (const key of uniqueKeys) {
+                const val = newItemFields[key];
+                if (val && val.trim()) {
+                    const duplicado = listToRender.find((item: any) => {
+                        if (editingItem && item.id === editingItem.id) return false;
+                        return String(item[key] || '').trim().toLowerCase() === val.trim().toLowerCase();
+                    });
+                    if (duplicado) {
+                        toast.error(`ALERTA: Este ${key.toUpperCase()} já pertence ao item [${duplicado.nome}].`);
+                        return;
+                    }
+                }
+            }
         }
         // ----------------------------------
 
@@ -56,20 +85,99 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                 if (f.default !== undefined && (newRecord[f.key] === undefined || newRecord[f.key] === '')) {
                     newRecord[f.key] = f.default;
                 }
+
+                // Converte campos numéricos formatados para o formato esperado pelo banco (decimal/numeric)
+                const val = newRecord[f.key];
+                const isNumericField = f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage' || f.type === 'number' || f.numeric;
+                
+                if (val !== undefined && val !== null && val !== '' && isNumericField) {
+                    newRecord[f.key] = U.parseDecimal(val);
+                }
             });
         }
 
-        const tempId = U.id('temp-asset-');
-        const recordWithId = { ...newRecord, id: tempId, fazenda_id: fazendaId };
-        await genericSave(table, newRecord, {
-             type: ACTIONS.SET_DB_ASSETS,
-             table: table, 
-             records: [...list, recordWithId], 
-        });
+        if (editingItem) {
+            // Lógica de ATUALIZAÇÃO
+            const updatedList = list.map((i: any) => i.id === editingItem.id ? { ...i, ...newRecord } : i);
+            
+            // Inteligência: Se mudou de Alienado para Quitado, gera histórico financeiro
+            if (assetKey === 'maquinas' && editingItem.situacao_financeira === 'Alienado' && newRecord.situacao_financeira === 'Quitado') {
+                const historyOS = {
+                    titulo: "HISTÓRICO: Quitação / Liquidação de Alienação",
+                    descricao: `Máquina quitada em ${U.formatDate(new Date().toISOString())}. Dados da alienação arquivados no histórico.`,
+                    modulo: 'Financeiro',
+                    status: 'Concluída',
+                    maquina_id: editingItem.id,
+                    data_abertura: new Date().toISOString().split('T')[0],
+                    detalhes: {
+                        "Banco Anterior": editingItem.banco_alienacao || '-',
+                        "Contrato": editingItem.numero_contrato || '-',
+                        "Previsão Final": U.formatDate(editingItem.data_final_alienacao)
+                    }
+                };
+                await genericSave('os', historyOS);
+                toast.success("Histórico de quitação registrado!");
+            }
+
+            await genericUpdate(table, editingItem.id, newRecord, {
+                type: ACTIONS.SET_DB_ASSETS,
+                table: table,
+                records: updatedList
+            });
+            setEditingItem(null);
+        } else {
+            // Lógica de INSERÇÃO
+            const tempId = U.id('temp-asset-');
+            const recordWithId = { ...newRecord, id: tempId, fazenda_id: fazendaId };
+            await genericSave(table, newRecord, {
+                type: ACTIONS.SET_DB_ASSETS,
+                table: table, 
+                records: [...list, recordWithId], 
+            });
+        }
+
         setNewItemName('');
         setNewItemFields({});
         setOpenSections({});
         setActiveTab('lista');
+    };
+
+    const startEdit = (item: any) => {
+        setEditingItem(item);
+        if (type === 'simple') {
+            setNewItemName(item.nome || item);
+        } else {
+            // Converte os dados do banco (puros) de volta para o formato de máscara (visual)
+            const formattedFields = { ...item };
+            fields.forEach((f: any) => {
+                const val = item[f.key];
+                if (val !== undefined && val !== null) {
+                    if (f.type === 'date') {
+                        // Mantém ISO para input type date
+                    } else if (f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage') {
+                        formattedFields[f.key] = U.formatValue(val);
+                    }
+                }
+            });
+
+            // Normalização agressiva para Situação Financeira
+            if (formattedFields.situacao_financeira) {
+                const s = String(formattedFields.situacao_financeira).toLowerCase();
+                if (s.includes('liquidado')) formattedFields.situacao_financeira = 'Financiado (liquidado)';
+                else if (s.includes('alienado')) formattedFields.situacao_financeira = 'Alienado';
+                else if (s.includes('quitado')) formattedFields.situacao_financeira = 'Quitado';
+            }
+
+            setNewItemFields(formattedFields);
+            
+            // Abre todas as seções que contenham dados preenchidos ou obrigatórias
+            const sectionsToOpen: any = {};
+            fields.filter((f: any) => f.isHeader).forEach((h: any) => {
+                sectionsToOpen[h.key] = true;
+            });
+            setOpenSections(sectionsToOpen);
+        }
+        setActiveTab('cadastro');
     };
 
     const checkIntegrity = (item: any) => {
@@ -101,6 +209,27 @@ export default function AssetListEditor({ assetKey, setView }: any) {
         return true;
     });
 
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.length === listToRender.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(listToRender.map((i: any) => i.id));
+        }
+    };
+
+    // Função para pegar sugestões de campos já preenchidos (Autocomplete)
+    const getSuggestions = (fieldKey: string) => {
+        if (!listToRender.length) return [];
+        const values = listToRender
+            .map((item: any) => item[fieldKey])
+            .filter((v: any) => v && typeof v === 'string' && v.trim().length > 1);
+        return Array.from(new Set(values)); // Remove duplicatas
+    };
+
     return (
         <div className="space-y-4 p-4 pb-24 max-w-md mx-auto">
             <PageHeader setTela={setView} title={title} icon={Icon} colorClass={`bg-${color}-600`} backTarget={'listas'} />
@@ -122,21 +251,71 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             </div>
 
             {activeTab === 'cadastro' ? (
-                <form onSubmit={handleAdd} className={`bg-white p-4 rounded-xl shadow-md space-y-4 border-l-4 border-${color}-500 animate-in slide-in-from-left-5`}>
-                    <p className="text-sm font-bold text-gray-700 uppercase tracking-tight">Novo(a) {label}</p>
+                <form onSubmit={handleAdd} className={`bg-white p-4 rounded-xl shadow-md grid grid-cols-2 gap-x-4 gap-y-1 group border-l-4 border-${editingItem ? 'amber' : color}-500 animate-in slide-in-from-left-5`}>
+                    <div className="col-span-2 flex justify-between items-center mb-2">
+                        <p className="text-sm font-bold text-gray-700 uppercase tracking-tight">
+                            {editingItem ? `Editando: ${editingItem.nome || label}` : `Novo(a) ${label}`}
+                        </p>
+                        
+                        {editingItem && assetKey === 'maquinas' && (
+                            <div className="flex bg-gray-50 p-0.5 rounded-lg border border-gray-100 mb-2">
+                                <button 
+                                    type="button"
+                                    onClick={() => setFormTab('dados')}
+                                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${formTab === 'dados' ? 'bg-white shadow-sm text-gray-900 border border-gray-100' : 'text-gray-400'}`}
+                                >
+                                    DADOS
+                                </button>
+                                <button 
+                                    type="button"
+                                    onClick={() => setFormTab('historico')}
+                                    className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${formTab === 'historico' ? 'bg-white shadow-sm text-gray-900 border border-gray-100' : 'text-gray-400'}`}
+                                >
+                                    HISTÓRICO
+                                </button>
+                            </div>
+                        )}
+
+                        {editingItem && (
+                            <button 
+                                type="button"
+                                onClick={() => { setEditingItem(null); setNewItemName(''); setNewItemFields({}); setActiveTab('lista'); }}
+                                className="flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700"
+                            >
+                                <X className="w-3 h-3" /> CANCELAR
+                            </button>
+                        )}
+                    </div>
 
                     {type === 'simple' && (
-                        <Input 
-                            label={<>{label} <span className="text-red-500">*</span></>}
-                            value={newItemName} 
-                            onChange={(e: any) => setNewItemName(e.target.value)} 
-                            placeholder={placeholder || "Ex: Novo item..."} 
-                            required 
-                        />
+                        <div className="col-span-2">
+                            <Input 
+                                label={<>{label} <span className="text-red-500">*</span></>}
+                                value={newItemName} 
+                                onChange={(e: any) => setNewItemName(e.target.value)} 
+                                placeholder={placeholder || "Ex: Novo item..."} 
+                                required 
+                                readOnly={!!editingItem}
+                                className={editingItem ? 'bg-gray-50 opacity-70' : ''}
+                            />
+                            {editingItem && (
+                                <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1 font-medium">
+                                    <Lock className="w-2 h-2" /> O código de identificação não pode ser alterado para preservar o histórico.
+                                </p>
+                            )}
+                        </div>
                     )}
                     
                     {type === 'complex' && (() => {
+                        if (editingItem && assetKey === 'maquinas' && formTab === 'historico') {
+                            const osList = dbAssets.os || [];
+                            return <div className="col-span-2"><MaquinaTimeline machineId={editingItem.id} osList={osList} /></div>;
+                        }
+
                         let isCurrentVisible = true;
+                        const situacaoAtual = newItemFields['situacao_financeira'] || '';
+                        const isFormLiquidado = String(situacaoAtual).toLowerCase().includes('liquidado');
+                        const financeKeys = ['banco_alienacao', 'data_final_alienacao', 'numero_contrato'];
 
                         return fields.filter((f: any) => !f.hidden).map((f: any) => {
                             if (f.isHeader) {
@@ -144,7 +323,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                 isCurrentVisible = !f.isCollapsible || openSections[sectionId];
                                 const SectionIcon = f.icon;
                                 return (
-                                    <div key={f.key} className="pt-2">
+                                    <div key={f.key} className="col-span-2 pt-2 mb-1">
                                         <div 
                                             onClick={() => f.isCollapsible && toggleSection(sectionId)}
                                             className={`flex items-center justify-between p-2 rounded-lg transition-colors ${f.isCollapsible ? 'cursor-pointer hover:bg-gray-50 bg-gray-50/50' : ''}`}
@@ -160,22 +339,37 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                 );
                             }
 
+                            if (f.type === 'info') {
+                                return (
+                                    <div key={f.key} className="col-span-2 bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2 my-2 animate-pulse-subtle">
+                                        <div className="flex-1">
+                                            <p className="text-[10px] font-bold text-blue-700 uppercase mb-0.5">{f.label}</p>
+                                            <p className="text-[10px] text-blue-600 leading-relaxed font-medium">{f.legend}</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             if (!isCurrentVisible) return null;
                             if (f.dependsOn) {
-                                const val = newItemFields[f.dependsOn.key];
-                                if (val !== f.dependsOn.value) return null;
+                                const val = newItemFields[f.dependsOn.key] || '';
+                                const target = f.dependsOn.value;
+                                const isVisible = Array.isArray(target) 
+                                    ? target.includes(val) 
+                                    : val === target;
+                                if (!isVisible) return null;
                             }
+
+                            const gridClass = f.half ? 'col-span-1' : 'col-span-2';
 
                             if (f.type === 'select') {
                                 let finalOptions = f.options || [];
                                 
-                                // Lógica de Opções Dinâmicas (ex: Centros de Custo vincular a Ativos)
                                 if (f.optionsFrom && f.dependsOn) {
                                     const parentVal = newItemFields[f.dependsOn.key];
                                     const sourceTable = f.optionsFrom[parentVal];
                                     if (sourceTable) {
                                         let sourceList = dbAssets[sourceTable] || [];
-                                        // Filtro especial para locais de monitoramento
                                         if (sourceTable === 'locais_monitoramento') {
                                             const typeMap: any = { "Medidor de Energia": "energia" };
                                             const subType = typeMap[parentVal];
@@ -185,23 +379,29 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                     }
                                 }
 
+                                 const currentVal = newItemFields[f.key] || f.default || '';
+                                const isLocked = editingItem && (financeKeys.includes(f.key) || f.key === 'situacao_financeira') && isFormLiquidado;
+
                                 return (
-                                    <Select
-                                        key={f.key}
-                                        label={<>{f.label} {f.required && <span className="text-red-500">*</span>}</>}
-                                        value={newItemFields[f.key] || f.default || ''}
-                                        onChange={(e: any) => setNewItemFields({ ...newItemFields, [f.key]: e.target.value })}
-                                        required={f.required}
-                                    >
-                                        <option value="">Selecione...</option>
-                                        {finalOptions?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-                                    </Select>
+                                    <div key={f.key} className={gridClass}>
+                                        <Select
+                                            label={<>{f.label} {f.required && <span className="text-red-500">*</span>}</>}
+                                            value={currentVal}
+                                            onChange={(e: any) => !isLocked && setNewItemFields({ ...newItemFields, [f.key]: e.target.value })}
+                                            required={f.required}
+                                            disabled={isLocked}
+                                            className={isLocked ? 'bg-gray-100 font-bold border-gray-300 opacity-90 cursor-not-allowed text-gray-700 pointer-events-none select-none' : ''}
+                                        >
+                                            <option value="">Selecione...</option>
+                                            {finalOptions?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                                        </Select>
+                                    </div>
                                 );
                             }
 
                             if (f.key === 'area_ha' && assetKey === 'talhoes') {
                                 return (
-                                    <div key={f.key} className="space-y-2">
+                                    <div key={f.key} className="col-span-2 space-y-2">
                                         <div className="flex items-end gap-2">
                                             <div className="flex-1">
                                                 <Input 
@@ -228,44 +428,120 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                 );
                             }
 
-                            return (
-                                <Input 
-                                    key={f.key}
-                                    label={<>{f.label} {f.required && <span className="text-red-500">*</span>}</>}
-                                    value={newItemFields[f.key] || ''} 
-                                    onChange={(e: any) => setNewItemFields({ ...newItemFields, [f.key]: e.target.value })} 
-                                    type={f.type === 'number' ? 'text' : f.type || 'text'} 
-                                    numeric={f.type === 'number' || f.numeric}
-                                    placeholder={f.placeholder || placeholder} 
-                                    required={f.required}
-                                />
+                            const suggestions = getSuggestions(f.key);
+
+                                    const isFinanceLocked = editingItem && financeKeys.includes(f.key) && isFormLiquidado;
+                                    const isIdLocked = !!editingItem && f.key === 'nome';
+                                    const isLocked = isIdLocked || isFinanceLocked;
+
+                                    return (
+                                        <div key={f.key} className={`${gridClass} relative`}>
+                                            <Input 
+                                                label={<>{f.label} {f.required && <span className="text-red-500">*</span>}</>}
+                                                value={newItemFields[f.key] || ''} 
+                                                onChange={(e: any) => !isLocked && setNewItemFields({ ...newItemFields, [f.key]: e.target.value })} 
+                                                type={f.type === 'number' ? 'text' : f.type || 'text'} 
+                                                numeric={f.type === 'number' || f.numeric}
+                                                mask={f.mask}
+                                                placeholder={f.placeholder || placeholder} 
+                                                required={f.required}
+                                                readOnly={isLocked}
+                                                className={isLocked ? 'bg-gray-100 font-bold border-gray-300 opacity-90 cursor-not-allowed text-gray-700 pointer-events-none select-none' : ''}
+                                                list={suggestions.length > 0 ? `list-${f.key}` : undefined}
+                                            />
+                                    {suggestions.length > 0 && (
+                                        <datalist id={`list-${f.key}`}>
+                                            {suggestions.map((s: any) => <option key={s} value={s} />)}
+                                        </datalist>
+                                    )}
+                                    {f.mask === 'percentage' && (
+                                        <span className="absolute right-3 top-[34px] text-xs font-bold text-gray-400">
+                                            %
+                                        </span>
+                                    )}
+                                    {editingItem && f.key === 'nome' && (
+                                        <p className="text-[9px] text-amber-600 mt-1 flex items-center gap-1 font-semibold leading-tight px-1">
+                                            <Lock className="w-2 h-2 shrink-0" /> Chave de identificação bloqueada.
+                                        </p>
+                                    )}
+                                </div>
                             );
                         });
                     })()}
                     
-                    <button type="submit" className={`w-full bg-${color}-600 text-white font-bold py-3 rounded-lg hover:bg-${color}-700 transition-colors flex items-center justify-center gap-2 shadow-sm mt-4`}>
-                        <Plus className="w-5 h-5"/> Adicionar {label}
+                    <button type="submit" className={`col-span-2 bg-${editingItem ? 'amber' : color}-600 text-white font-bold py-3 rounded-lg hover:bg-${editingItem ? 'amber' : color}-700 transition-colors flex items-center justify-center gap-2 shadow-sm mt-4 uppercase text-xs tracking-widest`}>
+                        {editingItem ? <><Pencil className="w-4 h-4"/> Salvar Alterações</> : <><Plus className="w-5 h-5"/> Adicionar {label}</>}
                     </button>
                 </form>
             ) : (
                 <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider px-1">{title} Cadastrados</h3>
-                    {listToRender.map((item: any, index: number) => (
-                        <div key={item.id || index} className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:border-gray-300 transition-all">
-                            <div className="flex-1 min-w-0">
+                    {assetKey === 'maquinas' && listToRender.length > 0 && (
+                        <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-lg flex items-start gap-2 mb-2">
+                            <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                            <p className="text-[10px] text-indigo-700 font-medium leading-tight">
+                                💡 **Dica**: Selecione uma ou mais máquinas na lista abaixo caso queira cadastrar ou atualizar os dados de seguro da frota.
+                            </p>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center px-1">
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{title} Cadastrados</h3>
+                        {listToRender.length > 0 && assetKey === 'maquinas' && (
+                            <button 
+                                onClick={toggleSelectAll}
+                                className="text-[10px] font-bold text-indigo-600 hover:underline"
+                            >
+                                {selectedIds.length === listToRender.length ? 'DESMARCAR TUDO' : 'SELECIONAR TUDO'}
+                            </button>
+                        )}
+                    </div>
+                    {listToRender.map((item: any, index: number) => {
+                        const isSelected = selectedIds.includes(item.id);
+                        return (
+                            <div 
+                                key={item.id || index} 
+                                className={`flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border transition-all ${isSelected ? 'border-indigo-400 bg-indigo-50/10' : 'border-gray-100'}`}
+                            >
+                                {assetKey === 'maquinas' && (
+                                    <div 
+                                        onClick={() => toggleSelect(item.id)}
+                                        className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
+                                    >
+                                        {isSelected && <div className="w-2 h-2 bg-white rounded-sm" />}
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0" onClick={() => assetKey === 'maquinas' && toggleSelect(item.id)}>
                                 <p className="font-bold text-gray-900 truncate text-base">{item.nome}</p>
                                 {type === 'complex' && fields.filter((f: any) => f.showInList && f.key !== 'nome').map((f: any) => (
-                                    <p key={f.key} className="text-xs text-gray-500 truncate mt-0.5">{f.label}: <span className="font-semibold text-gray-700">{item[f.key] || '-'}</span></p>
+                                    <p key={f.key} className="text-xs text-gray-500 truncate mt-0.5">
+                                        {f.label}: <span className="font-semibold text-gray-700">
+                                            {f.type === 'date' 
+                                                ? U.formatDate(item[f.key]) 
+                                                : (f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage')
+                                                    ? U.formatValue(item[f.key])
+                                                    : (item[f.key] || '-')}
+                                        </span>
+                                    </p>
                                 ))}
                             </div>
-                            <button 
-                                onClick={() => handleDelete(item.original || item)} 
-                                className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors ml-3 border border-transparent hover:border-red-100"
-                            >
-                                <Trash2 className="w-5 h-5"/>
-                            </button>
-                        </div>
-                    ))}
+                            <div className="flex items-center gap-1 ml-3">
+                                <button 
+                                    onClick={() => startEdit(item)} 
+                                    className="p-2.5 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100"
+                                    title="Editar"
+                                >
+                                    <Pencil className="w-5 h-5"/>
+                                </button>
+                                <button 
+                                    onClick={() => handleDelete(item.original || item)} 
+                                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-100"
+                                    title="Excluir"
+                                >
+                                    <Trash2 className="w-5 h-5"/>
+                                </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                     {listToRender.length === 0 && (
                         <div className="bg-white p-8 rounded-xl border-2 border-dashed border-gray-200 text-center">
                             <p className="text-gray-400 italic text-sm">Nenhum registro encontrado.</p>
@@ -278,6 +554,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                 <TalhaoMapEditor 
                     farmGeoJSON={fazendaSelecionada?.geojson}
                     initialGeoJSON={newItemFields.geometry}
+                    existingTalhoes={listToRender}
                     onSave={(data) => {
                         setNewItemFields({
                             ...newItemFields,
@@ -287,6 +564,30 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                         toast.success("Área integrada com sucesso!");
                     }}
                     onClose={() => setShowMap(false)}
+                />
+            )}
+
+            {/* BOTÃO FLUTUANTE DE AÇÃO EM MASSA */}
+            {selectedIds.length > 0 && assetKey === 'maquinas' && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50 animate-in slide-in-from-bottom-5">
+                    <button 
+                        onClick={() => setIsWizardOpen(true)}
+                        className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 border-2 border-indigo-400/30"
+                    >
+                        <ShieldCheck className="w-5 h-5" />
+                        CADASTRAR SEGURO DA FROTA ({selectedIds.length})
+                    </button>
+                </div>
+            )}
+
+            {isWizardOpen && (
+                <FleetRenewalWizard 
+                    selectedMachines={listToRender.filter((m: any) => selectedIds.includes(m.id))}
+                    onClose={() => {
+                        setIsWizardOpen(false);
+                        setSelectedIds([]);
+                        setActiveTab('lista');
+                    }}
                 />
             )}
         </div>
