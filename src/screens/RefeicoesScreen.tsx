@@ -134,6 +134,7 @@ export default function RefeicoesScreen() {
 
   return (
     <div className="space-y-4 p-4 pb-24">
+      <PageHeader setTela={setTela} title="Refeições" icon={Utensils} colorClass="bg-orange-500" />
       
       {/* CARD DE RESUMO MENSAL */}
       <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 shadow-md">

@@ -139,15 +139,21 @@ export default function CreateFazendaScreen() {
   };
 
   const getREC = (municipio: any) => {
-    // Cobertura Nacional de RECs (Região Edafoclimática - Embrapa Soja)
-    // Mapeamento baseado no cruzamento de Mesorregiões IBGE e MRS (Macrorregiões Sojícolas)
+    // Cobertura Nacional de RECs (Região Edafoclimática - Embrapa Soja / ZARC)
     const uf = municipio['microrregiao']?.['mesorregiao']?.['UF']?.sigla;
     const mesoId = String(municipio['microrregiao']?.['mesorregiao']?.id);
     
+    // SÃO PAULO (Macro 3 e 2)
+    if (uf === 'SP') {
+        if (['3501', '3502', '3505', '3510', '3511'].includes(mesoId)) return 'M3 - 302'; // SJRP, Araçatuba, Barretos, Ribeirão Preto, Franca
+        if (['3507', '3508', '3509'].includes(mesoId)) return 'M2 - 201'; // Bauru, Marília, Assis, Pres. Prudente
+        if (['3503', '3504', '3506', '3512'].includes(mesoId)) return 'M3 - 303'; // Araraquara, Piracicaba, Itapetininga
+    }
+
     // MINAS GERAIS & GOIÁS (Macro 3)
     if (uf === 'MG') {
-        if (mesoId === '3101') return 'M3 - 304'; // Noroeste (Paracatu/Unaí)
-        if (mesoId === '3105') return 'M3 - 301'; // Triângulo/Alto Paranaíba
+        if (mesoId === '3101') return 'M3 - 304'; // Noroeste
+        if (mesoId === '3105' || mesoId === '3106') return 'M3 - 301'; // Triângulo/Sul MG
         if (mesoId === '3102') return 'M3 - 303'; // Norte
     }
     if (uf === 'GO') {
@@ -157,30 +163,31 @@ export default function CreateFazendaScreen() {
 
     // MATO GROSSO (Macros 3 e 4)
     if (uf === 'MT') {
-        if (mesoId === '5101' || mesoId === '5102') return 'M4 - 401'; // Norte/Médio-Norte
+        if (['5101', '5102', '5103'].includes(mesoId)) return 'M4 - 401'; // Norte/Médio-Norte/Nordeste
         if (mesoId === '5105') return 'M3 - 304'; // Sudeste MT
         if (mesoId === '5104') return 'M4 - 402'; // Sudoeste MT
     }
 
     // MATO GROSSO DO SUL & PARANÁ (Macro 2)
     if (uf === 'MS') {
-        if (mesoId === '5001') return 'M3 - 302'; // Centro-Norte
-        if (['5004', '5003'].includes(mesoId)) return 'M2 - 204'; // Sudoeste
+        if (mesoId === '5001') return 'M3 - 302'; 
+        if (['5004', '5003', '5002'].includes(mesoId)) return 'M2 - 204';
     }
     if (uf === 'PR') {
-        if (['4101', '4102', '4106'].includes(mesoId)) return 'M2 - 201'; // Norte/Noroeste
-        if (['4103', '4105'].includes(mesoId)) return 'M2 - 202'; // Oeste/Centro-Ocidental
+        if (['4101', '4102', '4106'].includes(mesoId)) return 'M2 - 201';
+        if (['4103', '4105', '4104'].includes(mesoId)) return 'M2 - 202';
+        if (['4107', '4108', '4109', '4110'].includes(mesoId)) return 'M1 - 103';
     }
 
     // MATOPIBA (Macro 5)
     if (['BA', 'PI', 'MA', 'TO'].includes(uf)) {
-        return 'M5 - 501'; // Cerrado Norte (Simplificado)
+        return 'M5 - 501';
     }
 
-    // RIO GRANDE DO SUL (Macro 1)
-    if (uf === 'RS') {
-        if (['4301', '4302'].includes(mesoId)) return 'M1 - 102'; // Noroeste/Nordeste
-        if (mesoId === '4305') return 'M1 - 101'; // Sudeste
+    // RIO GRANDE DO SUL & SANTA CATARINA (Macro 1)
+    if (uf === 'RS' || uf === 'SC') {
+        if (['4301', '4302', '4201', '4202'].includes(mesoId)) return 'M1 - 102';
+        if (['4305', '4306', '4303', '4304'].includes(mesoId)) return 'M1 - 101';
     }
 
     return '';
@@ -589,13 +596,23 @@ export default function CreateFazendaScreen() {
 
                 {/* Info Regional (Somente leitura se já selecionado) */}
                 {formData.microregiao && (
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-3">
-                        <div className="bg-white p-1.5 rounded-lg shadow-sm">
-                            <Search className="w-4 h-4 text-blue-600" />
+                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="bg-white p-2 rounded-lg shadow-sm">
+                            <Search className="w-5 h-5 text-blue-600" />
                         </div>
-                        <div className="text-[10px]">
-                            <p className="font-bold text-blue-900 uppercase">Região Detectada</p>
-                            <p className="text-blue-700 font-bold">{formData.rec_code ? `${formData.rec_code} (${formData.microregiao})` : `${formData.mesoregiao || 'Micro'} - ${formData.microregiao}`}</p>
+                        <div className="flex-1">
+                            <p className="text-[10px] font-black text-blue-900 uppercase tracking-widest flex items-center gap-1">
+                                Região Detectada
+                                {formData.rec_code && <span className="ml-1 bg-blue-600 text-white px-1.5 py-0.5 rounded text-[8px]">EMBRAPA/ZARC</span>}
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <p className="text-blue-700 font-bold text-sm">
+                                    {formData.rec_code ? formData.rec_code : `${formData.mesoregiao || 'Micro'} - ${formData.microregiao}`}
+                                </p>
+                                {formData.rec_code && (
+                                    <p className="text-[10px] text-blue-400 font-medium">({formData.microregiao})</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}

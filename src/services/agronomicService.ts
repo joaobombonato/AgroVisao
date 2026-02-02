@@ -36,7 +36,7 @@ export interface AgronomicResult {
 }
 
 export async function fetchAgronomicData(lat: number, lng: number): Promise<AgronomicResult | null> {
-  const cacheKey = `agronomic_om_v4_cache_${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  const cacheKey = `agronomic_om_v21hist_cache_${lat.toFixed(3)}_${lng.toFixed(3)}`;
   
   // 1. Try Cache
   try {
@@ -67,7 +67,7 @@ export async function fetchAgronomicData(lat: number, lng: number): Promise<Agro
         'temperature_2m'
       ].join(','),
       timezone: 'America/Sao_Paulo',
-      past_days: '7',
+      past_days: '21',
       forecast_days: '15'
     });
 
@@ -167,7 +167,7 @@ export async function fetchAgronomicData(lat: number, lng: number): Promise<Agro
     if (todayIndex === -1) {
         // Find closest date to today if not exact match (unlikely but safe)
         todayIndex = dailyData.findIndex(d => d.date > todayStr) - 1;
-        if (todayIndex < 0) todayIndex = 7; 
+        if (todayIndex < 0) todayIndex = 21; 
     }
 
     const currentDay = dailyData[todayIndex] || dailyData[0];

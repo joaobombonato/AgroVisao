@@ -197,15 +197,6 @@ export default function DashboardScreen() {
             </div>
           )}
 
-          {/* CLIMA & PREVISÃO */}
-          <div className={`${cardStyle} border-l-4 border-l-blue-400 cursor-pointer hover:shadow-md active:scale-95`} onClick={() => setTela('chuvas:previsao')}>
-              <div className="flex justify-between items-start">
-                  <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><CloudRain className="w-5 h-5"/></div>
-                  <span className="text-xl font-black text-gray-800">Previsão</span>
-              </div>
-              <p className="text-xs font-bold text-gray-500 mt-2">Clima & Consenso</p>
-              <p className="text-[10px] text-gray-400 italic">Ver próximos 14 dias</p>
-          </div>
       </div>
 
       {/* 1.5 ALERTAS CRÍTICOS (CARDS COLORIDOS) */}

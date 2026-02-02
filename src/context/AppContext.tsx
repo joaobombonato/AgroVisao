@@ -134,7 +134,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
               if (data && data.id && optimisticAction) {
                   dispatch({ ...optimisticAction, record: data, records: optimisticAction.records?.map((r: any) => (r.id === tempid) ? data : r) });
               }
-              toast.success(`Salvo Cloud: ${table}`);
+              toast.success(`Salvo Cloud: ${table}`, { id: 'sync-toast' });
               return { success: true, online: true, data };
           } catch (e) { console.warn("Sync Insert Fail", e); }
       }
@@ -150,7 +150,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       if (!isOff && fazendaId) {
           try {
               await dbService.update(table, id, updates, fazendaId);
-              toast.success(`Atualizado Cloud: ${table}`);
+              toast.success(`Atualizado Cloud: ${table}`, { id: 'sync-toast' });
               return { success: true, online: true };
           } catch (e) { console.warn("Sync Update Fail", e); }
       }
@@ -578,7 +578,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!fazendaId) return;
     // Ativos
-    const assets = ['maquinas','talhoes','locais_monitoramento','centros_custos','produtos','safras','culturas','tipos_refeicao','classes_agronomicas','tipos_documento', 'colaboradores', 'fazenda_membros'];
+    const assets = ['maquinas','talhoes','locais_monitoramento','centros_custos','produtos','safras','culturas','tipos_refeicao','classes_agronomicas','tipos_documento', 'colaboradores', 'fazenda_membros', 'setores', 'produtos_manutencao', 'operacoes_agricolas'];
     assets.forEach(t => fetchRecords(t));
     // Dados
     const data = ['abastecimentos','compras','chuvas','energia','recomendacoes','refeicoes','os'];

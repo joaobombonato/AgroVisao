@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon, Pencil, X, Lock, ShieldCheck, Info } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon, Pencil, X, Lock, ShieldCheck, Info, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { PageHeader, Input, Select } from '../../../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
@@ -11,7 +11,7 @@ import MaquinaTimeline from './MaquinaTimeline';
 
 export default function AssetListEditor({ assetKey, setView }: any) {
     const { ativos, dbAssets, dispatch, genericSave, genericUpdate, genericDelete, updateAtivos, dados, fazendaId, fazendaSelecionada } = useAppContext();
-    const { title, table, color, type, label, fields, placeholder, icon: Icon } = ASSET_DEFINITIONS[assetKey];
+    const { title, table, color, type, label, fields, placeholder, icon: Icon, orderBy, showPositioner } = ASSET_DEFINITIONS[assetKey];
     
     // ABA ATIVA (novo)
     const [activeTab, setActiveTab] = useState<'cadastro' | 'lista'>('cadastro');
@@ -129,6 +129,13 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             // Lógica de INSERÇÃO
             const tempId = U.id('temp-asset-');
             const recordWithId = { ...newRecord, id: tempId, fazenda_id: fazendaId };
+            
+            // Se tiver ordenação, define a posição como o final da lista
+            if (showPositioner) {
+                recordWithId.posicao = listToRender.length + 1;
+                newRecord.posicao = listToRender.length + 1;
+            }
+
             await genericSave(table, newRecord, {
                 type: ACTIONS.SET_DB_ASSETS,
                 table: table, 
@@ -201,12 +208,44 @@ export default function AssetListEditor({ assetKey, setView }: any) {
         await genericDelete(table, idToDelete, { type: ACTIONS.SET_DB_ASSETS, table: table, records: newList });
     };
 
+    const handleMove = async (item: any, direction: 'up' | 'down') => {
+        const currentIndex = listToRender.findIndex((i: any) => i.id === item.id);
+        const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+        if (swapIndex < 0 || swapIndex >= listToRender.length) return;
+
+        const otherItem = listToRender[swapIndex];
+        const currentPos = item.posicao || (currentIndex + 1);
+        const otherPos = otherItem.posicao || (swapIndex + 1);
+
+        // Troca as posições
+        await genericUpdate(table, item.id, { posicao: otherPos });
+        await genericUpdate(table, otherItem.id, { posicao: currentPos });
+
+        // Atualiza estado local
+        const updatedList = list.map((i: any) => {
+            if (i.id === item.id) return { ...i, posicao: otherPos };
+            if (i.id === otherItem.id) return { ...i, posicao: currentPos };
+            return i;
+        });
+
+        dispatch({ type: ACTIONS.SET_DB_ASSETS, table: table, records: updatedList });
+        toast.success("Ordem atualizada!", { id: 'order-toast' });
+    };
+
     const listToRender = list.filter((item: any) => {
         if (table === 'locais_monitoramento') {
             const targetType = assetKey === 'locaisChuva' ? 'chuva' : 'energia';
             return item.tipo === targetType;
         }
         return true;
+    }).sort((a: any, b: any) => {
+        if (orderBy === 'posicao') {
+            const posA = a.posicao || 0;
+            const posB = b.posicao || 0;
+            return posA - posB;
+        }
+        return 0;
     });
 
     const toggleSelect = (id: string) => {
@@ -365,19 +404,29 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                             if (f.type === 'select') {
                                 let finalOptions = f.options || [];
                                 
-                                if (f.optionsFrom && f.dependsOn) {
-                                    const parentVal = newItemFields[f.dependsOn.key];
-                                    const sourceTable = f.optionsFrom[parentVal];
-                                    if (sourceTable) {
-                                        let sourceList = dbAssets[sourceTable] || [];
-                                        if (sourceTable === 'locais_monitoramento') {
-                                            const typeMap: any = { "Medidor de Energia": "energia" };
-                                            const subType = typeMap[parentVal];
-                                            if (subType) sourceList = sourceList.filter((i: any) => i.tipo === subType);
-                                        }
-                                        finalOptions = sourceList.map((i: any) => i.nome || i.titulo || i.id);
-                                    }
-                                }
+                                 if (f.optionsFrom) {
+                                     let sourceTable = '';
+                                     if (typeof f.optionsFrom === 'string') {
+                                         sourceTable = f.optionsFrom;
+                                     } else if (f.dependsOn) {
+                                         const parentVal = newItemFields[f.dependsOn.key];
+                                         sourceTable = f.optionsFrom[parentVal];
+                                     }
+
+                                     if (sourceTable) {
+                                         let sourceList = dbAssets[sourceTable] || [];
+                                         if (sourceTable === 'locais_monitoramento' && f.dependsOn) {
+                                             const parentVal = newItemFields[f.dependsOn.key];
+                                             const typeMap: any = { "Medidor de Energia": "energia" };
+                                             const subType = typeMap[parentVal];
+                                             if (subType) sourceList = sourceList.filter((i: any) => i.tipo === subType);
+                                         }
+                                         finalOptions = sourceList.map((i: any) => ({
+                                             value: i.id || i.nome || i.titulo,
+                                             label: i.nome || i.titulo || i.id
+                                         }));
+                                     }
+                                 }
 
                                  const currentVal = newItemFields[f.key] || f.default || '';
                                 const isLocked = editingItem && (financeKeys.includes(f.key) || f.key === 'situacao_financeira') && isFormLiquidado;
@@ -392,8 +441,12 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                             disabled={isLocked}
                                             className={isLocked ? 'bg-gray-100 font-bold border-gray-300 opacity-90 cursor-not-allowed text-gray-700 pointer-events-none select-none' : ''}
                                         >
-                                            <option value="">Selecione...</option>
-                                            {finalOptions?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                                             <option value="">Selecione...</option>
+                                             {finalOptions?.map((opt: any) => {
+                                                 const val = typeof opt === 'object' ? opt.value : opt;
+                                                 const lab = typeof opt === 'object' ? opt.label : opt;
+                                                 return <option key={val} value={val}>{lab}</option>;
+                                             })}
                                         </Select>
                                     </div>
                                 );
@@ -511,19 +564,48 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                 )}
                                 <div className="flex-1 min-w-0" onClick={() => assetKey === 'maquinas' && toggleSelect(item.id)}>
                                 <p className="font-bold text-gray-900 truncate text-base">{item.nome}</p>
-                                {type === 'complex' && fields.filter((f: any) => f.showInList && f.key !== 'nome').map((f: any) => (
-                                    <p key={f.key} className="text-xs text-gray-500 truncate mt-0.5">
-                                        {f.label}: <span className="font-semibold text-gray-700">
-                                            {f.type === 'date' 
-                                                ? U.formatDate(item[f.key]) 
-                                                : (f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage')
-                                                    ? U.formatValue(item[f.key])
-                                                    : (item[f.key] || '-')}
-                                        </span>
-                                    </p>
-                                ))}
+                                {type === 'complex' && fields.filter((f: any) => f.showInList && f.key !== 'nome').map((f: any) => {
+                                    let displayVal = item[f.key] || '-';
+
+                                    if (f.type === 'date') {
+                                        displayVal = U.formatDate(item[f.key]);
+                                    } else if (f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage') {
+                                        displayVal = U.formatValue(item[f.key]);
+                                    } else if (f.type === 'select' && f.optionsFrom) {
+                                        // Tenta resolver o nome a partir do ID se for uma relação
+                                        const sourceTable = typeof f.optionsFrom === 'string' ? f.optionsFrom : (f.dependsOn ? f.optionsFrom[item[f.dependsOn.key]] : null);
+                                        if (sourceTable) {
+                                            const related = (dbAssets[sourceTable] || []).find((r: any) => r.id === item[f.key] || r.nome === item[f.key]);
+                                            if (related) displayVal = related.nome || related.titulo || related.id;
+                                        }
+                                    }
+
+                                    return (
+                                        <p key={f.key} className="text-xs text-gray-500 truncate mt-0.5">
+                                            {f.label}: <span className="font-semibold text-gray-700">{displayVal}</span>
+                                        </p>
+                                    );
+                                })}
                             </div>
                             <div className="flex items-center gap-1 ml-3">
+                                {showPositioner && (
+                                    <div className="flex flex-col gap-1 mr-2 border-r pr-2 border-gray-100">
+                                        <button 
+                                            onClick={() => handleMove(item, 'up')}
+                                            disabled={index === 0}
+                                            className={`p-1.5 rounded-lg transition-colors ${index === 0 ? 'text-gray-200' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900'}`}
+                                        >
+                                            <ArrowUp className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleMove(item, 'down')}
+                                            disabled={index === listToRender.length - 1}
+                                            className={`p-1.5 rounded-lg transition-colors ${index === listToRender.length - 1 ? 'text-gray-200' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-900'}`}
+                                        >
+                                            <ArrowDown className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
                                 <button 
                                     onClick={() => startEdit(item)} 
                                     className="p-2.5 text-blue-500 hover:bg-blue-50 rounded-xl transition-colors border border-transparent hover:border-blue-100"

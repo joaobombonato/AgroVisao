@@ -39,7 +39,7 @@ export const AgronomicIntelligenceCard: React.FC<AgronomicIntelligenceCardProps>
     );
   }
 
-  const { current, periodSummary, todayIndex = 7 } = agronomic;
+  const { current, periodSummary, todayIndex = 21 } = agronomic;
   
   // Stress logic (Atmospheric and Soil)
   const isAtmosphericStress = current.vpd > 1.5; // kPa > 1.5 is stressful for most crops
@@ -148,7 +148,7 @@ export const AgronomicIntelligenceCard: React.FC<AgronomicIntelligenceCardProps>
         <div className={`rounded-xl p-3 border shadow-sm transition-colors ${isHydricDebt ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
           <div className="flex justify-between items-center mb-2">
             <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-tighter flex items-center gap-1">
-              <Droplets className="w-3.5 h-3.5" /> Tendência Hídrica (Histórico + 14 dias)
+              <Droplets className="w-3.5 h-3.5" /> Tendência Hídrica (Histórico 21d + Previsão)
             </h4>
             <span className={`text-[11px] font-black px-2 py-0.5 rounded-lg bg-white/50 border ${isHydricDebt ? 'text-amber-700 border-amber-200' : 'text-blue-700 border-blue-200'}`}>
               {periodSummary.finalBalance > 0 ? '+' : ''}{periodSummary.finalBalance.toFixed(1)} mm

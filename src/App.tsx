@@ -49,7 +49,7 @@ const RestrictedScreen = ({ onBackHome }: { onBackHome: () => void }) => (
 );
 
 const TOAST_OPTIONS = {
-    duration: 15000, 
+    duration: 8000, 
     style: { maxWidth: '500px' }
 };
 

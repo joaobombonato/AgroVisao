@@ -53,16 +53,22 @@ export default function RecomendacoesScreen() {
       setHeader(prev => ({ ...prev, talhao: tNome, area }));
   };
 
+  // Handler de Operação (Reseta dependentes)
+  const handleOperacaoChange = (e: any) => {
+      setHeader(prev => ({ ...prev, operacao: e.target.value }));
+      setItem({ classe: '', produto: '', dose: '' });
+  };
+
   // Handler para Adicionar Item à Lista
   const handleAddItem = (e: any) => {
       e.preventDefault(); // Previne envio do form principal se houver
       if (!item.produto || !item.dose) {
-          toast.error("Selecione Produto e Dose");
+          toast.error("Selecione Insumo e Dose");
           return;
       }
       setItensAdicionados([...itensAdicionados, { ...item, id: Date.now() }]);
       setItem({ classe: '', produto: '', dose: '' }); // Limpa apenas os campos de item
-      toast.success("Produto adicionado!");
+      toast.success("Insumo adicionado!");
   };
 
   const handleRemoveItem = (id: number) => {
@@ -94,7 +100,7 @@ export default function RecomendacoesScreen() {
       };
       // Adiciona cada produto como detalhe na OS
       itensAdicionados.forEach((i, idx) => {
-          detalhesOS[`Produto ${idx + 1}`] = `${i.produto} (${i.dose})`;
+          detalhesOS[`Insumo ${idx + 1}`] = `${i.produto} (${i.dose})`;
       });
 
       dispatch({ 
@@ -103,7 +109,7 @@ export default function RecomendacoesScreen() {
           record: {
               id: U.id('OS-RC-'),
               modulo: 'Recomendação',
-              descricao: `Aplicação: ${header.talhao} (${itensAdicionados.length} produtos)`,
+              descricao: `Aplicação: ${header.talhao} (${itensAdicionados.length} insumos)`,
               detalhes: detalhesOS,
               status: 'Pendente',
               data_abertura: new Date().toISOString()
@@ -122,27 +128,39 @@ export default function RecomendacoesScreen() {
 
   const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir recomendação?', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'recomendacoes', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
   
-  // Produtos Filtrados (Por Classe e por Operação)
+  // 1. Filtrar Classes pela Operação Selecionada
+  const classesFiltradas = useMemo(() => {
+      let classes = ativos.classes || [];
+      if (header.operacao) {
+          const opObj = (ativos.operacoesAgricolas || []).find((o: any) => o.nome === header.operacao || o === header.operacao);
+          if (opObj?.id) {
+              const idsClassesDessaOperacao = (ativos.produtos || [])
+                  .filter((p: any) => p.operacao_id === opObj.id)
+                  .map((p: any) => p.classe_id);
+              
+              // Filtra classes que possuem produtos nesta operação
+              classes = classes.filter((c: any) => idsClassesDessaOperacao.includes(c.id));
+          }
+      }
+      return classes;
+  }, [ativos.classes, ativos.produtos, ativos.operacoesAgricolas, header.operacao]);
+
+  // 2. Filtrar Insumos (Produtos) por Operação e Classe
   const produtosFiltrados = useMemo(() => {
       let filtered = ativos.produtos || [];
       
-      // 1. Filtrar por Operação Selecionada (Se houver)
       if (header.operacao) {
           const opObj = (ativos.operacoesAgricolas || []).find((o: any) => o.nome === header.operacao || o === header.operacao);
-          const opId = opObj?.id;
-          
-          if (opId) {
-              filtered = filtered.filter((p: any) => p.operacao_id === opId || !p.operacao_id);
+          if (opObj?.id) {
+              filtered = filtered.filter((p: any) => p.operacao_id === opObj.id);
           }
       }
 
-      // 2. Filtrar por Classe Selecionada (Se houver)
+      // Filtrar por Classe Selecionada (Se houver)
       if (item.classe) {
           const classeObj = (ativos.classes || []).find((c: any) => c.nome === item.classe || c === item.classe);
-          const classeId = classeObj?.id;
-          
-          if (classeId) {
-              filtered = filtered.filter((p: any) => p.classe_id === classeId || !p.classe_id);
+          if (classeObj?.id) {
+              filtered = filtered.filter((p: any) => p.classe_id === classeObj.id);
           }
       }
 
@@ -207,7 +225,7 @@ export default function RecomendacoesScreen() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <SearchableSelect label="Talhões" placeholder="Ex: Pivo 01" options={ativos.talhoes} value={header.talhao} onChange={handleTalhaoChange} color="green" />
-                    <SearchableSelect label="Operação" placeholder="Ex: Plantio..." options={ativos.operacoesAgricolas} value={header.operacao} onChange={(e:any) => setHeader({ ...header, operacao: e.target.value })} color="green" />
+                    <SearchableSelect label="Operação" placeholder="Ex: Plantio..." options={ativos.operacoesAgricolas} value={header.operacao} onChange={handleOperacaoChange} color="green" />
                 </div>
                 {header.area && <div className="text-xs text-right text-green-600 font-bold">Área: {header.area} ha</div>}
             </div>
@@ -216,13 +234,18 @@ export default function RecomendacoesScreen() {
             <div className="bg-green-50 p-3 rounded-lg border border-green-200 space-y-3">
                 <p className="text-xs font-bold text-green-700 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center flex justify-center gap-1"><span className="text-red-500">***</span><Beaker className="w-5 h-5"/>Composição da Calda <span className="text-red-500">***</span></p>
                 
-                {header.operacao === 'Manejo de aplicações' && (
-                    <SearchableSelect label="Classe Agronômica" placeholder="Buscar... Ex: Herbicida" options={ativos.classes || []} value={item.classe} onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} color="green" />
-                )}
+                <SearchableSelect 
+                    label="Classe Agronômica (Filtro)" 
+                    placeholder="Filtrar por Classe... Ex: Herbicida" 
+                    options={classesFiltradas} 
+                    value={item.classe} 
+                    onChange={(e:any) => setItem({ ...item, classe: e.target.value, produto: '' })} 
+                    color="green" 
+                />
                 
                 <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
-                        <SearchableSelect label="Produto" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Produto... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} color="green" />
+                        <SearchableSelect label="Insumo" placeholder={item.classe ? `Buscar ${item.classe}...` : "Buscar o Insumo... Ex: Glifosato"} options={produtosFiltrados} value={item.produto} onChange={(e:any) => setItem({ ...item, produto: e.target.value })} color="green" />
                     </div>
                     
                     {/* Campo Dose Manual (Padronizado) */}
@@ -250,7 +273,7 @@ export default function RecomendacoesScreen() {
                     <table className="w-full text-sm text-left">
                         <thead className="bg-gray-100 text-gray-600 font-bold">
                             <tr>
-                                <th className="p-2">Produto</th>
+                                <th className="p-2">Insumo</th>
                                 <th className="p-2">Dose</th>
                                 <th className="p-2 w-8"></th>
                             </tr>
@@ -271,7 +294,7 @@ export default function RecomendacoesScreen() {
             {/* BOTÃO FINALIZAR */}
             {itensAdicionados.length > 0 && (
                 <button onClick={enviar} className="w-full bg-green-700 text-white py-4 rounded-xl font-bold text-lg shadow-md hover:bg-green-800 transition-transform active:scale-95 flex items-center justify-center gap-2">
-                    <Check className="w-6 h-6"/> Registrar Recomendação ({itensAdicionados.length} itens)
+                    <Check className="w-6 h-6"/> Registrar Recomendação ({itensAdicionados.length} insumos)
                 </button>
             )}
         </div>

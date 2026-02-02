@@ -17,7 +17,9 @@ import {
   AlertCircle,
   CreditCard,
   Truck,
-  Activity
+  Activity,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 
 // ===========================================
@@ -131,6 +133,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Centro de Custo",
     placeholder: "Ex: Plantio Soja 2026 / Manutenção Geral",
     icon: DollarSign,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome do Centro de Custo", placeholder: "Ex: Colheita de Milho", showInList: true, required: true },
       { 
@@ -166,13 +170,15 @@ export const ASSET_DEFINITIONS: any = {
   },
   // Tabela: produtos (para estoque e recomendações)
   produtos: {
-    title: "Produtos / Insumos",
+    title: "Insumos (Fért. e Defensivos)",
     table: "produtos",
     color: "green",
     type: "complex",
-    label: "Produto",
+    label: "Insumo",
     placeholder: "Ex: Glifosato 480 / Fertilizante 04-14-08",
     icon: ShoppingBag,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Princípio Ativo / Técnico", placeholder: "Ex: Glifosato 480 / Fertilizante 04-14-08", showInList: true, required: true },
       { key: "nome_comercial", label: "Nome Comercial (Marca)", placeholder: "Ex: Roundup, Zapp, G-Max", showInList: true },
@@ -191,8 +197,7 @@ export const ASSET_DEFINITIONS: any = {
         type: "select", 
         optionsFrom: "classes_agronomicas", 
         showInList: true,
-        placeholder: "Selecione a classe...",
-        dependsOn: { key: "operacao_id", value: "Manejo de aplicações" }
+        placeholder: "Vincular a uma classe..."
       },
       { key: "estoque_minimo", label: "Alerta de Estoque Mínimo (Opcional)", type: "number", placeholder: "Ex: 100", showInList: true },
     ],
@@ -205,6 +210,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Peça / Óleo",
     placeholder: "Ex: Filtro de Óleo / Óleo 15W40",
     icon: Wrench,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome do Produto", placeholder: "Ex: Filtro de Óleo", showInList: true, required: true },
       { key: "estoque_minimo", label: "Alerta de Estoque Mínimo", type: "number", placeholder: "Ex: 5", showInList: true },
@@ -247,6 +254,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Safra",
     placeholder: "Ex: 2025/2026",
     icon: Sprout,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Ano Safra", placeholder: "Ex: 2025/2026", showInList: true, required: true },
     ],
@@ -259,6 +268,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Cultura",
     placeholder: "Ex: Soja, Milho, Trigo",
     icon: Leaf,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome da Cultura", placeholder: "Ex: Soja", showInList: true, required: true },
     ],
@@ -271,6 +282,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Refeição",
     icon: Utensils,
     placeholder: "Ex: Almoço Padrão / Janta Extra",
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Descrição da Refeição", placeholder: "Ex: Marmitex G", showInList: true, required: true },
       { key: "valor", label: "Custo Unitário (R$)", type: "text", mask: "currency", placeholder: "Ex: 18,50", showInList: true, required: true },
@@ -284,6 +297,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Classe",
     placeholder: "Ex: Herbicida, Inseticida",
     icon: Tag,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome da Classe", placeholder: "Ex: Herbicida", showInList: true, required: true },
     ],
@@ -296,6 +311,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Documento",
     placeholder: "Ex: Nota Fiscal, Contrato",
     icon: FileText,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Tipo de Documento", placeholder: "Ex: Boleto", showInList: true, required: true },
     ],
@@ -308,6 +325,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Setor",
     placeholder: "Ex: Operacional, Motoristas, Diretoria",
     icon: Users,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome do Setor", placeholder: "Ex: Operacional", showInList: true, required: true },
     ],
@@ -320,6 +339,8 @@ export const ASSET_DEFINITIONS: any = {
     label: "Operação",
     placeholder: "Ex: Correção de Solo, Plantio",
     icon: Activity,
+    orderBy: 'posicao',
+    showPositioner: true,
     fields: [
       { key: "nome", label: "Nome da Operação", placeholder: "Ex: Correção de Solo", showInList: true, required: true },
     ],

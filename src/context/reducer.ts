@@ -106,6 +106,9 @@ export function appReducer(state: State, action: any) {
         if (table === 'classes_agronomicas') newAtivos.classes = records;
         if (table === 'tipos_documento') newAtivos.tiposDocumento = records;
         if (table === 'colaboradores') newAtivos.colaboradores = records;
+        if (table === 'operacoes_agricolas') newAtivos.operacoesAgricolas = records;
+        if (table === 'setores') newAtivos.setores = records;
+        if (table === 'produtos_manutencao') newAtivos.produtosManutencao = records;
         
         if (table === 'locais_monitoramento') {
             newAtivos.locais = records.filter((r: any) => r.tipo === 'chuva');

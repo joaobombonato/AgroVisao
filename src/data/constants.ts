@@ -35,6 +35,9 @@ export const ATIVOS_INICIAIS = {
   classes: [],
   tiposDocumento: [],
   tiposRefeicao: [],
+  operacoesAgricolas: [],
+  setores: [],
+  produtosManutencao: [],
 };
 
 export const DEFAULT_PERMISSIONS: any = {
