@@ -8,3 +8,4 @@ export * from './SearchableSelect';
 export * from './ConfirmModal';
 export * from './OSDetailsModal';
 export * from './TableWithShowMore';
+export * from '../maps/TalhaoThumbnail';

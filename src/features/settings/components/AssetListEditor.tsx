@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon, Pencil, X, Lock, ShieldCheck, Info, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { PageHeader, Input, Select } from '../../../components/ui/Shared';
+import { PageHeader, Input, Select, TalhaoThumbnail } from '../../../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { U } from '../../../data/utils';
 import { ASSET_DEFINITIONS } from '../../../data/assets';
@@ -477,6 +477,17 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                             </button>
                                         </div>
                                         {f.legend && <p className="text-[9px] text-gray-400 italic px-1">{f.legend}</p>}
+                                        
+                                        {newItemFields.geometry && (
+                                            <div className="mt-4 flex flex-col items-center justify-center bg-gray-50/30 rounded-2xl p-4 border border-dashed border-gray-200 animate-in zoom-in-95 duration-500">
+                                                <TalhaoThumbnail 
+                                                    geometry={newItemFields.geometry} 
+                                                    size={180} 
+                                                    color="#10b981"
+                                                />
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-3">Visualização do Talhão</p>
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             }
@@ -586,6 +597,16 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                                         </p>
                                     );
                                 })}
+                                
+                                {assetKey === 'talhoes' && item.geometry && (
+                                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-center bg-gray-50/50 rounded-xl p-2 animate-in fade-in slide-in-from-top-2 duration-500">
+                                        <TalhaoThumbnail 
+                                            geometry={item.geometry} 
+                                            size={160} 
+                                            color="#10b981"
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div className="flex items-center gap-1 ml-3">
                                 {showPositioner && (

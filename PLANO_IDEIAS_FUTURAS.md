@@ -28,40 +28,51 @@ Este documento serve como um repositório de inovações e melhorias propostas p
   - O VPD (Estresse Atmosférico) ultrapassar 2.0 kPa em horários críticos de aplicação.
 - **Benefício:** Resposta rápida a problemas críticos sem necessidade de monitorar o dashboard 24/7.
 
-### 5. Memória de Longo Prazo e Histórico (Supabase)
+### 5. Notificações & Automação (Diferenciais "Uau")
+
+- **WhatsApp via DeepLink:** Inserir botões "Enviar para WhatsApp" em Ordens de Serviço (OS) e Recomendações.
+  - **Como funciona:** Gera um link `wa.me/?text=...` com um resumo profissional da operação (Insumo, Dose, Talhão, Responsável) para facilitar o envio para o aplicador.
+- **Alertas Automatizados:** Confirmar e automatizar o envio de alertas de estoque crítico e vencimento de documentos.
+
+### 6. Memória de Longo Prazo e Histórico (Supabase)
 
 - **O que é:** Utilizar o Supabase como uma "memória central", armazenando não apenas dados de tabelas, mas cronogramas de previsões passadas e cache de imagens de satélite históricas.
 - **Benefício:** Análise retroativa completa para entender por que uma safra foi melhor que a outra baseado no histórico exato de dados que tínhamos na época.
 
-### 6. Controle de Presença em Tempo Real (Realtime Presence)
+### 7. Controle de Presença em Tempo Real (Realtime Presence)
 
 - **O que é:** Implementar o recurso de "Realtime Presence" do Supabase para visualizar quem está com o sistema aberto na fazenda no exato momento.
 - **Benefício:** Melhor coordenação de equipe e visibilidade de quem está operando o sistema ao vivo.
 
-### 7. IA Colaborativa (Arquitetura Pronta para Insights)
+### 8. IA Colaborativa (Arquitetura Pronta para Insights)
 
 - **O que é:** Manter a estrutura do código 100% modularizada e limpa para que IAs possam ler os dados e gerar relatórios automáticos.
 - **Benefício:** O sistema "falará" com o produtor, dando dicas de ouro baseadas em dados tabelados e limpos (ex: "Notei que o consumo do trator X subiu 15%, verifique os filtros").
 
-### 8. Integração com Estações Meteorológicas IoT
+### 9. Integração com Estações Meteorológicas IoT
 
 - **O que é:** Conectar diretamente o sistema a estações físicas (ex: Davis, Pessl) instaladas na sede.
 - **Benefício:** Dados em tempo real de vento (velocidade e direção) e temperatura, fundamentais para decidir a hora exata da pulverização.
 
-### 9. Reconhecimento de Pragas por Imagem (IA)
+### 10. Reconhecimento de Pragas por Imagem (IA)
 
 - **O que é:** Adicionar uma funcionalidade na aba de Monitoramento onde o operador tira uma foto da folha/inseto e a IA identifica a praga.
 - **Benefício:** Rapidez no diagnóstico e recomendação imediata do insumo correto.
 
-### 10. Relatório de Custo por Hectare Detalhado
+### 11. Relatório de Custo por Hectare Detalhado
 
 - **O que é:** Unificar todos os custos (Insumos, Combustível, Refeições, Manutenção) e dividir pela área total de cada talhão.
 - **Benefício:** Saber exatamente qual talhão deu mais lucro e qual "comeu" mais dinheiro na safra.
 
-### 11. Gestão de Equipe via Convites Oficiais (Supabase Auth)
+### 12. Gestão de Equipe via Convites Oficiais (Supabase Auth)
 
 - **O que é:** Ajustar o fluxo de gestão de equipe para utilizar o sistema de convites nativo do Supabase (`Invite User`).
 - **Benefício:** Processo de cadastro mais seguro, profissional e automatizado, aproveitando o template de e-mail que já deixamos configurado no dashboard do Supabase.
+
+### 13. Indicadores Personalizados (BI) & Exportação
+
+- **Exportação de Dados:** Adicionar botões na aba "Gráficos" para exportar as tabelas e dados brutos para **PDF e CSV**.
+- **Faturamento & Custos:** Implementar relatórios consolidados de faturamento de refeições e extrato detalhado de abastecimento por centro de custo.
 
 ---
 
