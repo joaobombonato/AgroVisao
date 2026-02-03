@@ -290,8 +290,9 @@ export default function FazendaPerfilEditor() {
                 latitude: formData.latitude,
                 longitude: formData.longitude,
                 config: {
-                    ...(fazendaSelecionada?.config || {}),
+                    ...(fazendaSelecionada?.config || {}), // Preserva parâmetros e outras chaves
                     logo_base64: formData.logo_url,
+                    logo_url: formData.logo_url,
                     regional: {
                         microregiao: formData.microregiao,
                         mesoregiao: formData.mesoregiao,
@@ -313,7 +314,8 @@ export default function FazendaPerfilEditor() {
                 type: ACTIONS.SET_FAZENDA, 
                 fazendaId: novaFazenda.id, 
                 fazendaNome: novaFazenda.nome,
-                fazendas: novasFazendas 
+                fazendas: novasFazendas,
+                config: novaFazenda.config
             });
            
             toast.success("Perfil da fazenda atualizado!");
@@ -331,7 +333,7 @@ export default function FazendaPerfilEditor() {
             
             {/* Modal de Ajuste de Imagem */}
             {isAdjusting && (
-                <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
                         <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 text-sm tracking-tight">Ajustar Logotipo</h3>

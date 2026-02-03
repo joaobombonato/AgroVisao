@@ -3,6 +3,7 @@ import { User, Mail, Calendar, Phone, Shield, Camera, Save, Loader2, Check, X, I
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { supabase } from '../../../supabaseClient';
 import { toast } from 'react-hot-toast';
+import { Input } from '../../../components/ui/Shared';
 
 // Componente de Input movido para FORA para evitar perda de foco ao digitar
 const InputField = memo(({ label, icon: Icon, value, onChange, type = "text", placeholder, readOnly = false, className = '' }: any) => (
@@ -17,6 +18,7 @@ const InputField = memo(({ label, icon: Icon, value, onChange, type = "text", pl
                 placeholder={placeholder}
                 readOnly={readOnly}
                 className={`w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-semibold text-gray-700 ${readOnly ? 'cursor-not-allowed opacity-60' : ''}`}
+                max={type === "date" ? "9999-12-31" : undefined}
             />
         </div>
     </div>
@@ -163,6 +165,21 @@ export default function MinhaContaEditor() {
                     throw error;
                 }
             }
+
+            // 🔥 ATUALIZAR ESTADO GLOBAL IMEDIATAMENTE
+            const { data: updatedProfile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session?.user?.id)
+                .single();
+
+            if (updatedProfile) {
+                dispatch({ 
+                    type: ACTIONS.UPDATE_USER_PROFILE, 
+                    profile: updatedProfile 
+                });
+            }
+
             toast.success("Perfil atualizado com sucesso!");
         } catch (err: any) {
             console.error("Erro ao salvar perfil:", err);
@@ -170,6 +187,12 @@ export default function MinhaContaEditor() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleDateChange = (field: string, value: string) => {
+        // Limita a 10 caracteres (YYYY-MM-DD) para evitar anos de 5 dígitos
+        if (value.length > 10) value = value.slice(0, 10);
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -282,7 +305,7 @@ export default function MinhaContaEditor() {
             
             {/* Modal de Ajuste de Imagem */}
             {isAdjusting && (
-                <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
                         <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
                             <h3 className="font-bold text-gray-800 text-sm">Ajustar Foto de Perfil</h3>
@@ -416,7 +439,7 @@ export default function MinhaContaEditor() {
                         icon={Calendar} 
                         type="date"
                         value={formData.data_nascimento} 
-                        onChange={(e:any) => setFormData({...formData, data_nascimento: e.target.value})} 
+                        onChange={(e:any) => handleDateChange('data_nascimento', e.target.value)} 
                     />
                     <InputField 
                         label="Sua Função" 
@@ -447,7 +470,7 @@ export default function MinhaContaEditor() {
                         icon={Calendar} 
                         type="date"
                         value={formData.cnh_vencimento} 
-                        onChange={(e:any) => setFormData({...formData, cnh_vencimento: e.target.value})} 
+                        onChange={(e:any) => handleDateChange('cnh_vencimento', e.target.value)} 
                     />
                 </div>
                 <p className="text-[9px] text-gray-400 italic">O sistema irá te alertar automaticamente 30 dias antes do vencimento da sua CNH.</p>

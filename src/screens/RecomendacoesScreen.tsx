@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Leaf, Search, ChevronDown, Check, X, Plus, Trash2, Beaker, ScrollText, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
@@ -208,16 +208,13 @@ export default function RecomendacoesScreen() {
                 <p className="text-xs font-bold text-black-800 uppercase tracking-widest border-b pb-1 mb-1 mt-1 text-center"><span className="text-red-500">***</span> Definição do Local <span className="text-red-500">***</span></p>
                 
                 {/* Campo Data Manual (Padronizado) */}
-                <div className="space-y-1">
-                    <label className="block text-xs font-bold text-gray-700">Data da Receita </label>
-                    <input 
-                        type="date" 
-                        value={header.data} 
-                        onChange={(e:any) => setHeader({ ...header, data: e.target.value })} 
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none"
-                        required 
-                    />
-                </div>
+                <Input 
+                    label="Data da Receita" 
+                    type="date" 
+                    value={header.data} 
+                    onChange={(e:any) => setHeader({ ...header, data: e.target.value })} 
+                    required 
+                />
 
                 <div className="grid grid-cols-2 gap-3">
                     <SearchableSelect label="Safras" placeholder="Buscar a Safra..." options={ativos.safras} value={header.safra} onChange={(e:any) => setHeader({ ...header, safra: e.target.value })} color="green" />
@@ -305,7 +302,12 @@ export default function RecomendacoesScreen() {
         <div className="p-3 border-b bg-gray-50 rounded-t-lg">
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Recomendações</h2>
             <div className="flex gap-2">
-                <input type="date" value={filterData} onChange={e => setFilterData(e.target.value)} className="text-xs border rounded p-2" />
+                <Input 
+                    type="date" 
+                    value={filterData} 
+                    onChange={(e: any) => setFilterData(e.target.value)} 
+                    className="text-xs border rounded p-2" 
+                />
                 <div className="relative flex-1">
                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                     <input type="text" placeholder="Filtrar..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />

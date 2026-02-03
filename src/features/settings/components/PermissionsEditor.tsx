@@ -3,6 +3,7 @@ import { Shield, Save, RotateCcw, Monitor, Zap, Check, X, Info, ChevronDown, Che
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { DEFAULT_PERMISSIONS } from '../../../data/constants';
 import { toast } from 'react-hot-toast';
+import { ConfirmModal } from '../../../components/ui/Shared';
 
 export default function PermissionsEditor() {
   const { state, dispatch, genericUpdate } = useAppContext();
@@ -11,6 +12,7 @@ export default function PermissionsEditor() {
   // Local state to manage edits before saving
   const [localPermissions, setLocalPermissions] = useState(JSON.parse(JSON.stringify(permissions)));
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
 
   if (userRole !== 'Proprietário') {
     return (
@@ -51,10 +53,13 @@ export default function PermissionsEditor() {
   };
 
   const restaurarPadrao = () => {
-    if (window.confirm('Deseja restaurar todas as permissões para o padrão de fábrica?')) {
-      setLocalPermissions(JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS)));
-      toast.success('Padrões restaurados (clique em salvar para aplicar)');
-    }
+    setShowRestoreConfirm(true);
+  };
+
+  const confirmRestaurar = () => {
+    setLocalPermissions(JSON.parse(JSON.stringify(DEFAULT_PERMISSIONS)));
+    toast.success('Padrões restaurados (clique em salvar para aplicar)');
+    setShowRestoreConfirm(false);
   };
 
   const roles = ['Proprietário', 'Gerente', 'Administrativo', 'Operador', 'Consultor Agrícola'];
@@ -208,6 +213,16 @@ export default function PermissionsEditor() {
       >
         <Save className="w-5 h-5" /> Salvar Quadro de Comando
       </button>
+
+      <ConfirmModal 
+        isOpen={showRestoreConfirm}
+        onClose={() => setShowRestoreConfirm(false)}
+        onConfirm={confirmRestaurar}
+        title="Restaurar Padrões"
+        message="Deseja restaurar todas as permissões para o padrão de fábrica? Todas as customizações atuais serão perdidas."
+        confirmText="Restaurar"
+        variant="warning"
+      />
     </div>
   );
 }

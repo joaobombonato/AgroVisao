@@ -220,11 +220,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   // ========================================================
   const saveAtivos = useCallback(async (novosAtivos: any) => {
       localStorage.setItem('agrodev_params', JSON.stringify(novosAtivos));
-      if (fazendaId) {
-          try { await dbService.update('fazendas', fazendaId, { config: novosAtivos }, fazendaId); } 
-          catch (e) { console.warn("Ativos Sync Fail", e); }
-      }
-  }, [fazendaId]);
+      // ⚠️ REMOVIDO: O auto-save em nuvem estava causando sobrescrita de campos (logo, regional)
+      // e perda de parâmetros por condições de corrida durante a carga das listas.
+      // O salvamento em nuvem agora é responsabilidade explícita de cada editor (Config/Perfil).
+  }, []);
 
   const updateAtivos = useCallback((chave: string, valor: any) => {
       dispatch({ type: ACTIONS.UPDATE_ATIVOS, chave, novaLista: valor });
@@ -263,10 +262,10 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           dispatch({ type: ACTIONS.SET_AUTH, session, profile });
       }
 
-      const isPerfilIncompleto = !profile?.full_name;
+      // isPerfilIncompleto removido para evitar bloqueios indesejados
       
       const lastId = localStorage.getItem('last_fazenda_id');
-      if (lastId && !isPerfilIncompleto) {
+      if (lastId) {
           const { data, error } = await supabase.from('fazendas').select('*').eq('id', lastId).single();
           if (data && !error) {
               const { data: mb } = await supabase.from('fazenda_membros').select('role').eq('fazenda_id', lastId).eq('user_id', session.user.id).maybeSingle();
@@ -307,7 +306,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       
       dispatch({ type: ACTIONS.SET_FAZENDAS_DISPONIVEIS, payload: all });
       
-      if (all.length === 1 && !isPerfilIncompleto) {
+      if (all.length === 1) {
           const f = all[0];
           const { data: mb } = await supabase.from('fazenda_membros').select('role').eq('fazenda_id', f.id).eq('user_id', session.user.id).maybeSingle();
           setFazendaSelecionada(f);
@@ -323,7 +322,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
           // 🛡️ SÓ REDIRECIONA SE ESTIVER NO LOADING/AUTH/SELECTION
           setTela(prev => (prev === 'loading' || prev === 'auth' || prev === 'fazenda_selection') ? 'principal' : prev);
       } else {
-          setTela('fazenda_selection');
+          // 🛡️ SÓ VAI PARA SELEÇÃO SE REALMENTE NÃO ESTIVER EM NENHUMA TELA DE DADOS
+          setTela(prev => (prev === 'loading' || prev === 'auth') ? 'fazenda_selection' : prev);
       }
       dispatch({ type: ACTIONS.SET_LOADING, loading: false });
   }, [ensureMembroOwner]);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, List, FormInput, Map as MapIcon, Pencil, X, Lock, ShieldCheck, Info, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { PageHeader, Input, Select, TalhaoThumbnail } from '../../../components/ui/Shared';
+import { PageHeader, Input, Select, TalhaoThumbnail, ConfirmModal } from '../../../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { U } from '../../../data/utils';
 import { ASSET_DEFINITIONS } from '../../../data/assets';
@@ -12,6 +12,20 @@ import MaquinaTimeline from './MaquinaTimeline';
 export default function AssetListEditor({ assetKey, setView }: any) {
     const { ativos, dbAssets, dispatch, genericSave, genericUpdate, genericDelete, updateAtivos, dados, fazendaId, fazendaSelecionada } = useAppContext();
     const { title, table, color, type, label, fields, placeholder, icon: Icon, orderBy, showPositioner } = ASSET_DEFINITIONS[assetKey];
+    
+    // Mapeamento de cores para evitar purge do Tailwind em classes dinâmicas
+    const colorMap: any = {
+        green: 'bg-green-600 hover:bg-green-700',
+        red: 'bg-red-600 hover:bg-red-700',
+        blue: 'bg-blue-600 hover:bg-blue-700',
+        orange: 'bg-orange-600 hover:bg-orange-700',
+        cyan: 'bg-cyan-600 hover:bg-cyan-700',
+        yellow: 'bg-yellow-500 hover:bg-yellow-600',
+        purple: 'bg-purple-600 hover:bg-purple-700',
+        amber: 'bg-amber-600 hover:bg-amber-700',
+        indigo: 'bg-indigo-600 hover:bg-indigo-700'
+    };
+
     
     // ABA ATIVA (novo)
     const [activeTab, setActiveTab] = useState<'cadastro' | 'lista'>('cadastro');
@@ -26,6 +40,9 @@ export default function AssetListEditor({ assetKey, setView }: any) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     const [formTab, setFormTab] = useState<'dados' | 'historico'>('dados');
+    const [itemToDelete, setItemToDelete] = useState<any>(null);
+
+    const buttonColorClass = editingItem ? colorMap['amber'] : (colorMap[color] || colorMap['green']);
     
     const isDbAsset = !!table;
 
@@ -203,9 +220,15 @@ export default function AssetListEditor({ assetKey, setView }: any) {
 
     const handleDelete = async (item: any) => {
         if (!checkIntegrity(item)) return;
-        const idToDelete = item.id;
+        setItemToDelete(item);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+        const idToDelete = itemToDelete.id;
         const newList = list.filter((i:any) => i.id !== idToDelete);
         await genericDelete(table, idToDelete, { type: ACTIONS.SET_DB_ASSETS, table: table, records: newList });
+        setItemToDelete(null);
     };
 
     const handleMove = async (item: any, direction: 'up' | 'down') => {
@@ -533,9 +556,11 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                         });
                     })()}
                     
-                    <button type="submit" className={`col-span-2 bg-${editingItem ? 'amber' : color}-600 text-white font-bold py-3 rounded-lg hover:bg-${editingItem ? 'amber' : color}-700 transition-colors flex items-center justify-center gap-2 shadow-sm mt-4 uppercase text-xs tracking-widest`}>
+                    
+                    <button type="submit" className={`col-span-2 ${buttonColorClass} text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm mt-4 uppercase text-xs tracking-widest`}>
                         {editingItem ? <><Pencil className="w-4 h-4"/> Salvar Alterações</> : <><Plus className="w-5 h-5"/> Adicionar {label}</>}
                     </button>
+
                 </form>
             ) : (
                 <div className="space-y-3 animate-in fade-in zoom-in-95 duration-200">
@@ -656,7 +681,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
             {showMap && (
                 <TalhaoMapEditor 
                     farmGeoJSON={fazendaSelecionada?.geojson}
-                    initialGeoJSON={newItemFields.geometry}
+                    initialGeoJSON={editingItem ? { ...newItemFields.geometry, id: editingItem.id, talhao_id: editingItem.id } : newItemFields.geometry}
                     existingTalhoes={listToRender}
                     onSave={(data) => {
                         setNewItemFields({
@@ -672,7 +697,7 @@ export default function AssetListEditor({ assetKey, setView }: any) {
 
             {/* BOTÃO FLUTUANTE DE AÇÃO EM MASSA */}
             {selectedIds.length > 0 && assetKey === 'maquinas' && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50 animate-in slide-in-from-bottom-5">
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-[1100] animate-in slide-in-from-bottom-5">
                     <button 
                         onClick={() => setIsWizardOpen(true)}
                         className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl shadow-2xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all active:scale-95 border-2 border-indigo-400/30"
@@ -693,6 +718,30 @@ export default function AssetListEditor({ assetKey, setView }: any) {
                     }}
                 />
             )}
+
+            <ConfirmModal 
+                isOpen={!!itemToDelete}
+                onClose={() => setItemToDelete(null)}
+                onConfirm={confirmDelete}
+                title={`Excluir ${label}`}
+                message={`Tem certeza que deseja excluir "${itemToDelete?.nome || label}"? Esta ação não pode ser desfeita.`}
+                confirmText="Excluir"
+                variant="danger"
+            />
+
+            {/* BOTÃO FLUTUANTE PARA ADICIONAR (Quando na aba de lista) */}
+            {activeTab === 'lista' && (
+                <div className="fixed bottom-24 right-6 z-[1200] animate-in zoom-in duration-300">
+                    <button 
+                        onClick={() => setActiveTab('cadastro')}
+                        className={`w-14 h-14 ${colorMap[color] || colorMap['green']} text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all outline-none border-4 border-white`}
+                        title={`Adicionar Novo(a) ${label}`}
+                    >
+                        <Plus className="w-8 h-8" />
+                    </button>
+                </div>
+            )}
         </div>
+
     );
 }

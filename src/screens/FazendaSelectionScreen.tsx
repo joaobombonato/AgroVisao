@@ -3,6 +3,7 @@ import { Plus, ChevronRight, Tractor, Building2, MapPin, Loader2, LogOut, Trash2
 import { supabase } from '../supabaseClient';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { toast } from 'react-hot-toast';
+import { Input } from '../components/ui/Shared';
 
 export default function FazendaSelectionScreen() {
   const { session, dispatch, setTela, logout, setFazendaSelecionada, ensureMembroOwner } = useAppContext();
@@ -71,26 +72,8 @@ export default function FazendaSelectionScreen() {
           setCanCreate(isOwner || isProprietarioMembro);
       }
 
-      // 5. Verificar Perfil (Novo)
-      const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, phone, data_nascimento, config')
-          .eq('id', session.user.id)
-          .maybeSingle();
-
-      if (!profile?.full_name) {
-          setOnboardingStep('profile');
-          // Preencher campos locais se o perfil existir parcialmente
-          if (profile) {
-              setUserName(profile.full_name || '');
-              setUserPhone(applyPhoneMask(profile.phone || ''));
-              setBirthDate(profile.data_nascimento || '');
-              setCnhNumber(applyCNHMask(profile.config?.cnh_numero || ''));
-              setCnhExpiry(profile.config?.cnh_vencimento || '');
-          }
-      } else {
-          setOnboardingStep('selection');
-      }
+      // 5. Ir direto para seleção (sem barreira de perfil)
+      setOnboardingStep('selection');
 
     } catch (error) {
       console.error('Erro ao carregar fazendas:', error);
@@ -116,7 +99,8 @@ export default function FazendaSelectionScreen() {
             type: ACTIONS.SET_FAZENDA, 
             fazendaId: fazenda.id, 
             fazendaNome: fazenda.nome,
-            userRole: membro?.role
+            userRole: membro?.role,
+            config: fazenda.config
         });
         setFazendaSelecionada(fazenda);
         
@@ -262,14 +246,17 @@ export default function FazendaSelectionScreen() {
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nascimento</label>
                             <div className="relative">
-                                <Calendar className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
-                                <input 
+                                <Input 
                                     type="date" 
                                     value={birthDate}
-                                    onChange={e => setBirthDate(e.target.value)}
-                                    placeholder="DD/MM/AAAA"
+                                    onChange={(e: any) => {
+                                        let val = e.target.value;
+                                        if (val.length > 10) val = val.slice(0, 10);
+                                        setBirthDate(val);
+                                    }}
                                     className="w-full pl-12 pr-6 py-4 bg-gray-50 rounded-2xl border-0 focus:ring-2 focus:ring-indigo-500 text-xs font-normal transition-all outline-none uppercase placeholder:text-[10px] placeholder:text-gray-400/70"
                                 />
+                                <Calendar className="absolute left-4 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
                             </div>
                         </div>
 
@@ -306,14 +293,17 @@ export default function FazendaSelectionScreen() {
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Vencimento CNH</label>
                             <div className="relative">
-                                <Calendar className="absolute left-4 top-4 w-5 h-5 text-gray-400" />
-                                <input 
+                                <Input 
                                     type="date" 
                                     value={cnhExpiry}
-                                    onChange={e => setCnhExpiry(e.target.value)}
-                                    placeholder="DD/MM/AAAA"
+                                    onChange={(e: any) => {
+                                        let val = e.target.value;
+                                        if (val.length > 10) val = val.slice(0, 10);
+                                        setCnhExpiry(val);
+                                    }}
                                     className="w-full pl-12 pr-6 py-4 bg-gray-50 rounded-2xl border-0 focus:ring-2 focus:ring-indigo-500 text-xs font-normal transition-all outline-none uppercase placeholder:text-[10px] placeholder:text-gray-400/70"
                                 />
+                                <Calendar className="absolute left-4 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
                             </div>
                         </div>
                     </div>

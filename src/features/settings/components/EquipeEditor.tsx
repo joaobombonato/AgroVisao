@@ -23,6 +23,8 @@ export default function EquipeEditor() {
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [pendingInviteMsg, setPendingInviteMsg] = useState('');
     const [pendingInviteData, setPendingInviteData] = useState<any>(null);
+    const [membroParaRemover, setMembroParaRemover] = useState<any>(null);
+    const [conviteParaCancelar, setConviteParaCancelar] = useState<any>(null);
 
     useEffect(() => {
         if (fazendaId) loadMembros();
@@ -130,35 +132,47 @@ export default function EquipeEditor() {
         }
     };
 
-    const handleRemover = async (id: string, identificador: string) => {
-        if (!window.confirm(`Remover ${identificador} da equipe?`)) return;
+    const handleRemover = (id: string, identificador: string) => {
+        setMembroParaRemover({ id, email: identificador });
+    };
+
+    const confirmarRemocao = async () => {
+        if (!membroParaRemover) return;
         try {
             const { error } = await supabase
                 .from('fazenda_membros')
                 .delete()
-                .eq('id', id);
+                .eq('id', membroParaRemover.id);
             
             if (error) throw error;
             toast.success("Membro removido.");
             loadMembros();
         } catch (err: any) {
             toast.error("Erro ao remover: " + err.message);
+        } finally {
+            setMembroParaRemover(null);
         }
     };
 
-    const handleRemoverConvite = async (id: string, emailDoc: string) => {
-        if (!window.confirm(`Cancelar convite para ${emailDoc}?`)) return;
+    const handleRemoverConvite = (id: string, emailDoc: string) => {
+        setConviteParaCancelar({ id, email: emailDoc });
+    };
+
+    const confirmarCancelamentoConvite = async () => {
+        if (!conviteParaCancelar) return;
         try {
             const { error } = await supabase
                 .from('fazenda_convites')
                 .delete()
-                .eq('id', id);
+                .eq('id', conviteParaCancelar.id);
             
             if (error) throw error;
             toast.success("Convite cancelado.");
             loadMembros();
         } catch (err: any) {
             toast.error("Erro ao cancelar: " + err.message);
+        } finally {
+            setConviteParaCancelar(null);
         }
     };
 
@@ -403,6 +417,26 @@ export default function EquipeEditor() {
                 cancelText="Cancelar"
                 variant="info"
                 icon="warning"
+            />
+
+            <ConfirmModal 
+                isOpen={!!membroParaRemover}
+                onClose={() => setMembroParaRemover(null)}
+                onConfirm={confirmarRemocao}
+                title="Remover Membro"
+                message={`Tem certeza que deseja remover ${membroParaRemover?.email} da equipe? O acesso será revogado imediatamente.`}
+                confirmText="Remover"
+                variant="danger"
+            />
+
+            <ConfirmModal 
+                isOpen={!!conviteParaCancelar}
+                onClose={() => setConviteParaCancelar(null)}
+                onConfirm={confirmarCancelamentoConvite}
+                title="Cancelar Convite"
+                message={`Tem certeza que deseja cancelar o convite para ${conviteParaCancelar?.email}?`}
+                confirmText="Cancelar Convite"
+                variant="danger"
             />
         </div>
     );

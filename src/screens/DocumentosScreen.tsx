@@ -254,7 +254,12 @@ export default function DocumentosScreen() {
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Central de Documentos</h2>
             <div className="flex gap-2">
                 {/* CORREÇÃO DO ERRO DE DIGITAÇÃO AQUI */}
-                <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className="text-xs border rounded p-2" />
+                <Input 
+                    type="date" 
+                    value={filterDate} 
+                    onChange={(e: any) => setFilterDate(e.target.value)} 
+                    className="text-xs border rounded p-2" 
+                />
                 <div className="relative flex-1">
                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                     <input type="text" placeholder="Buscar..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />

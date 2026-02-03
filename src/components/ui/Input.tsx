@@ -4,6 +4,12 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
 
+    // Trava global para campos de data: impede anos com mais de 4 dígitos
+    if (props.type === 'date' && val.length > 10) {
+        val = val.slice(0, 10);
+        e.target.value = val;
+    }
+
     if (mask === 'integer') {
         const clean = val.replace(/\D/g, '');
         e.target.value = clean;
@@ -65,6 +71,18 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
         return;
     }
 
+    if (mask === 'day') {
+        const digits = val.replace(/\D/g, '').slice(0, 2);
+        const num = parseInt(digits);
+        if (num > 31) {
+            e.target.value = '31';
+        } else {
+            e.target.value = digits;
+        }
+        if (onChange) onChange(e);
+        return;
+    }
+
     if (mask === 'phone') {
         const digits = val.replace(/\D/g, '');
         let formatted = '';
@@ -97,16 +115,17 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
 
   return (
     <div className="space-y-1">
-      <p className="text-xs font-medium text-gray-600">{label}</p>
+      {label && <p className="text-xs font-medium text-gray-600">{label}</p>}
       <input 
         {...props} 
         onChange={handleChange}
-        className={`w-full px-3 py-2 border-2 rounded-lg transition-colors ${
+        className={`w-full transition-colors ${
           readOnly 
             ? 'bg-gray-100 text-gray-600 font-semibold border-gray-300 cursor-not-allowed' 
-            : 'border-gray-200 focus:border-blue-500 bg-white'
-        }`} 
+            : (!props.className ? 'border-gray-200 focus:border-blue-500 bg-white' : '')
+        } ${props.className || 'px-3 py-2 border-2 rounded-lg'}`} 
         readOnly={readOnly} 
+        max={props.type === "date" ? "9999-12-31" : props.max}
       />
     </div>
   );

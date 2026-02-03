@@ -72,7 +72,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     value={getVal('energia', 'custoKwh')} 
                     onChange={(e: any) => handleChange('energia', 'custoKwh', e.target.value)}
                     type="text"
-                    numeric={true}
+                    mask="decimal"
                     placeholder="Ex: 0,92"
                 />
                 <Input 
@@ -80,7 +80,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     value={getVal('energia', 'metaConsumo')} 
                     onChange={(e: any) => handleChange('energia', 'metaConsumo', e.target.value)}
                     type="text"
-                    numeric={true}
+                    mask="metric"
                     placeholder="Ex: 500,0"
                 />
                 <Input 
@@ -88,7 +88,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     value={getVal('energia', 'diaLeitura')} 
                     onChange={(e: any) => handleChange('energia', 'diaLeitura', e.target.value)}
                     type="text"
-                    numeric={true}
+                    mask="day"
                     placeholder="Ex: 15"
                 />
             </div>
@@ -103,31 +103,31 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     value={getVal('estoque', 'capacidadeTanque')} 
                     onChange={(e: any) => handleChange('estoque', 'capacidadeTanque', e.target.value)}
                     type="text"
-                    numeric={true}
-                    placeholder="Ex: 15000,0"
+                    mask="metric"
+                    placeholder="Ex: 15.000"
                 />
                 <Input 
                     label="Estoque Mínimo (Alerta)" 
                     value={getVal('estoque', 'estoqueMinimo')} 
                     onChange={(e: any) => handleChange('estoque', 'estoqueMinimo', e.target.value)}
                     type="text"
-                    numeric={true}
-                    placeholder="Ex: 1000,0"
+                    mask="metric"
+                    placeholder="Ex: 1.000"
                 />
                 <Input 
                     label="Ajuste Manual / Saldo Inicial (L)" 
                     value={getVal('estoque', 'ajusteManual')} 
                     onChange={(e: any) => handleChange('estoque', 'ajusteManual', e.target.value)}
                     type="text"
-                    numeric={true}
-                    placeholder="Ex: 500,0"
+                    mask="metric"
+                    placeholder="Ex: 500"
                 />
                 <Input 
                     label="Preço de Referência Diesel (R$)" 
                     value={getVal('financeiro', 'precoDiesel')} 
                     onChange={(e: any) => handleChange('financeiro', 'precoDiesel', e.target.value)}
                     type="text"
-                    numeric={true}
+                    mask="decimal"
                     placeholder="Ex: 6,45"
                 />
             </div>

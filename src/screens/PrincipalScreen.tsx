@@ -35,14 +35,14 @@ export default function PrincipalScreen() {
       </div>
 
       {/* Sistema de Passos de Boas-vindas (Checklist Dinâmico) */}
-      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.financeiro?.precoDiesel) && (
+      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.financeiro?.precoDiesel || !state.userProfile?.full_name || !state.ativos?.locais?.length || !state.ativos?.pontosEnergia?.length) && (
         <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-6 shadow-xl animate-in zoom-in duration-500 overflow-hidden relative">
            {/* Detalhe de luz suave no fundo */}
            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
            
            <div className="flex items-center gap-4 mb-6 relative z-10">
               <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/10 shrink-0">
-                 <Settings className="w-7 h-7 text-white animate-spin" style={{ animationDuration: '4s' }} />
+                 <Settings className="w-7 h-7 text-white animate-pulse" />
               </div>
               <div>
                  <h2 className="text-xl font-black text-white tracking-tight">AgroVisão Onboarding 🚀</h2>
@@ -51,14 +51,31 @@ export default function PrincipalScreen() {
            </div>
 
            <div className="space-y-3 relative z-10">
-              {/* PASSO 1: PERÍMETRO DA FAZENDA */}
+              {/* PASSO 1: PERFIL DO USUÁRIO */}
+              <button 
+                onClick={() => setTela('config:conta')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.userProfile?.full_name ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.userProfile?.full_name ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {state.userProfile?.full_name ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">1</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${state.userProfile?.full_name ? 'text-green-700' : 'text-gray-700'}`}>Perfil do Usuário</p>
+                       <p className="text-[10px] text-gray-400">Complete seu cadastro e assinatura</p>
+                    </div>
+                 </div>
+                 {!state.userProfile?.full_name && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 2: PERÍMETRO DA FAZENDA */}
               <button 
                 onClick={() => setTela('mapa')}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${fazendaSelecionada?.geojson ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${fazendaSelecionada?.geojson ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {fazendaSelecionada?.geojson ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">1</span>}
+                       {fazendaSelecionada?.geojson ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">2</span>}
                     </div>
                     <div className="text-left">
                        <p className={`text-sm font-bold ${fazendaSelecionada?.geojson ? 'text-green-700' : 'text-gray-700'}`}>Perímetro da Fazenda</p>
@@ -66,23 +83,6 @@ export default function PrincipalScreen() {
                     </div>
                  </div>
                  {!fazendaSelecionada?.geojson && <ArrowRight className="w-4 h-4 text-blue-500" />}
-              </button>
-
-              {/* PASSO 2: FROTA DE MAQUINÁRIO */}
-              <button 
-                onClick={() => setTela('config:editor:maquinas')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.maquinas?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
-              >
-                 <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.maquinas?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {ativos?.maquinas?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">2</span>}
-                    </div>
-                    <div className="text-left">
-                       <p className={`text-sm font-bold ${ativos?.maquinas?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Frota de Maquinário</p>
-                       <p className="text-[10px] text-gray-400">Cadastre seus tratores e implementos</p>
-                    </div>
-                 </div>
-                 {!(ativos?.maquinas?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
               {/* PASSO 3: PARÂMETROS GERAIS */}
@@ -102,14 +102,31 @@ export default function PrincipalScreen() {
                  {!ativos?.parametros?.financeiro?.precoDiesel && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
-              {/* PASSO 4: CADASTROS OPERACIONAIS (TALHÕES) */}
+              {/* PASSO 4: FROTA DE MAQUINÁRIO */}
+              <button 
+                onClick={() => setTela('config:editor:maquinas')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.maquinas?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.maquinas?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.maquinas?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">4</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.maquinas?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Frota de Maquinário</p>
+                       <p className="text-[10px] text-gray-400">Cadastre seus tratores e implementos</p>
+                    </div>
+                 </div>
+                 {!(ativos?.maquinas?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 5: CADASTROS OPERACIONAIS (TALHÕES) */}
               <button 
                 onClick={() => setTela('config:editor:talhoes')}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.talhoes?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.talhoes?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {ativos?.talhoes?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">4</span>}
+                       {ativos?.talhoes?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">5</span>}
                     </div>
                     <div className="text-left">
                        <p className={`text-sm font-bold ${ativos?.talhoes?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Cadastros Operacionais</p>
@@ -119,38 +136,55 @@ export default function PrincipalScreen() {
                  {!(ativos?.talhoes?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
 
-              {/* PASSO 5: GESTÃO DE EQUIPE & PERMISSÕES */}
+              {/* PASSO 6: MEDIDORES DE ENERGIA */}
+              <button 
+                onClick={() => setTela('config:editor:locaisEnergia')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.pontosEnergia?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.pontosEnergia?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.pontosEnergia?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">6</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.pontosEnergia?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Medidores de Energia</p>
+                       <p className="text-[10px] text-gray-400">Cadastre os pontos de medição elétrica</p>
+                    </div>
+                 </div>
+                 {!(ativos?.pontosEnergia?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 7: ESTAÇÕES DE CHUVA */}
+              <button 
+                onClick={() => setTela('config:editor:locaisChuva')}
+                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${ativos?.locais?.length > 0 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
+              >
+                 <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${ativos?.locais?.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                       {ativos?.locais?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">7</span>}
+                    </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${ativos?.locais?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Estações de Chuva</p>
+                       <p className="text-[10px] text-gray-400">Cadastre seus pluviômetros</p>
+                    </div>
+                 </div>
+                 {!(ativos?.locais?.length > 0) && <ArrowRight className="w-4 h-4 text-blue-500" />}
+              </button>
+
+              {/* PASSO 8: GESTÃO DE EQUIPE & PERMISSÕES */}
               <button 
                 onClick={() => setTela('config:equipe')}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.dbAssets?.fazenda_membros?.length > 1 ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
               >
                  <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.dbAssets?.fazenda_membros?.length > 1 ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {state.dbAssets?.fazenda_membros?.length > 1 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">5</span>}
+                       {state.dbAssets?.fazenda_membros?.length > 1 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">8</span>}
                     </div>
                     <div className="text-left">
                        <p className={`text-sm font-bold ${state.dbAssets?.fazenda_membros?.length > 1 ? 'text-green-700' : 'text-gray-700'}`}>Gestão de Equipe & Permissões</p>
-                       <p className="text-[10px] text-gray-400">Convide seu time e ajuste o que cada um pode ver</p>
+                       <p className="text-[10px] text-gray-400">Convide seu time e ajuste acessos</p>
                     </div>
                  </div>
                  {!(state.dbAssets?.fazenda_membros?.length > 1) && <ArrowRight className="w-4 h-4 text-blue-500" />}
-              </button>
-
-              {/* PASSO 6: MINHA CONTA */}
-              <button 
-                onClick={() => setTela('config:conta')}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${state.userProfile?.full_name ? 'bg-green-50 border-green-200 opacity-60' : 'bg-white border-gray-100 hover:border-blue-300 shadow-sm'}`}
-              >
-                 <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${state.userProfile?.full_name ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
-                       {state.userProfile?.full_name ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">6</span>}
-                    </div>
-                    <div className="text-left">
-                       <p className={`text-sm font-bold ${state.userProfile?.full_name ? 'text-green-700' : 'text-gray-700'}`}>Perfil do Usuário</p>
-                       <p className="text-[10px] text-gray-400">Complete seu cadastro e assinatura</p>
-                    </div>
-                 </div>
-                 {!state.userProfile?.full_name && <ArrowRight className="w-4 h-4 text-blue-500" />}
               </button>
            </div>
         </div>

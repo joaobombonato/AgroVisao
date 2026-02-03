@@ -74,6 +74,13 @@ Este documento serve como um repositório de inovações e melhorias propostas p
 - **Exportação de Dados:** Adicionar botões na aba "Gráficos" para exportar as tabelas e dados brutos para **PDF e CSV**.
 - **Faturamento & Custos:** Implementar relatórios consolidados de faturamento de refeições e extrato detalhado de abastecimento por centro de custo.
 
+### 14. Otimização da Gestão de Manutenção (Revision Flow)
+
+- **O que é:** Transformar a aba de Manutenção em um módulo operacional completo (similar ao de Recomendações).
+- **Insumos de Manutenção:** Ao realizar uma revisão, o sistema permitirá selecionar produtos do estoque (Óleos, Filtros, Peças) para baixa automática.
+- **Automação de Revisão:** Ao finalizar uma OS de revisão, o sistema atualizará automaticamente o campo "Última Revisão Realizada" (Horímetro/Km) no cadastro da máquina, reiniciando o ciclo de alerta preventivo.
+- **Benefício:** Controle preciso de custos de oficina e eliminação do processo manual de atualizar o horímetro de revisão no cadastro de ativos.
+
 ---
 
 _Documento atualizado em: 02/02/2026_

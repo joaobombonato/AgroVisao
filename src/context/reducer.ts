@@ -60,6 +60,7 @@ export const ACTIONS = {
   SET_FAZENDAS_DISPONIVEIS: 'SET_FAZENDAS_DISPONIVEIS',
   SET_PERMISSIONS: 'SET_PERMISSIONS',
   SET_DADOS: 'SET_DADOS',
+  UPDATE_USER_PROFILE: 'UPDATE_USER_PROFILE',
 };
 
 export function appReducer(state: State, action: any) {
@@ -77,15 +78,17 @@ export function appReducer(state: State, action: any) {
             };
         }
         return { ...state, session: null, userProfile: null, loading: false, fazendaId: null, fazendaNome: 'Fazenda SC (Demo)' };
+    case ACTIONS.UPDATE_USER_PROFILE:
+        return { ...state, userProfile: action.profile };
         
     case ACTIONS.SET_FAZENDA: {
-        const farmConfig = action.config || {};
+        const farmConfig = action.config || (state.ativos || {});
         const params = farmConfig.parametros || ATIVOS_INICIAIS.parametros;
         return { 
             ...state, 
             fazendaId: action.fazendaId, 
             fazendaNome: action.fazendaNome,
-            userRole: action.userRole || null,
+            userRole: action.userRole || state.userRole,
             fazendasDisponiveis: action.fazendas || state.fazendasDisponiveis, 
             ativos: { ...state.ativos, parametros: params },
             loading: false

@@ -64,10 +64,13 @@ function CompraCombustivelForm({ onClose }: any) {
         </div>
         
         <form onSubmit={enviar} className="p-4 space-y-3">
-          <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700 uppercase">Data da Compra (DD/MM/AAAA) <span className="text-red-500">*</span></label>
-             <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-green-500 focus:outline-none" required />
-          </div>
+          <Input 
+             label="Data da Compra (DD/MM/AAAA)" 
+             type="date" 
+             value={form.data} 
+             onChange={(e: any) => setForm({ ...form, data: e.target.value })} 
+             required 
+          />
           
           <div className="space-y-1">
              <Input 
@@ -443,10 +446,13 @@ export default function AbastecimentoScreen() {
         
         <form onSubmit={enviar} className="space-y-4">
           
-          <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700 uppercase">Data do Consumo (DD/MM/AAAA) <span className="text-red-500">*</span></label>
-             <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-red-500 focus:outline-none" required />
-          </div>
+          <Input 
+             label="Data do Consumo (DD/MM/AAAA)" 
+             type="date" 
+             value={form.data} 
+             onChange={(e: any) => setForm({ ...form, data: e.target.value })} 
+             required 
+          />
 
           <SearchableSelect 
               label="Máquina / Veículo" 
@@ -576,7 +582,12 @@ export default function AbastecimentoScreen() {
         <div className="p-3 border-b bg-gray-50">
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Abastecimento</h2>
             <div className="flex gap-2">
-                <input type="date" value={filterData} onChange={e => setFilterData(e.target.value)} className="text-xs border rounded p-2" />
+                <Input 
+                    type="date" 
+                    value={filterData} 
+                    onChange={(e: any) => setFilterData(e.target.value)} 
+                    className="text-xs border rounded p-2" 
+                />
                 <div className="relative flex-1">
                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                     <input type="text" placeholder="Máquina..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />

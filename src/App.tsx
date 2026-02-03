@@ -128,7 +128,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
         <GlobalStyles />
-        <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-50">
+        <header className="bg-white border-b-2 border-gray-200 sticky top-0 z-[1000]">
           <div className="px-4 py-3 flex items-center justify-between max-w-md mx-auto w-full"> 
             <div className="flex items-center gap-2">
                 <div className="w-10 h-10 bg-white border border-gray-100 rounded-lg flex items-center justify-center p-0.5 shadow-sm overflow-hidden">
@@ -203,7 +203,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
              </div>
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-50">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-[1000]">
            <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
               {menusRodape.map(menu => {
                   const isActive = tela === menu.id;

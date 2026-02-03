@@ -128,18 +128,13 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
               
               <form onSubmit={enviar} className="space-y-4">
                 {/* Campo Data Manual */}
-                <div className="space-y-1">
-                   <label className="block text-xs font-bold text-gray-700 uppercase">Data da Coleta (DD/MM/AAAA) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                       <input 
-                          type="date" 
-                          value={form.data_leitura} 
-                          onChange={(e) => setForm({ ...form, data_leitura: e.target.value })} 
-                          className="w-full pl-3 pr-3 py-3 border-2 border-gray-300 rounded-lg text-sm focus:border-cyan-500 focus:outline-none"
-                          required
-                      />
-                  </div>
-                </div>
+                <Input 
+                   label="Data da Coleta (DD/MM/AAAA)" 
+                   type="date" 
+                   value={form.data_leitura} 
+                   onChange={(e: any) => setForm({ ...form, data_leitura: e.target.value })} 
+                   required 
+                />
                 
                 <SearchableSelect 
                     label="Local (Pluviômetro)" 
@@ -177,7 +172,12 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
             <div className="p-3 border-b bg-gray-50">
                 <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Chuvas</h2>
                 <div className="flex gap-2">
-                    <input type="date" value={filterData} onChange={e => setFilterData(e.target.value)} className="text-xs border rounded p-2" />
+                    <Input 
+                        type="date" 
+                        value={filterData} 
+                        onChange={(e: any) => setFilterData(e.target.value)} 
+                        className="text-xs border rounded p-2" 
+                    />
                     <div className="relative flex-1">
                         <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                         <input type="text" placeholder="Buscar Estação..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />

@@ -400,7 +400,7 @@ export default function CreateFazendaScreen() {
 
         {/* Modal de Ajuste de Imagem */}
         {isAdjusting && (
-            <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
                 <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
                     <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
                         <h3 className="font-bold text-gray-800 text-sm tracking-tight">Ajustar Logotipo</h3>
@@ -629,24 +629,24 @@ export default function CreateFazendaScreen() {
                         type="button"
                         onClick={handleCurrentLocation}
                         disabled={geocoding}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 font-bold"
                         title="Usar GPS do aparelho"
                         >
-                            <MapPin className="w-4 h-4" />
-                            GPS
+                            <MapPin className="w-3.5 h-3.5" />
+                            Minha localização atual
                         </button>
                         <button
                         type="button"
                         onClick={handleGeocode}
                         disabled={geocoding}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors disabled:opacity-50 font-bold"
                         >
                         {geocoding ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                            <Search className="w-4 h-4" />
+                            <Search className="w-3.5 h-3.5" />
                         )}
-                        Buscar
+                        Encontre sua propriedade
                         </button>
                     </div>
                   </div>

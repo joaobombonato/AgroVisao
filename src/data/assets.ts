@@ -292,7 +292,7 @@ export const ASSET_DEFINITIONS: any = {
   classes: {
     title: "Classes Agronômicas",
     table: "classes_agronomicas",
-    color: "emerald",
+    color: "green",
     type: "complex",
     label: "Classe",
     placeholder: "Ex: Herbicida, Inseticida",
@@ -334,7 +334,7 @@ export const ASSET_DEFINITIONS: any = {
   operacoesAgricolas: {
     title: "Operações Agrícolas",
     table: "operacoes_agricolas",
-    color: "emerald",
+    color: "green",
     type: "complex",
     label: "Operação",
     placeholder: "Ex: Correção de Solo, Plantio",

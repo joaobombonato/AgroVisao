@@ -3,7 +3,9 @@ import { X, Check, Undo2, Map as MapIcon, Layers, Maximize2, MousePointerClick, 
 import { toast } from 'react-hot-toast';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { calculateAreaHectares, pointsToGeoJSON, circleToPolygon, clipPolygonToBoundary, subtractPolygons } from '../../../utils/mapHelpers';
+import { calculateAreaHectares, pointsToGeoJSON, circleToPolygon, clipPolygonToBoundary, subtractPolygons, clipGeoJSONToBoundary, subtractGeoJSON, multiPartsToGeoJSON } from '../../../utils/mapHelpers';
+import * as turf from '@turf/turf';
+import { ConfirmModal } from '../../../components/ui/Shared';
 
 interface TalhaoMapEditorProps {
     farmGeoJSON: any;
@@ -35,14 +37,22 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
     const markersRef = useRef<L.Marker[]>([]);
     const polylineRef = useRef<L.Polyline | null>(null);
     
-    const [drawPoints, setDrawPoints] = useState<L.LatLng[]>([]);
+    const [allParts, setAllParts] = useState<L.LatLng[][]>([]);
+    const [activePartIndex, setActivePartIndex] = useState<number>(0);
     const [areaHectares, setAreaHectares] = useState<number>(0);
+    const [showClearConfirm, setShowClearConfirm] = useState<boolean>(false);
     const [mapType, setMapType] = useState<'street' | 'satellite'>('satellite');
     const [drawMode, setDrawMode] = useState<'poly' | 'circle'>('poly');
     
     // Refs para evitar stale closures nos handlers do Leaflet
     const drawModeRef = useRef(drawMode);
     useEffect(() => { drawModeRef.current = drawMode; }, [drawMode]);
+    
+    const activePartIndexRef = useRef(activePartIndex);
+    useEffect(() => { activePartIndexRef.current = activePartIndex; }, [activePartIndex]);
+    
+    const allPartsRef = useRef(allParts);
+    useEffect(() => { allPartsRef.current = allParts; }, [allParts]);
 
     // Refs para desenho de círculo
     const circleCenterRef = useRef<L.LatLng | null>(null);
@@ -93,14 +103,22 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
         // Click handler para desenhar
         map.on('click', (e: L.LeafletMouseEvent) => {
             const currentMode = drawModeRef.current;
+            const currentActiveIndex = activePartIndexRef.current;
 
             if (currentMode === 'poly') {
-                setDrawPoints(prev => {
-                    const newPoints = [...prev, e.latlng];
-                    updatePreview(newPoints, map);
-                    addDraggableMarker(e.latlng, newPoints.length - 1, map);
-                    return newPoints;
-                });
+                // CRÍTICO: Usar allPartsRef.current para garantir que temos os pontos mais recentes
+                const currentParts = [...allPartsRef.current];
+                if (!currentParts[currentActiveIndex]) currentParts[currentActiveIndex] = [];
+                currentParts[currentActiveIndex] = [...currentParts[currentActiveIndex], e.latlng];
+                
+                // Atualiza a ref imediatamente
+                allPartsRef.current = currentParts;
+                
+                // Atualiza o estado do React
+                setAllParts(currentParts);
+                
+                updatePreview(currentParts, map);
+                addDraggableMarker(e.latlng, currentActiveIndex, currentParts[currentActiveIndex].length - 1, map);
             } else if (currentMode === 'circle') {
                 if (!circleCenterRef.current) {
                     circleCenterRef.current = e.latlng;
@@ -126,13 +144,20 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                         if (points.length === 0) {
                             toast.error("O pivô está totalmente sobreposto ou fora do limite.");
                         } else {
-                            setDrawPoints(points);
-                            updatePreview(points, map);
-                            // Limpa marcadores antigos (caso de redesenho)
-                            markersRef.current.forEach(m => map.removeLayer(m));
-                            markersRef.current = [];
-                            // Adiciona marcadores para edição manual
-                            points.forEach((p, i) => addDraggableMarker(p, i, map));
+                            setAllParts(prev => {
+                                const updated = [...prev];
+                                updated[activePartIndex] = points;
+                                
+                                // Limpa marcadores antigos e recria para todos
+                                markersRef.current.forEach(m => map.removeLayer(m));
+                                markersRef.current = [];
+                                updated.forEach((pArray, pIdx) => {
+                                    pArray.forEach((p, i) => addDraggableMarker(p, pIdx, i, map));
+                                });
+                                
+                                updatePreview(updated, map);
+                                return updated;
+                            });
                             toast.success("Pivô criado, ajustado ao limite e sem sobreposições!");
                         }
 
@@ -146,16 +171,20 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
         });
 
         map.on('mousemove', (e: L.LeafletMouseEvent) => {
-            if (drawModeRef.current === 'circle' && circleCenterRef.current) {
+            if (drawModeRef.current === 'circle' && circleCenterRef.current && e.latlng) {
                 if (tempCircleRef.current) map.removeLayer(tempCircleRef.current);
-                const radius = circleCenterRef.current.distanceTo(e.latlng);
-                tempCircleRef.current = L.circle(circleCenterRef.current, {
-                    radius,
-                    color: '#22c55e',
-                    weight: 2,
-                    dashArray: '5, 5',
-                    fillOpacity: 0.1
-                }).addTo(map);
+                try {
+                    const radius = circleCenterRef.current.distanceTo(e.latlng);
+                    tempCircleRef.current = L.circle(circleCenterRef.current, {
+                        radius,
+                        color: '#22c55e',
+                        weight: 2,
+                        dashArray: '5, 5',
+                        fillOpacity: 0.1
+                    }).addTo(map);
+                } catch (err) {
+                    console.warn("Erro ao renderizar círculo temporário:", err);
+                }
             }
         });
 
@@ -163,11 +192,44 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
         if (initialGeoJSON) {
             try {
                 const geom = initialGeoJSON.geometry || initialGeoJSON;
+                let parts: L.LatLng[][] = [];
+                
                 if (geom.type === 'Polygon' && geom.coordinates?.[0]) {
-                    const points = geom.coordinates[0].slice(0, -1).map((c: number[]) => L.latLng(c[1], c[0]));
-                    setDrawPoints(points);
-                    updatePreview(points, map);
-                    points.forEach((p: L.LatLng, i: number) => addDraggableMarker(p, i, map));
+                    parts = [geom.coordinates[0].slice(0, -1).map((c: number[]) => L.latLng(c[1], c[0]))];
+                } else if (geom.type === 'MultiPolygon' && geom.coordinates) {
+                    parts = geom.coordinates.map((poly: any) => 
+                        poly[0].slice(0, -1).map((c: number[]) => L.latLng(c[1], c[0]))
+                    );
+                }
+
+                if (parts.length > 0) {
+                    // CRÍTICO: Atualizar as refs IMEDIATAMENTE para evitar stale closures
+                    allPartsRef.current = parts;
+                    activePartIndexRef.current = parts.length - 1;
+                    
+                    setAllParts(parts);
+                    setActivePartIndex(parts.length - 1);
+                    updatePreview(parts, map);
+                    parts.forEach((pArray, pIdx) => {
+                        pArray.forEach((p, i) => addDraggableMarker(p, pIdx, i, map));
+                    });
+                    
+                    // NOVO: Desenha o contorno "fantasma" do original para referência
+                    try {
+                        const geom = initialGeoJSON.geometry || initialGeoJSON;
+                        L.geoJSON(geom, {
+                            style: {
+                                color: '#ff6b00', // Laranja mais vivo
+                                weight: 4,        // Linha mais grossa
+                                fillOpacity: 0.1, // Leve preenchimento para destacar
+                                fillColor: '#ff6b00',
+                                dashArray: '10, 6',
+                                opacity: 1        // Opacidade total
+                            }
+                        }).addTo(map);
+                    } catch (e) {
+                        console.warn("Erro ao desenhar fantasma original:", e);
+                    }
                 }
             } catch (err) {
                 console.error("Erro ao carregar geometria inicial:", err);
@@ -225,49 +287,163 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
         });
     }, [existingTalhoes, initialGeoJSON?.id]);
 
-    const addDraggableMarker = (latlng: L.LatLng, index: number, map: L.Map) => {
+    const addDraggableMarker = (latlng: L.LatLng, partIndex: number, pointIndex: number, map: L.Map) => {
         const marker = L.marker(latlng, { icon: editIcon, draggable: true }).addTo(map);
+        
         marker.on('drag', (e) => {
             const newPos = (e.target as L.Marker).getLatLng();
-            setDrawPoints(prev => {
-                const newPoints = [...prev];
-                newPoints[index] = newPos;
-                updatePreview(newPoints, map);
-                return newPoints;
-            });
+            
+            // CRÍTICO: Usar allPartsRef.current para garantir sincronização
+            const currentParts = [...allPartsRef.current];
+            if (currentParts[partIndex] && currentParts[partIndex][pointIndex]) {
+                const updatedPart = [...currentParts[partIndex]];
+                updatedPart[pointIndex] = newPos;
+                currentParts[partIndex] = updatedPart;
+                
+                // Atualiza ref imediatamente
+                allPartsRef.current = currentParts;
+                
+                setAllParts(currentParts);
+                updatePreview(currentParts, map);
+            }
         });
+
+        // Suporte a exclusão por botão direito OU clique duplo
+        const deleteHandler = (e: any) => {
+            L.DomEvent.stopPropagation(e);
+            if (e.type === 'contextmenu') L.DomEvent.preventDefault(e);
+            
+            // CRÍTICO: Usar refs para garantir sincronização
+            const currentParts = [...allPartsRef.current];
+            if (currentParts[partIndex]) {
+                const updatedPart = currentParts[partIndex].filter((_, i) => i !== pointIndex);
+                if (updatedPart.length === 0) {
+                    currentParts.splice(partIndex, 1);
+                    const currentActiveIdx = activePartIndexRef.current;
+                    if (currentActiveIdx >= currentParts.length) {
+                        const newIdx = Math.max(0, currentParts.length - 1);
+                        activePartIndexRef.current = newIdx;
+                        setActivePartIndex(newIdx);
+                    }
+                } else {
+                    currentParts[partIndex] = updatedPart;
+                }
+            }
+            
+            // Atualiza ref imediatamente
+            allPartsRef.current = currentParts;
+            setAllParts(currentParts);
+            
+            // Limpeza e recriação para manter sincronia de índices
+            markersRef.current.forEach(m => map.removeLayer(m));
+            markersRef.current = [];
+            currentParts.forEach((pArray, pIdx) => {
+                pArray.forEach((ll, i) => addDraggableMarker(ll, pIdx, i, map));
+            });
+            
+            updatePreview(currentParts, map);
+        };
+
+        marker.on('contextmenu', deleteHandler);
+        marker.on('dblclick', deleteHandler);
+
         markersRef.current.push(marker);
     };
 
-    const updatePreview = (points: L.LatLng[], map: L.Map) => {
+    const updatePreview = (parts: L.LatLng[][], map: L.Map) => {
+        if (!map) return;
         if (polylineRef.current) map.removeLayer(polylineRef.current);
         if (talhaoLayerRef.current) map.removeLayer(talhaoLayerRef.current);
 
-        if (points.length > 0) {
-            polylineRef.current = L.polyline(points.length > 2 ? [...points, points[0]] : points, { 
+        const currentGeo = multiPartsToGeoJSON(parts);
+        if (!currentGeo) {
+            setAreaHectares(0);
+            return;
+        }
+
+        try {
+            // 2. Recorta para o limite da fazenda
+            let finalGeo = clipGeoJSONToBoundary(currentGeo, farmGeoJSON);
+            
+            // 3. Subtrai vizinhos (Filtro Robusto de ID)
+            if (finalGeo && existingTalhoes.length > 0) {
+                const normalize = (id: any) => id ? String(id).replace('temp-asset-', '').toLowerCase() : null;
+                const editId = normalize(initialGeoJSON?.id) || normalize(initialGeoJSON?.talhao_id) || 
+                               normalize(initialGeoJSON?.properties?.id) || normalize(initialGeoJSON?.properties?.talhao_id);
+                
+                const others = existingTalhoes.filter(t => {
+                    const tid = normalize(t.id) || normalize(t.talhao_id) || 
+                                normalize(t.properties?.id) || normalize(t.properties?.talhao_id);
+                    if (!editId || !tid) return true;
+                    return tid !== editId;
+                });
+                
+                const subtracted = subtractGeoJSON(finalGeo, others);
+                if (subtracted) finalGeo = subtracted;
+            }
+
+            if (finalGeo) {
+                // @ts-ignore
+                talhaoLayerRef.current = L.geoJSON(finalGeo, {
+                    style: { color: '#22c55e', fillColor: '#22c55e', fillOpacity: 0.3, weight: 3 }
+                }).addTo(map);
+                
+                const netArea = turf.area(finalGeo);
+                const grossArea = turf.area(currentGeo);
+                
+                // SANITY CHECK: Se a área líquida for quase zero (<1%) mas a bruta for grande, 
+                // e estivermos em modo edição, provavelmente é erro de auto-subtração.
+                if (initialGeoJSON && netArea < (grossArea * 0.01) && grossArea > 100) {
+                    setAreaHectares(grossArea / 10000);
+                } else {
+                    setAreaHectares(netArea / 10000);
+                }
+            } else {
+                setAreaHectares(turf.area(currentGeo) / 10000);
+            }
+        } catch (err) {
+            console.warn("Erro no preview:", err);
+            setAreaHectares(turf.area(currentGeo) / 10000);
+        }
+
+        // Desenha a linha auxiliar (traçado bruto) para a parte ativa
+        const currentIdx = activePartIndexRef.current;
+        const activePoints = parts[currentIdx] || [];
+        if (activePoints.length > 0) {
+             polylineRef.current = L.polyline(activePoints.length > 2 ? [...activePoints, activePoints[0]] : activePoints, { 
                 color: '#ffffff', 
                 weight: 2, 
                 dashArray: '5, 5' 
             }).addTo(map);
         }
-        if (points.length >= 3) {
-            talhaoLayerRef.current = L.polygon(points, {
-                color: '#22c55e',
-                fillColor: '#22c55e',
-                fillOpacity: 0.3,
-                weight: 3
-            }).addTo(map);
-            setAreaHectares(calculateAreaHectares(points));
-        } else {
-            setAreaHectares(0);
+
+        // Otimização de marcadores
+        const totalPoints = parts.reduce((acc, p) => acc + p.length, 0);
+        if (totalPoints > 1000) {
+            markersRef.current.forEach(m => map.removeLayer(m));
+            markersRef.current = [];
         }
     };
 
 
     const handleClear = () => {
+        if (allParts.length > 0) {
+            setShowClearConfirm(true);
+        } else {
+            confirmClear();
+        }
+    };
+
+    const confirmClear = () => {
         const map = mapInstanceRef.current;
         if (!map) return;
-        setDrawPoints([]);
+        
+        // Atualiza refs e estado
+        allPartsRef.current = [];
+        activePartIndexRef.current = 0;
+        
+        setAllParts([]);
+        setActivePartIndex(0);
         setAreaHectares(0);
         circleCenterRef.current = null;
         markersRef.current.forEach(m => map.removeLayer(m));
@@ -275,49 +451,122 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
         if (polylineRef.current) map.removeLayer(polylineRef.current);
         if (talhaoLayerRef.current) map.removeLayer(talhaoLayerRef.current);
         if (tempCircleRef.current) map.removeLayer(tempCircleRef.current);
+        setShowClearConfirm(false);
     };
 
     const handleUndo = () => {
         const map = mapInstanceRef.current;
-        if (!map || drawPoints.length === 0) return;
+        if (!map || allParts.length === 0) return;
         
-        const lastMarker = markersRef.current.pop();
-        if (lastMarker) map.removeLayer(lastMarker);
+        const currentPart = allParts[activePartIndex] || [];
+        if (currentPart.length > 0) {
+            const lastMarker = markersRef.current.pop();
+            if (lastMarker) map.removeLayer(lastMarker);
 
-        setDrawPoints(prev => {
-            const newPoints = prev.slice(0, -1);
-            updatePreview(newPoints, map);
-            return newPoints;
-        });
+            setAllParts(prev => {
+                const next = [...prev];
+                next[activePartIndex] = next[activePartIndex].slice(0, -1);
+                if (next[activePartIndex].length === 0) {
+                    next.splice(activePartIndex, 1);
+                    setActivePartIndex(Math.max(0, activePartIndex - 1));
+                }
+                updatePreview(next, map);
+                return next;
+            });
+        }
+    };
+
+    const handleNewPart = () => {
+        if (allParts[activePartIndex]?.length >= 3) {
+            setActivePartIndex(allParts.length);
+            toast.success("Iniciando nova parte do talhão");
+        } else {
+            toast.error("Feche a parte atual antes de iniciar uma nova");
+        }
+    };
+
+    const handleSimplify = () => {
+        const map = mapInstanceRef.current;
+        if (!map || allParts.length === 0) return;
+
+        try {
+            const feat = multiPartsToGeoJSON(allParts);
+            if (!feat) return;
+
+            const simplified = turf.simplify(feat, { tolerance: 0.0001, highQuality: true });
+            
+            let parts: L.LatLng[][] = [];
+            const geom = simplified.geometry;
+            if (geom.type === 'Polygon') {
+                parts = [geom.coordinates[0].slice(0, -1).map((c: any) => L.latLng(c[1], c[0]))];
+            } else if (geom.type === 'MultiPolygon') {
+                parts = geom.coordinates.map((poly: any) => 
+                    poly[0].slice(0, -1).map((c: any) => L.latLng(c[1], c[0]))
+                );
+            }
+
+            if (parts.length > 0) {
+                setAllParts(parts);
+                setActivePartIndex(parts.length - 1);
+                markersRef.current.forEach(m => map.removeLayer(m));
+                markersRef.current = [];
+                parts.forEach((pArray, pIdx) => {
+                    pArray.forEach((p, i) => addDraggableMarker(p, pIdx, i, map));
+                });
+                updatePreview(parts, map);
+                toast.success("Mágica realizada!");
+            }
+        } catch (e) {
+            toast.error("Não foi possível simplificar.");
+        }
     };
 
     const handleSave = () => {
-        if (drawPoints.length < 3) {
-            toast.error("Desenhe pelo menos 3 pontos para formar o talhão.");
+        const validParts = allParts.filter(p => p.length >= 3);
+        if (validParts.length === 0) {
+            toast.error("Desenhe pelo menos 3 pontos para formar uma parte do talhão.");
             return;
         }
 
-        // 1. Garante que o polígono final está dentro da fazenda
-        let finalPoints = clipPolygonToBoundary(drawPoints, farmGeoJSON);
+        // 1. Inicia com GeoJSON de todas as partes combinadas
+        const initialGeo = multiPartsToGeoJSON(allParts);
+        if (!initialGeo) return;
         
-        // 2. Remove áreas sobrepostas com outros talhões
-        if (existingTalhoes.length > 0) {
-            const others = existingTalhoes.filter(t => t.id !== initialGeoJSON?.id);
-            finalPoints = subtractPolygons(finalPoints, others);
+        // 2. Recorta para ficar dentro da fazenda
+        let finalGeo = clipGeoJSONToBoundary(initialGeo, farmGeoJSON);
+        
+        // 3. Remove áreas sobrepostas com outros talhões (Filtro Robusto)
+        if (finalGeo && existingTalhoes.length > 0) {
+            const normalize = (id: any) => id ? String(id).replace('temp-asset-', '').toLowerCase() : null;
+            const editId = normalize(initialGeoJSON?.id) || normalize(initialGeoJSON?.talhao_id) || 
+                           normalize(initialGeoJSON?.properties?.id) || normalize(initialGeoJSON?.properties?.talhao_id);
+            
+            const others = existingTalhoes.filter(t => {
+                const tid = normalize(t.id) || normalize(t.talhao_id) || 
+                            normalize(t.properties?.id) || normalize(t.properties?.talhao_id);
+                if (!editId || !tid) return true;
+                return tid !== editId;
+            });
+            
+            const subtracted = subtractGeoJSON(finalGeo, others);
+            if (subtracted) finalGeo = subtracted;
         }
 
-        if (finalPoints.length < 3) {
+        if (!finalGeo) {
             toast.error("O talhão deve estar dentro do limite e não pode sobrepor outras áreas.");
             return;
         }
 
-        const geojson = pointsToGeoJSON(finalPoints);
-        onSave({ geojson, areaHectares: parseFloat(calculateAreaHectares(finalPoints).toFixed(2)) });
+        // Calcula área total (Hectares) de todas as partes do MultiPolygon resultante
+        const areaM2 = turf.area(finalGeo);
+        const areaHA = parseFloat((areaM2 / 10000).toFixed(2));
+
+        onSave({ geojson: finalGeo, areaHectares: areaHA });
         onClose();
     };
 
     return (
-        <div className="fixed inset-0 z-[200] bg-white flex flex-col animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-[1500] bg-white flex flex-col animate-in fade-in zoom-in-95">
             <style>{`
                 .talhao-label {
                     background: transparent;
@@ -348,7 +597,7 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                 <div className="flex gap-2">
                     <button 
                         onClick={handleUndo}
-                        disabled={drawPoints.length === 0}
+                        disabled={allParts.length === 0}
                         className="p-3 bg-gray-50 text-gray-400 rounded-2xl hover:bg-gray-100 disabled:opacity-30 transition-all active:scale-95"
                     >
                         <Undo2 className="w-5 h-5" />
@@ -367,11 +616,11 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                 <div ref={mapRef} className="w-full h-full z-0" />
                 
                 {/* Floating Controls */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                    <div className="bg-white/90 backdrop-blur-sm p-1.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
+                <div className="absolute top-4 left-4 flex flex-col gap-3 z-10 w-[180px]">
+                    <div className="bg-white/95 backdrop-blur-md p-1.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col gap-1">
                         <button 
                             onClick={() => setDrawMode('poly')}
-                            className={`p-3 rounded-xl flex items-center gap-2 transition-all ${drawMode === 'poly' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`p-3 rounded-xl flex items-center gap-3 transition-all ${drawMode === 'poly' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
                         >
                             <MousePointer2 className="w-5 h-5" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Polígono</span>
@@ -381,11 +630,54 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                                 setDrawMode('circle');
                                 circleCenterRef.current = null;
                             }}
-                            className={`p-3 rounded-xl flex items-center gap-2 transition-all ${drawMode === 'circle' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
+                            className={`p-3 rounded-xl flex items-center gap-3 transition-all ${drawMode === 'circle' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-500 hover:bg-gray-50'}`}
                         >
                             <CircleIcon className="w-5 h-5" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Pivô (Círculo)</span>
                         </button>
+                        
+                        {allParts[activePartIndex]?.length >= 3 && (
+                            <button 
+                                onClick={handleNewPart}
+                                className="p-3 rounded-xl flex items-center gap-3 text-blue-600 hover:bg-blue-50 transition-all border-t border-gray-100"
+                            >
+                                <Sparkles className="w-5 h-5" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-left leading-tight">Nova Parte</span>
+                            </button>
+                        )}
+
+                        {(allParts.length > 1 || (allParts[0]?.length > 10)) && (
+                            <button 
+                                onClick={handleSimplify}
+                                className="p-3 rounded-xl flex items-center gap-3 text-amber-600 hover:bg-amber-50 transition-all border-t border-gray-100"
+                            >
+                                <Wand2 className="w-5 h-5" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Mágica</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Legend Card */}
+                    <div className="bg-white/90 backdrop-blur-sm p-4 rounded-3xl shadow-xl border border-white/50 flex flex-col gap-3">
+                        <h3 className="text-[9px] font-black uppercase text-gray-400 tracking-[0.2em] border-b border-gray-50 pb-2">Legenda</h3>
+                        <div className="flex flex-col gap-2.5">
+                            <div className="flex gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 mt-1 shrink-0" />
+                                <p className="text-[9px] text-gray-500 font-bold leading-tight uppercase tracking-tighter"><b>Polígono:</b> Desenho livre para contornos.</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1 shrink-0" />
+                                <p className="text-[9px] text-gray-500 font-bold leading-tight uppercase tracking-tighter"><b>Nova Parte:</b> Para áreas totalmente separadas, que pertencem ao mesmo talhão.</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" />
+                                <p className="text-[9px] text-gray-500 font-bold leading-tight uppercase tracking-tighter"><b>Mágica:</b> Limpa pontos e melhora o ajuste.</p>
+                            </div>
+                            <div className="pt-1 border-t border-gray-50 flex items-center gap-2">
+                                <MousePointerClick className="w-3 h-3 text-gray-400" />
+                                <p className="text-[8px] text-gray-400 font-black uppercase leading-none">Clique duplo ou Botão direito:<br/>Apagar ponto</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -420,7 +712,7 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                             <div>
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Área Calculada</p>
                                 <p className="text-2xl font-black text-gray-800 tracking-tighter">
-                                    {areaHectares.toFixed(2)} <span className="text-sm text-gray-400 font-bold ml-1">HECTARES</span>
+                                    {(areaHectares || 0).toFixed(2)} <span className="text-sm text-gray-400 font-bold ml-1">HECTARES</span>
                                 </p>
                             </div>
                         </div>
@@ -442,6 +734,18 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                     </div>
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={showClearConfirm}
+                onClose={() => setShowClearConfirm(false)}
+                onConfirm={confirmClear}
+                title="Limpar Desenho"
+                message="Tem certeza que deseja limpar todo o desenho atual? Esta ação não pode ser desfeita e você perderá o progresso do traçado."
+                confirmText="Limpar Tudo"
+                cancelText="Cancelar"
+                variant="danger"
+                icon="warning"
+            />
         </div>
     );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Utensils, Search, ChevronDown, Check, X, Coffee, Users, DollarSign, Calendar, ChevronRight, ChevronUp } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
+import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
 import { U } from '../data/utils';
 import { toast } from 'react-hot-toast';
 
@@ -167,16 +167,13 @@ export default function RefeicoesScreen() {
         
         <form onSubmit={enviar} className="space-y-3">
           
-          <div className="space-y-1">
-             <label className="block text-xs font-bold text-gray-700 uppercase">Data do Lançamento (DD/MM/AAAA) <span className="text-red-500">*</span></label>
-             <input 
-                type="date" 
-                value={form.data_refeicao} 
-                onChange={(e) => setForm({ ...form, data_refeicao: e.target.value })} 
-                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none" 
-                required 
-             />
-          </div>
+          <Input 
+             label="Data do Lançamento (DD/MM/AAAA)" 
+             type="date" 
+             value={form.data_refeicao} 
+             onChange={(e: any) => setForm({ ...form, data_refeicao: e.target.value })} 
+             required 
+          />
 
           <div className="flex gap-10">
               <div className="flex-1">
