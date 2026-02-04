@@ -1,7 +1,7 @@
 import React from 'react';
 import { Utensils, Fuel, Leaf, FolderOpen, Zap, CloudRain, Home, AlertTriangle, Wrench, ShoppingBag, FileText, Settings, Tractor, ArrowRight, MapPinned, Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import WeatherMiniWidget from '../components/weather/WeatherMiniWidget';
+import WeatherMiniWidget from '../features/weather/components/WeatherMiniWidget';
 
 export default function PrincipalScreen() {
   const { state, setTela, nivelCritico, ativos, fazendaSelecionada } = useAppContext();

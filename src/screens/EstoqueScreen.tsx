@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ShoppingBag, Search, AlertTriangle, Plus, ArrowUpRight, ArrowDownRight, Package } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 
 export default function EstoqueScreen() {
   const { state, ativos, dados, setTela } = useAppContext();

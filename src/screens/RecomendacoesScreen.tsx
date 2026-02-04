@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Leaf, Search, ChevronDown, Check, X, Plus, Trash2, Beaker, ScrollText, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================

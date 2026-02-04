@@ -1,11 +1,15 @@
 import React, { useMemo } from 'react';
 import { FileCog, Search, Eye, Bell, CloudRain, Fuel, AlertTriangle, TrendingUp, Calendar, ArrowRight, Droplet, Plus, ArrowLeft, Utensils, Leaf, FolderOpen, Zap, Wrench } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { U } from '../data/utils';
-import { APP_VERSION } from '../data/constants';
+import { U } from '../utils';
+import { APP_VERSION } from '../constants';
+import { useEstoqueDiesel } from '../hooks';
 
 export default function DashboardScreen() { 
   const { os, dados, setTela, dispatch, ativos } = useAppContext();
+
+  // Usar hook centralizado para estoque
+  const { estoqueAtual: estoqueDiesel, nivelCritico: alertaEstoque } = useEstoqueDiesel();
 
   // 1. CÁLCULO DE KPIS (RESUMO)
   const kpis = useMemo(() => {
@@ -15,16 +19,6 @@ export default function DashboardScreen() {
       // Combustível Hoje
       const absHoje = (dados.abastecimentos || []).filter((a:any) => a.data === hoje);
       const litrosHoje = absHoje.reduce((acc:number, item:any) => acc + U.parseDecimal(item.qtd), 0);
-      
-      // Alertas Críticos (Estoque Diesel Baixo) - Puxando da configuração da fazenda via ativos.parametros
-      const paramsEstoque = ativos.parametros?.estoque || {};
-      const estoqueInicial = paramsEstoque.ajusteManual !== '' ? U.parseDecimal(paramsEstoque.ajusteManual) : 0;
-      const estoqueMinimo = paramsEstoque.estoqueMinimo !== '' ? U.parseDecimal(paramsEstoque.estoqueMinimo) : 0;
-
-      const estoqueDiesel = estoqueInicial 
-                          + (dados.compras || []).reduce((s:number, i:any) => s + U.parseDecimal(i.litros), 0)
-                          - (dados.abastecimentos || []).reduce((s:number, i:any) => s + U.parseDecimal(i.qtd), 0);
-      const alertaEstoque = estoqueDiesel <= estoqueMinimo;
 
       // Refeições Hoje
       const refeicoesHoje = (dados.refeicoes || []).filter((r:any) => r.data === hoje).length;

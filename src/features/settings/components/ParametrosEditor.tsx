@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Save, Sliders, Zap, Fuel, AlertTriangle, Home } from 'lucide-react';
 import { PageHeader, Input } from '../../../components/ui/Shared';
-import { U } from '../../../data/utils';
+import { U } from '../../../utils';
 
 export default function ParametrosEditor({ currentParams, onSave, onBack }: any) {
     // Inicialização Defensiva do Estado para evitar crash de undefined

@@ -9,38 +9,14 @@ export interface BaseRecord {
     created_at?: string;
 }
 
-// --- ATIVOS ---
-export interface Maquina extends BaseRecord {
-    nome: string;
-}
+// --- TIPOS IMPORTADOS DAS FEATURES ---
+import { Maquina, Talhao, CentroCusto, Produto } from '../features/assets/types';
+import { Abastecimento } from '../features/fuel/types';
+import { Chuva } from '../features/weather/types';
 
-export interface Talhao extends BaseRecord {
-    nome: string;
-    area_ha?: number;
-}
+export type { Maquina, Talhao, CentroCusto, Produto, Abastecimento, Chuva };
 
-export interface CentroCusto extends BaseRecord {
-    nome: string;
-}
-
-export interface Produto extends BaseRecord {
-    nome: string;
-    categoria?: string;
-    unidade?: string;
-}
-
-// --- OPERACIONAIS ---
-export interface Abastecimento extends BaseRecord {
-    data: string;
-    maquina: string;
-    combustivel: string | 'Diesel S10' | 'Diesel S500' | 'Arla 32';
-    quantidade: number;
-    horimetro: number;
-    operador?: string;
-    talhao?: string;
-    obs?: string;
-}
-
+// --- OPERACIONAIS GLOBAIS / PENDENTES DE FEATURE ---
 export interface Refeicao extends BaseRecord {
     data: string;
     tipo: string;
@@ -49,12 +25,6 @@ export interface Refeicao extends BaseRecord {
     valorUnitario: number;
     valorTotal: number;
     obs?: string;
-}
-
-export interface Chuva extends BaseRecord {
-    data: string;
-    local: string; // Estação (locais_monitoramento)
-    milimetros: number;
 }
 
 export interface Energia extends BaseRecord {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Check, X as XClose } from 'lucide-react';
-import { U } from '../../data/utils';
+import { U } from '../../utils';
 
 export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
     if (!os) return null;

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ChartNoAxesCombined, Fuel, CloudRain, FileCog, Calendar, Filter, ArrowLeft, Plus, Save, Trash2, Download, BarChart3, LineChart, PieChart, X, Sparkles, Brain, TrendingUp, Zap } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
-import { U } from '../data/utils';
+import { U } from '../utils';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
 

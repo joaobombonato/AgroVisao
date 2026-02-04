@@ -1,4 +1,4 @@
-import { U } from '../data/utils';
+import { U } from '../utils';
 
 // ==========================================
 // SERVIÇO DE SINCRONIZAÇÃO (OFFLINE QUEUE)

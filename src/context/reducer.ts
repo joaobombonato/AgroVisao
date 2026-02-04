@@ -1,6 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import { dbService, syncService } from '../services'; 
-import { DADOS_INICIAIS, ATIVOS_INICIAIS } from '../data/constants';
+import { DADOS_INICIAIS, ATIVOS_INICIAIS } from '../constants';
 
 // Tipos básicos
 export type State = {

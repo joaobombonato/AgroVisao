@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Save, RotateCcw, Monitor, Zap, Check, X, Info, ChevronDown, ChevronRight, FileCog, ChartNoAxesCombined, Settings, Bell, Utensils, Fuel, Leaf, Wrench, ShoppingBag, FolderOpen, CloudRain, MapPinned, FileText } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
-import { DEFAULT_PERMISSIONS } from '../../../data/constants';
+import { DEFAULT_PERMISSIONS } from '../../../constants';
 import { toast } from 'react-hot-toast';
 import { ConfirmModal } from '../../../components/ui/Shared';
 

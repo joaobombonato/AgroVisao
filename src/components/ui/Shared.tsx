@@ -3,9 +3,10 @@
 
 export * from './GlobalStyles';
 export * from './PageHeader';
-export * from './Input'; // Exporta Input e Select
+export * from './Input';
+export * from './Select';
 export * from './SearchableSelect';
 export * from './ConfirmModal';
 export * from './OSDetailsModal';
 export * from './TableWithShowMore';
-export * from '../maps/TalhaoThumbnail';
+export * from '../../features/map/components/TalhaoThumbnail';

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Bell, Search, Eye, Filter, MessageCircle } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 
 // BUILD: 1.0.2
 

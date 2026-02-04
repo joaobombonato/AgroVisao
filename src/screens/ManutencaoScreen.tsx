@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Wrench, Search, AlertTriangle, CheckCircle, Clock, Eye } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 
 export default function ManutencaoScreen() {
   const { ativos, dados, setTela } = useAppContext();

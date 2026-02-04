@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================

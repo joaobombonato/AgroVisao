@@ -3,30 +3,30 @@ import { Toaster, toast } from 'react-hot-toast';
 import { Home, Settings, FileCog, ChartNoAxesCombined, Loader2, Bell, CloudRain, Tractor, LogOut, Check } from 'lucide-react';
 import { useAppContext, ACTIONS, AppProvider } from './context/AppContext'; 
 import { GlobalStyles, ConfirmModal, OSDetailsModal } from './components/ui/Shared';
-import { APP_VERSION } from './data/constants';
+import { APP_VERSION } from './constants';
 import ReloadPrompt from './components/ReloadPrompt';
 
 // -- [Lazy Imports] --
 const DashboardScreen = React.lazy(() => import('./screens/DashboardScreen'));
 const RefeicoesScreen = React.lazy(() => import('./screens/RefeicoesScreen'));
-const AbastecimentoScreen = React.lazy(() => import('./screens/AbastecimentoScreen'));
+const AbastecimentoScreen = React.lazy(() => import('./features/fuel/screens/AbastecimentoScreen'));
 const RecomendacoesScreen = React.lazy(() => import('./screens/RecomendacoesScreen'));
 const DocumentosScreen = React.lazy(() => import('./screens/DocumentosScreen'));
 const EnergiaScreen = React.lazy(() => import('./screens/EnergiaScreen'));
-const ChuvasScreen = React.lazy(() => import('./screens/ChuvasScreen'));
+const ChuvasScreen = React.lazy(() => import('./features/weather/screens/ChuvasScreen'));
 const OsScreen = React.lazy(() => import('./screens/OsScreen'));
 const GraficosScreen = React.lazy(() => import('./screens/GraficosScreen'));
-const ConfiguracoesScreen = React.lazy(() => import('./screens/ConfiguracoesScreen'));
+const ConfiguracoesScreen = React.lazy(() => import('./features/settings/screens/ConfiguracoesScreen'));
 const ManutencaoScreen = React.lazy(() => import('./screens/ManutencaoScreen'));
 const EstoqueScreen = React.lazy(() => import('./screens/EstoqueScreen'));
 const RelatoriosScreen = React.lazy(() => import('./screens/RelatoriosScreen'));
 const PrincipalScreen = React.lazy(() => import('./screens/PrincipalScreen'));
-const MapScreen = React.lazy(() => import('./screens/MapScreen'));
+const MapScreen = React.lazy(() => import('./features/map/screens/MapScreen'));
 
 // Telas de Auth e Onboarding
-const AuthScreen = React.lazy(() => import('./screens/AuthScreen'));
-const FazendaSelectionScreen = React.lazy(() => import('./screens/FazendaSelectionScreen'));
-const CreateFazendaScreen = React.lazy(() => import('./screens/CreateFazendaScreen'));
+const AuthScreen = React.lazy(() => import('./features/auth/screens/AuthScreen'));
+const FazendaSelectionScreen = React.lazy(() => import('./features/farm/screens/FazendaSelectionScreen'));
+const CreateFazendaScreen = React.lazy(() => import('./features/farm/screens/CreateFazendaScreen'));
 
 // -- [RestrictedScreen: Quando usuário não tem permissão] --
 const RestrictedScreen = ({ onBackHome }: { onBackHome: () => void }) => (

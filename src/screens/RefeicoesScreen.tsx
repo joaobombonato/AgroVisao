@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Utensils, Search, ChevronDown, Check, X, Coffee, Users, DollarSign, Calendar, ChevronRight, ChevronUp } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
-import { U } from '../data/utils';
+import { U } from '../utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
@@ -168,7 +168,7 @@ export default function RefeicoesScreen() {
         <form onSubmit={enviar} className="space-y-3">
           
           <Input 
-             label="Data do Lançamento (DD/MM/AAAA)" 
+             label="Data do Lançamento" 
              type="date" 
              value={form.data_refeicao} 
              onChange={(e: any) => setForm({ ...form, data_refeicao: e.target.value })} 
