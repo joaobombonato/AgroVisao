@@ -47,7 +47,7 @@ export function ImageAdjustModal({
                 
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
                     <div 
-                        className="w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none"
+                        className="w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none flex items-center justify-center"
                         onMouseDown={onStartDrag}
                         onMouseMove={onMoveDrag}
                         onMouseUp={onEndDrag}
