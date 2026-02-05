@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Satellite, Maximize2, Layers, Loader2, Plus, Check, X, Undo2, ChevronDown, MousePointerClick, Locate, Scan, Download, CloudRain, AlertTriangle, BookOpen, Droplets, Calendar, ChevronRight } from 'lucide-react';
+import { Satellite, Maximize2, Layers, Loader2, Plus, Check, X, Undo2, MousePointerClick, Locate, Scan, Download, CloudRain, AlertTriangle, BookOpen, Droplets, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { toast } from 'react-hot-toast';
 import L from 'leaflet';
@@ -19,6 +19,8 @@ import { MapLegend } from '../components/SatelliteLegend';
 import { SatelliteCalendar } from '../components/SatelliteCalendar';
 import { MapHeader } from '../components/MapHeader';
 import { TelemetryCard } from '../components/TelemetryCard';
+import { AnalysisControlBar } from '../components/AnalysisControlBar';
+import { MapInfoCards } from '../components/MapInfoCards';
 import { AgronomicIntelligenceCard } from '../../../components/agronomic/AgronomicIntelligenceCard';
 import { fetchAgronomicData, type AgronomicResult } from '../../../services/agronomicService';
 
@@ -540,64 +542,15 @@ export default function MapScreen() {
 
             {activeTab === 'analysis' && (
         <div className="space-y-3 animate-in slide-in-from-top-2">
-            <div className="grid grid-cols-2 gap-3">
-                {/* 1. AREA CARD */}
-                <div className="bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center px-3">
-                    <div className="flex items-center gap-1 text-green-600 mb-0.5">
-                        <Maximize2 className="w-2.5 h-2.5" />
-                        <span className="text-[7.5px] font-black uppercase tracking-widest">Área Monitorada</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <span className="text-[13px] font-black text-gray-800">
-                            {areaHectares ? areaHectares.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '--'}
-                        </span>
-                        <span className="text-[8px] font-black text-green-600/70 uppercase">ha</span>
-                    </div>
-                </div>
-
-                {/* 2. DATE SELECTOR CARD */}
-                <div 
-                onClick={() => {
-                    if (availableImages.length > 0) setShowCalendar(true);
-                    else if (!loadingImages) loadDates();
-                }}
-                className={`bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center relative transition-all active:scale-95 px-3 cursor-pointer ${availableImages.length > 0 ? 'hover:bg-green-50/50 hover:border-green-100' : 'hover:bg-orange-50/50'}`}
-                >
-                {availableImages.length > 0 ? (
-                    <>
-                    <div className="flex flex-col items-center justify-center w-full">
-                         <div className="flex items-center gap-1 text-green-600 mb-0.5">
-                            <Calendar className="w-2.5 h-2.5" />
-                            <span className="text-[7.5px] font-black uppercase tracking-widest">Histórico</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[13px] font-black text-gray-800">
-                                {availableImages[selectedImageIndex]?.date ? 
-                                availableImages[selectedImageIndex].date.split('-').reverse().join('/') : 
-                                '--/--/----'}
-                            </span>
-                            <div className="bg-green-50 rounded-full p-0.5">
-                                <ChevronDown className="w-2.5 h-2.5 text-green-700" />
-                            </div>
-                        </div>
-                    </div>
-                    {loadingImages && <div className="absolute top-1 right-1"><Loader2 className="w-2 h-2 animate-spin text-green-500" /></div>}
-                    </>
-                ) : (
-                    <div className="flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-1 text-gray-400 mb-0.5">
-                            {loadingImages ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Calendar className="w-2.5 h-2.5" />}
-                            <span className="text-[7.5px] font-black uppercase tracking-widest">{loadingImages ? 'Buscando...' : 'Sem Datas'}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold text-gray-500">{loadingImages ? 'Aguarde' : (dateError ? 'Tentar Novamente' : 'Vazio')}</span>
-                            {!loadingImages && dateError && <Undo2 className="w-2.5 h-2.5 text-orange-500" />}
-                        </div>
-                    </div>
-                )}
-                </div>
-            </div>
-
+            <MapInfoCards
+                areaHectares={areaHectares}
+                availableImages={availableImages}
+                selectedImageIndex={selectedImageIndex}
+                loadingImages={loadingImages}
+                dateError={dateError}
+                onOpenCalendar={() => setShowCalendar(true)}
+                onLoadDates={loadDates}
+            />
         </div>
       )}
  
@@ -680,30 +633,10 @@ export default function MapScreen() {
                         </div>
                      </div>
                 ) : (
-                    <div className="flex flex-col w-full gap-1.5">
-                        <div className="flex items-center justify-between px-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em]">Índices Visuais</span>
-                            <div className="h-px flex-1 bg-gray-100 ml-3 hidden sm:block" />
-                        </div>
-                        <div className="flex bg-gray-100 rounded-xl p-0.5 gap-0.5 overflow-x-auto no-scrollbar">
-                            {[
-                                { id: 'savi', label: 'SAVI' },
-                                { id: 'ndvi', label: 'NDVI' },
-                                { id: 'evi', label: 'EVI' },
-                                { id: 'ndre', label: 'NDRE' },
-                                { id: 'ndmi', label: 'NDMI' },
-                                { id: 'truecolor', label: 'REAL' }
-                            ].map(idx => (
-                                <button 
-                                  key={idx.id} 
-                                  onClick={() => setOverlayType(idx.id as OverlayType)} 
-                                  className={`flex-1 min-w-[48px] px-1 py-1.5 text-[9px] font-black rounded-lg transition-all whitespace-nowrap ${overlayType === idx.id ? 'bg-green-600 shadow-sm text-white' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                {idx.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    <AnalysisControlBar 
+                        overlayType={overlayType} 
+                        setOverlayType={setOverlayType} 
+                    />
                 )}
             </div>
         </div>
