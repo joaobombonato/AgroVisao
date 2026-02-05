@@ -99,7 +99,7 @@ export default function ConfiguracoesScreen({ initialTab }: { initialTab?: strin
 
     // 1. TELA DE EDITOR DE ATIVOS
     if (view === 'editor' && activeAsset) {
-        return <AssetListEditor assetKey={activeAsset} setView={() => setView('listas')} />;
+        return <AssetListEditor assetKey={activeAsset} onBack={() => setView('listas')} />;
     }
 
     // Auxiliar para garantir que o Tailwind gere as classes de hover para todas as cores
