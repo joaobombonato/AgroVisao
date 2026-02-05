@@ -1,22 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ChartNoAxesCombined, Fuel, CloudRain, FileCog, Calendar, Filter, ArrowLeft, Plus, Save, Trash2, Download, BarChart3, LineChart, PieChart, X, Sparkles, Brain, TrendingUp, Zap } from 'lucide-react';
-import { useAppContext, ACTIONS } from '../context/AppContext';
+import { ChartNoAxesCombined, Fuel, FileCog, ArrowLeft, Plus, Download, Trash2, BarChart3, Sparkles, Brain, Zap } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 import { U } from '../utils';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
-
-// Componente Genérico de Card
-const ChartCard = ({ title, icon: Icon, color, children }: any) => (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-        <div className="flex items-center gap-2 mb-4 border-b border-gray-100 pb-2">
-            <div className={`p-2 rounded-lg ${color}`}>
-                <Icon className="w-5 h-5" />
-            </div>
-            <h3 className="font-bold text-gray-700">{title}</h3>
-        </div>
-        {children}
-    </div>
-);
+import { ChartCard } from '../components/ui/ChartCard';
+import { BIEditorModal } from '../components/ui/BIEditorModal';
 
 export default function GraficosScreen() {
   const { dados, os, setTela, session } = useAppContext();
@@ -94,28 +83,7 @@ export default function GraficosScreen() {
       return { data: sorted, max: maxVal };
   }, [dados?.abastecimentos]);
 
-  // 2. DADOS: CHUVAS (Últimos 7 dias)
-  const chartChuvas = useMemo(() => {
-      const today = new Date();
-      const last7Days = Array.from({length: 7}, (_, i) => {
-          const d = new Date(today);
-          d.setDate(d.getDate() - (6 - i));
-          return d.toISOString().split('T')[0];
-      });
-
-      const data = last7Days.map(date => {
-          const totalDia = (dados?.chuvas || [])
-              .filter((c:any) => c.data === date)
-              .reduce((acc:number, item:any) => acc + U.parseDecimal(item.milimetros), 0);
-          return { date, val: totalDia, label: U.formatDate(date).slice(0,5) };
-      });
-
-      const maxVal = Math.max(...data.map(d => d.val), 10); 
-
-      return { data, max: maxVal };
-  }, [dados?.chuvas]);
-
-  // 3. DADOS: STATUS OS (DONUT)
+  // 2. DADOS: STATUS OS (DONUT)
   const chartOS = useMemo(() => {
      const safeOS = os || [];
      const total = safeOS.length;
@@ -133,12 +101,43 @@ export default function GraficosScreen() {
      return { pend, conf, canc, total, pPend, pConf, pCanc, C };
   }, [os]);
 
+  // Dados Diesel Comparação
+  const dieselComparison = useMemo(() => {
+      const hoje = new Date();
+      const mesAtual = hoje.getMonth();
+      const mesPassado = mesAtual === 0 ? 11 : mesAtual - 1;
+      
+      const dieselAtual = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesAtual).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
+      const dieselAnterior = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesPassado).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
+      
+      const maxVal = Math.max(dieselAtual, dieselAnterior, 1);
+      const diferenca = dieselAnterior > 0 ? ((dieselAtual - dieselAnterior) / dieselAnterior) * 100 : 0;
+
+      return { dieselAtual, dieselAnterior, maxVal, diferenca };
+  }, [dados?.abastecimentos]);
+
+  // Dados Energia
+  const energiaData = useMemo(() => {
+      const meta = 1500;
+      const gastoAtual = (dados?.energia || [])
+        .filter((e:any) => new Date(e.data).getMonth() === new Date().getMonth())
+        .reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.valorTotal || 0), 0);
+      
+      const percent = Math.min((gastoAtual / meta) * 100, 100);
+      const isOver = gastoAtual > meta;
+
+      return { meta, gastoAtual, percent, isOver };
+  }, [dados?.energia]);
+
   return (
     <div className="space-y-6 p-4 pb-24 animate-in fade-in duration-500">
       <div className="flex justify-between items-center mb-6 pb-2 border-b">
          <div>
              <ChartNoAxesCombined className="w-7 h-7 text-purple-600" />
-             <h1 className="text-xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Gráficos</h1>
+             <h1 className="text-xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent flex items-center gap-2">
+                 Gráficos
+                 <span className="text-[9px] font-black bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Beta</span>
+             </h1>
          </div>
          <div className="flex items-center gap-2">
             <button 
@@ -169,82 +168,56 @@ export default function GraficosScreen() {
          </div>
       </div>
 
-      {/* 2. KPIS OPERACIONAIS AVANÇADOS (FASE 5) */}
+      {/* KPIS OPERACIONAIS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <ChartCard title="Consumo Diesel (Este Mês vs Anterior)" icon={Fuel} color="bg-red-100 text-red-600">
-              {(() => {
-                  const hoje = new Date();
-                  const mesAtual = hoje.getMonth();
-                  const mesPassado = mesAtual === 0 ? 11 : mesAtual - 1;
-                  
-                  const dieselAtual = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesAtual).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
-                  const dieselAnterior = (dados?.abastecimentos || []).filter((a:any) => new Date(a.data).getMonth() === mesPassado).reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.qtd), 0);
-                  
-                  const maxVal = Math.max(dieselAtual, dieselAnterior, 1);
-                  const diferenca = dieselAnterior > 0 ? ((dieselAtual - dieselAnterior) / dieselAnterior) * 100 : 0;
-
-                  return (
-                      <div className="space-y-4">
-                          <div className="flex justify-around items-end h-24 gap-4">
-                              <div className="flex flex-col items-center flex-1">
-                                  <div className="bg-gray-200 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselAnterior / maxVal) * 100}%` }} />
-                                  <p className="text-[9px] font-bold mt-1 text-gray-400">ANTERIOR</p>
-                              </div>
-                              <div className="flex flex-col items-center flex-1">
-                                  <div className="bg-red-500 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselAtual / maxVal) * 100}%` }} />
-                                  <p className="text-[9px] font-bold mt-1 text-red-600">ATUAL</p>
-                              </div>
-                          </div>
-                          <div className="flex justify-between items-center text-xs border-t pt-2">
-                              <div>
-                                  <p className="text-gray-400 font-bold uppercase text-[9px]">Status</p>
-                                  <p className={`font-black ${diferenca > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                                      {diferenca > 0 ? '+' : ''}{diferenca.toFixed(1)}% vs Mês Passado
-                                  </p>
-                              </div>
-                              <div className="text-right">
-                                  <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
-                                  <p className="font-black text-gray-800">{U.formatInt(dieselAtual)} L</p>
-                              </div>
-                          </div>
+              <div className="space-y-4">
+                  <div className="flex justify-around items-end h-24 gap-4">
+                      <div className="flex flex-col items-center flex-1">
+                          <div className="bg-gray-200 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselComparison.dieselAnterior / dieselComparison.maxVal) * 100}%` }} />
+                          <p className="text-[9px] font-bold mt-1 text-gray-400">ANTERIOR</p>
                       </div>
-                  );
-              })()}
+                      <div className="flex flex-col items-center flex-1">
+                          <div className="bg-red-500 w-full rounded-t-lg transition-all duration-1000" style={{ height: `${(dieselComparison.dieselAtual / dieselComparison.maxVal) * 100}%` }} />
+                          <p className="text-[9px] font-bold mt-1 text-red-600">ATUAL</p>
+                      </div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs border-t pt-2">
+                      <div>
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Status</p>
+                          <p className={`font-black ${dieselComparison.diferenca > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                              {dieselComparison.diferenca > 0 ? '+' : ''}{dieselComparison.diferenca.toFixed(1)}% vs Mês Passado
+                          </p>
+                      </div>
+                      <div className="text-right">
+                          <p className="text-gray-400 font-bold uppercase text-[9px]">Total</p>
+                          <p className="font-black text-gray-800">{U.formatInt(dieselComparison.dieselAtual)} L</p>
+                      </div>
+                  </div>
+              </div>
           </ChartCard>
 
           <ChartCard title="Gasto Energia vs Meta R$" icon={Zap} color="bg-yellow-100 text-yellow-600">
-              {(() => {
-                  const meta = 1500; // Meta fixa ou vinda de ativos.parametros
-                  const gastoAtual = (dados?.energia || [])
-                    .filter((e:any) => new Date(e.data).getMonth() === new Date().getMonth())
-                    .reduce((acc:number, cur:any) => acc + U.parseDecimal(cur.valorTotal || 0), 0);
-                  
-                  const percent = Math.min((gastoAtual / meta) * 100, 100);
-                  const isOver = gastoAtual > meta;
-
-                  return (
-                      <div className="space-y-6">
-                          <div className="relative pt-2">
-                                <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1 uppercase">
-                                    <span>Gasto: R$ {U.formatValue(gastoAtual)}</span>
-                                    <span>Meta: R$ {U.formatValue(meta)}</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden border">
-                                    <div className={`h-full transition-all duration-1000 ${isOver ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${percent}%` }} />
-                                </div>
-                          </div>
-                          <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-3">
-                              <Brain className={`w-5 h-5 ${isOver ? 'text-red-500' : 'text-indigo-600'}`}/>
-                              <div>
-                                  <p className="text-[10px] font-bold text-gray-400 uppercase">Input AgroIA</p>
-                                  <p className="text-[11px] text-gray-700 leading-tight">
-                                      {isOver ? 'Gasto excedido! Avalie desligar pivôs em horários de pico.' : 'Consumo dentro da meta planejada para este mês.'}
-                                  </p>
-                              </div>
-                          </div>
+              <div className="space-y-6">
+                  <div className="relative pt-2">
+                        <div className="flex justify-between text-[10px] font-bold text-gray-400 mb-1 uppercase">
+                            <span>Gasto: R$ {U.formatValue(energiaData.gastoAtual)}</span>
+                            <span>Meta: R$ {U.formatValue(energiaData.meta)}</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-4 overflow-hidden border">
+                            <div className={`h-full transition-all duration-1000 ${energiaData.isOver ? 'bg-red-500' : 'bg-yellow-400'}`} style={{ width: `${energiaData.percent}%` }} />
+                        </div>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 flex items-center gap-3">
+                      <Brain className={`w-5 h-5 ${energiaData.isOver ? 'text-red-500' : 'text-indigo-600'}`}/>
+                      <div>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase">Input AgroIA</p>
+                          <p className="text-[11px] text-gray-700 leading-tight">
+                              {energiaData.isOver ? 'Gasto excedido! Avalie desligar pivôs em horários de pico.' : 'Consumo dentro da meta planejada para este mês.'}
+                          </p>
                       </div>
-                  );
-              })()}
+                  </div>
+              </div>
           </ChartCard>
       </div>
 
@@ -349,56 +322,13 @@ export default function GraficosScreen() {
       </div>
 
       {/* MODAL EDITOR DE BI */}
-      {showEditor && (
-          <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-              <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl animate-in zoom-in duration-200">
-                  <div className="p-4 border-b flex justify-between items-center bg-purple-50 rounded-t-2xl">
-                      <h3 className="font-black text-purple-800 flex items-center gap-2"><Plus className="w-5 h-5"/> Criar Indicador BI</h3>
-                      <button onClick={() => setShowEditor(false)} className="text-purple-800"><X className="w-5 h-5"/></button>
-                  </div>
-                  <div className="p-5 space-y-4">
-                      <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">Nome do Indicador</label>
-                          <input type="text" className="w-full border-2 p-2 rounded-lg focus:border-purple-500 outline-none font-bold" placeholder="Ex: Gasto por Máquina" value={newChart.name} onChange={e => setNewChart({...newChart, name: e.target.value})} />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase">Eixo X (Base)</label>
-                            <select className="w-full border-2 p-2 rounded-lg text-sm font-bold bg-gray-50" value={newChart.eixoX} onChange={e => setNewChart({...newChart, eixoX: e.target.value})}>
-                                <option>Data</option>
-                                <option>Máquina</option>
-                                <option>Centro de Custo</option>
-                            </select>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase">Eixo Y (Valor)</label>
-                            <select className="w-full border-2 p-2 rounded-lg text-sm font-bold bg-gray-50" value={newChart.eixoY} onChange={e => setNewChart({...newChart, eixoY: e.target.value})}>
-                                <option>Valor R$</option>
-                                <option>Litros</option>
-                                <option>Consumo (kwh/L)</option>
-                            </select>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase">Tipo de Visualização</label>
-                          <div className="grid grid-cols-3 gap-2">
-                              {['Barra', 'Linha', 'Pizza'].map(t => (
-                                  <button key={t} onClick={() => setNewChart({...newChart, tipo: t})} className={`py-2 rounded-lg border-2 text-[10px] font-bold flex flex-col items-center gap-1 transition-all ${newChart.tipo === t ? 'border-purple-600 bg-purple-50 text-purple-600' : 'border-gray-100 text-gray-400'}`}>
-                                      {t === 'Barra' && <BarChart3 className="w-4 h-4"/>}
-                                      {t === 'Linha' && <LineChart className="w-4 h-4"/>}
-                                      {t === 'Pizza' && <PieChart className="w-4 h-4"/>}
-                                      {t}
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-                      <button onClick={saveChart} className="w-full bg-purple-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all">
-                          <Save className="w-5 h-5"/> Salvar no Dashboard
-                      </button>
-                  </div>
-              </div>
-          </div>
-      )}
+      <BIEditorModal 
+          isOpen={showEditor}
+          onClose={() => setShowEditor(false)}
+          onSave={saveChart}
+          newChart={newChart}
+          setNewChart={setNewChart}
+      />
 
       <div className="text-center pt-8 border-t-2 border-gray-100">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Plataforma AgroBI v1.0</p>

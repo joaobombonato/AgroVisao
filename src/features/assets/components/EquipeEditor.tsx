@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Shield, X, Loader2, UserCheck, Clock, Share2, MessageCircle, Crown, Info, UserPlus } from 'lucide-react';
+import { Mail, Shield, Loader2, UserCheck, Crown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppContext } from '../../../context/AppContext';
 import { supabase } from '../../../supabaseClient';
 import { ConfirmModal } from '../../../components/ui/Shared';
+import { MemberCard } from './MemberCard';
+import { PendingInviteCard } from './PendingInviteCard';
+import { InviteFooter } from './InviteFooter';
 
 const ROLES = [
     { name: 'Operador', desc: 'Apenas lançamentos básicos do dia a dia.' },
@@ -35,7 +38,6 @@ export default function EquipeEditor() {
         try {
             setLoading(true);
             
-            // 1. Busca membros efetivos
             const { data: membrosDb, error: errMembros } = await supabase
                 .from('fazenda_membros')
                 .select('id, user_id, fazenda_id, role, profiles(email)')
@@ -43,7 +45,6 @@ export default function EquipeEditor() {
             
             if (errMembros) throw errMembros;
 
-            // 2. Busca convites pendentes
             const { data: convitesDb, error: errConvites } = await supabase
                 .from('fazenda_convites')
                 .select('*')
@@ -72,7 +73,6 @@ export default function EquipeEditor() {
 
         setLoading(true);
         try {
-            // 1. Buscar o ID do usuário pelo e-mail
             const { data: profile, error: searchError } = await supabase
                 .from('profiles')
                 .select('id')
@@ -82,7 +82,6 @@ export default function EquipeEditor() {
             if (searchError) throw searchError;
 
             if (!profile) {
-                // Usuário não existe -> Criar Convite Pendente no Banco
                 setPendingInviteData({ email: email.trim().toLowerCase(), role });
                 
                 const appLink = window.location.origin;
@@ -90,13 +89,10 @@ export default function EquipeEditor() {
 
                 setPendingInviteMsg(inviteMsg);
                 setShowInviteModal(true);
-                
-                // Copia automaticamente para facilitar
                 navigator.clipboard.writeText(inviteMsg);
                 return;
             }
 
-            // 2. Verificar duplicidade
             const { data: existe, error: checkError } = await supabase
                 .from('fazenda_membros')
                 .select('id')
@@ -110,14 +106,9 @@ export default function EquipeEditor() {
                 return;
             }
 
-            // 3. Autorizar
             const { error: insError } = await supabase
                 .from('fazenda_membros')
-                .insert([{
-                    fazenda_id: fazendaId,
-                    user_id: profile.id,
-                    role: role
-                }]);
+                .insert([{ fazenda_id: fazendaId, user_id: profile.id, role: role }]);
 
             if (insError) throw insError;
 
@@ -130,10 +121,6 @@ export default function EquipeEditor() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleRemover = (id: string, identificador: string) => {
-        setMembroParaRemover({ id, email: identificador });
     };
 
     const confirmarRemocao = async () => {
@@ -152,10 +139,6 @@ export default function EquipeEditor() {
         } finally {
             setMembroParaRemover(null);
         }
-    };
-
-    const handleRemoverConvite = (id: string, emailDoc: string) => {
-        setConviteParaCancelar({ id, email: emailDoc });
     };
 
     const confirmarCancelamentoConvite = async () => {
@@ -181,7 +164,6 @@ export default function EquipeEditor() {
         try {
             setLoading(true);
             
-            // 1. Salvar no banco (Convite Pendente)
             const { error: dbError } = await supabase
                 .from('fazenda_convites')
                 .insert([{
@@ -193,18 +175,14 @@ export default function EquipeEditor() {
 
             if (dbError) throw dbError;
 
-            // 2. Disparar E-mail Oficial via Edge Function
             try {
                 const { error: funcError } = await supabase.functions.invoke('invite-staff', {
-                    body: { 
-                        email: pendingInviteData.email,
-                        redirectTo: window.location.origin
-                    }
+                    body: { email: pendingInviteData.email, redirectTo: window.location.origin }
                 });
-                if (funcError) console.warn("Erro ao disparar e-mail (provável limite atingido):", funcError);
+                if (funcError) console.warn("Erro ao disparar e-mail:", funcError);
                 else toast.success("E-mail de convite enviado!");
             } catch (fErr) {
-                console.warn("Falha silenciosa na função de e-mail:", fErr);
+                console.warn("Falha na função de e-mail:", fErr);
             }
 
             toast.success("Convite registrado no sistema!");
@@ -230,12 +208,12 @@ export default function EquipeEditor() {
                 <div className="space-y-0.5">
                     <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest">Atenção Administrativa</p>
                     <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
-                        Antes de autorizar novos acessos, recomendamos revisar as <b>Permissões</b> nas configurações para conferir o que cada cargo (Operador, Gerente, etc.) poderá visualizar no sistema.
+                        Antes de autorizar novos acessos, recomendamos revisar as <b>Permissões</b> nas configurações para conferir o que cada cargo poderá visualizar no sistema.
                     </p>
                 </div>
             </div>
 
-            {/* Form de Autorização Direta */}
+            {/* Form de Autorização */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
                 <div className="mb-6">
                     <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
@@ -312,101 +290,29 @@ export default function EquipeEditor() {
 
                     {/* Membros Ativos */}
                     {membros.map(m => (
-                        <div key={m.id} className={`p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors ${m.user_id === session?.user?.id ? 'bg-indigo-50/20' : ''}`}>
-                            <div className="flex items-center gap-4">
-                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                                    m.role === 'Proprietário' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'
-                                }`}>
-                                    {m.role === 'Proprietário' ? <Crown className="w-5 h-5" /> : <Shield className="w-5 h-5" />}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-gray-800">
-                                        {m.profiles?.email || 'Membro Externo'}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase text-indigo-600/70">{m.role}</span>
-                                        <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter">Ativo</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {m.role !== 'Proprietário' && (
-                                <button 
-                                    onClick={() => handleRemover(m.id, m.profiles?.email || 'membro')}
-                                    className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            )}
-                        </div>
+                        <MemberCard 
+                            key={m.id}
+                            membro={m}
+                            isCurrentUser={m.user_id === session?.user?.id}
+                            onRemove={() => setMembroParaRemover({ id: m.id, email: m.profiles?.email || 'membro' })}
+                        />
                     ))}
 
                     {/* Convites Pendentes */}
                     {convites.map(c => (
-                        <div key={c.id} className="p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors bg-amber-50/10">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-100 text-amber-600 border border-amber-200 border-dashed animate-pulse">
-                                    <Clock className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-bold text-gray-800">
-                                        {c.email}
-                                    </p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase text-amber-600/70">{c.role}</span>
-                                        <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase tracking-tighter">Aguardando Cadastro</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button 
-                                onClick={() => handleRemoverConvite(c.id, c.email)}
-                                className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
+                        <PendingInviteCard 
+                            key={c.id}
+                            convite={c}
+                            onCancel={() => setConviteParaCancelar({ id: c.id, email: c.email })}
+                        />
                     ))}
                 </div>
             </div>
 
-            {/* Rodapé de Convite (Social) */}
-            <div className="p-5 bg-indigo-50 rounded-[2rem] border border-indigo-100 flex gap-4 items-start">
-               <div className="p-2 bg-white rounded-xl shadow-sm">
-                   <Info className="w-4 h-4 text-indigo-600" />
-               </div>
-               <div className="space-y-1">
-                   <p className="text-[11px] text-indigo-900 font-black uppercase tracking-widest">Acesso Negado?</p>
-                   <p className="text-[10px] text-indigo-700 font-medium leading-relaxed">
-                        Se o e-mail não for encontrado, o colaborador precisa criar a conta no AgroVisão primeiro.
-                   </p>
-                   <div className="flex flex-wrap gap-3 mt-2">
-                        <button 
-                            onClick={() => {
-                                const appLink = window.location.origin;
-                                const msg = `Olá! Convido você para a equipe da *${fazendaNome || 'nossa propriedade'}* no aplicativo *AgroVisão*.\n\nCrie sua conta aqui para eu liberar seu acesso: ${appLink}`;
-                                window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-                            }}
-                            className="flex items-center gap-1.5 text-[9px] font-black bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700 transition-all shadow-sm uppercase"
-                        >
-                             <MessageCircle className="w-3 h-3" /> Convidar via WhatsApp
-                        </button>
-                        <button 
-                            onClick={() => {
-                                const appLink = window.location.origin;
-                                const msg = `Olá! Crie sua conta no aplicativo *AgroVisão* para acessar os dados da *${fazendaNome || 'nossa propriedade'}*.\n\nLink: ${appLink}`;
-                                navigator.clipboard.writeText(msg);
-                                toast.success("Link copiado!");
-                            }}
-                            className="flex items-center gap-1.5 text-[9px] font-black bg-white text-indigo-600 px-3 py-1.5 rounded-full border border-indigo-100 hover:bg-indigo-50 transition-all shadow-sm uppercase"
-                        >
-                             <Share2 className="w-3 h-3" /> Copiar Link
-                        </button>
-                   </div>
-               </div>
-            </div>
+            {/* Rodapé de Convite Social */}
+            <InviteFooter fazendaNome={fazendaNome || ''} />
 
-            {/* Modal de Convite (Quando usuário não existe) */}
+            {/* Modais */}
             <ConfirmModal
                 isOpen={showInviteModal}
                 onClose={() => setShowInviteModal(false)}

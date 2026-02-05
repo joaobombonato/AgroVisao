@@ -57,7 +57,7 @@ export default function ManutencaoScreen() {
 
   return (
     <div className="space-y-4 p-4 pb-24 animate-in fade-in duration-300">
-      <PageHeader setTela={setTela} title="Manutenção" icon={Wrench} colorClass="bg-red-600" />
+      <PageHeader setTela={setTela} title="Manutenção" icon={Wrench} colorClass="bg-red-600" badge="Beta" />
 
       <div className="relative">
         <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
