@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ChartNoAxesCombined, Fuel, FileCog, ArrowLeft, Plus, Download, Trash2, BarChart3, Sparkles, Brain, Zap } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
-import { U } from '../utils';
+import { useAppContext } from '../../../context/AppContext';
+import { U } from '../../../utils';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../supabaseClient';
-import { ChartCard } from '../components/ui/ChartCard';
-import { BIEditorModal } from '../components/ui/BIEditorModal';
+import { supabase } from '../../../supabaseClient';
+import { ChartCard } from '../components/ChartCard';
+import { BIEditorModal } from '../components/BIEditorModal';
 
 export default function GraficosScreen() {
   const { dados, os, setTela, session } = useAppContext();

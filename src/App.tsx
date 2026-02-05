@@ -15,7 +15,7 @@ const DocumentosScreen = React.lazy(() => import('./screens/DocumentosScreen'));
 const EnergiaScreen = React.lazy(() => import('./screens/EnergiaScreen'));
 const ChuvasScreen = React.lazy(() => import('./features/weather/screens/ChuvasScreen'));
 const OsScreen = React.lazy(() => import('./screens/OsScreen'));
-const GraficosScreen = React.lazy(() => import('./screens/GraficosScreen'));
+const GraficosScreen = React.lazy(() => import('./features/graficos/screens/GraficosScreen'));
 const ConfiguracoesScreen = React.lazy(() => import('./features/settings/screens/ConfiguracoesScreen'));
 const ManutencaoScreen = React.lazy(() => import('./screens/ManutencaoScreen'));
 const EstoqueScreen = React.lazy(() => import('./screens/EstoqueScreen'));

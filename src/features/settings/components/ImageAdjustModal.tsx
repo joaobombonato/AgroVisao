@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { X, Check, Loader2, ZoomOut, ZoomIn } from 'lucide-react';
+import React from 'react';
+import { X, Check, Loader2, ZoomOut, ZoomIn, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface AdjustConfig {
     zoom: number;
@@ -56,6 +56,10 @@ export function ImageAdjustModal({
         }));
     };
 
+    const setOffset = (x: number, y: number) => {
+        setAdjustConfig((prev: AdjustConfig) => ({ ...prev, offsetX: x, offsetY: y }));
+    };
+
     return (
         <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
@@ -66,9 +70,9 @@ export function ImageAdjustModal({
                     </button>
                 </div>
                 
-                <div className="flex-1 p-5 flex flex-col items-center gap-5">
+                <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
                     <div 
-                        className={`w-44 h-44 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none ${isDragging ? 'ring-4 ring-indigo-100' : ''}`}
+                        className={`w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none ${isDragging ? 'ring-4 ring-indigo-100' : ''}`}
                         onMouseDown={onStartDrag}
                         onMouseMove={onMoveDrag}
                         onMouseUp={() => setIsDragging(false)}
@@ -91,12 +95,16 @@ export function ImageAdjustModal({
                         <div className="absolute inset-0 rounded-full shadow-[0_0_0_999px_rgba(255,255,255,0.4)] pointer-events-none"></div>
                     </div>
 
+                    <p className="text-[9px] font-medium text-gray-400 uppercase tracking-widest text-center">
+                        Arraste a imagem para centralizar
+                    </p>
+
                     <div className="w-full space-y-4">
                         <div className="space-y-2">
-                            <div className="flex justify-between text-[10px] font-black uppercase text-gray-400">
-                                <ZoomOut className="w-3 h-3"/>
-                                <span>Zoom: {(adjustConfig.zoom * 100).toFixed(0)}%</span>
-                                <ZoomIn className="w-3 h-3"/>
+                            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+                                <span className="flex items-center gap-1"><ZoomOut className="w-3 h-3"/> Zoom Out</span>
+                                <span className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{(adjustConfig.zoom * 100).toFixed(0)}%</span>
+                                <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3"/> Zoom In</span>
                             </div>
                             <input 
                                 type="range" min="0.5" max="5" step="0.01"
@@ -106,8 +114,18 @@ export function ImageAdjustModal({
                             />
                         </div>
 
-                        <div className="flex justify-center gap-2">
-                            <button onClick={() => setAdjustConfig((prev: AdjustConfig) => ({ ...prev, offsetX: 0, offsetY: 0, zoom: 1.5 }))} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-[10px] uppercase">Resetar</button>
+                        <div className="flex flex-col items-center gap-2">
+                            <div className="grid grid-cols-3 gap-1.5">
+                                <div />
+                                <button onClick={() => setOffset(adjustConfig.offsetX, adjustConfig.offsetY - 10)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronUp className="w-4 h-4 text-gray-600" /></button>
+                                <div />
+                                <button onClick={() => setOffset(adjustConfig.offsetX - 10, adjustConfig.offsetY)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronLeft className="w-4 h-4 text-gray-600" /></button>
+                                <button type="button" onClick={() => setOffset(0, 0)} className="w-14 h-9 flex items-center justify-center bg-indigo-600 text-white rounded-lg font-black text-[9px] shadow-md hover:bg-indigo-700 transition-all active:scale-95">RESET</button>
+                                <button onClick={() => setOffset(adjustConfig.offsetX + 10, adjustConfig.offsetY)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronRight className="w-4 h-4 text-gray-600" /></button>
+                                <div />
+                                <button onClick={() => setOffset(adjustConfig.offsetX, adjustConfig.offsetY + 10)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronDown className="w-4 h-4 text-gray-600" /></button>
+                                <div />
+                            </div>
                         </div>
                     </div>
                 </div>
