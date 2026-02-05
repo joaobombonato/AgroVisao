@@ -11,54 +11,29 @@ interface AdjustConfig {
 interface ImageAdjustModalProps {
     isOpen: boolean;
     onClose: () => void;
-    loading: boolean;
     adjustConfig: AdjustConfig;
-    setAdjustConfig: (fn: (prev: AdjustConfig) => AdjustConfig) => void;
+    setZoom: (zoom: number) => void;
+    setOffset: (x: number, y: number) => void;
     onApply: () => void;
-    isDragging: boolean;
-    setIsDragging: (val: boolean) => void;
-    dragStart: { x: number; y: number };
-    setDragStart: (val: { x: number; y: number }) => void;
+    onStartDrag: (e: any) => void;
+    onMoveDrag: (e: any) => void;
+    onEndDrag: () => void;
     canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
 export function ImageAdjustModal({
     isOpen,
     onClose,
-    loading,
     adjustConfig,
-    setAdjustConfig,
+    setZoom,
+    setOffset,
     onApply,
-    isDragging,
-    setIsDragging,
-    dragStart,
-    setDragStart,
+    onStartDrag,
+    onMoveDrag,
+    onEndDrag,
     canvasRef
 }: ImageAdjustModalProps) {
     if (!isOpen) return null;
-
-    const onStartDrag = (e: any) => {
-        setIsDragging(true);
-        const touch = e.touches ? e.touches[0] : e;
-        setDragStart({
-            x: touch.clientX - adjustConfig.offsetX,
-            y: touch.clientY - adjustConfig.offsetY
-        });
-    };
-
-    const onMoveDrag = (e: any) => {
-        if (!isDragging) return;
-        const touch = e.touches ? e.touches[0] : e;
-        setAdjustConfig((prev: AdjustConfig) => ({ 
-            ...prev, 
-            offsetX: touch.clientX - dragStart.x, 
-            offsetY: touch.clientY - dragStart.y 
-        }));
-    };
-
-    const setOffset = (x: number, y: number) => {
-        setAdjustConfig((prev: AdjustConfig) => ({ ...prev, offsetX: x, offsetY: y }));
-    };
 
     return (
         <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
@@ -72,26 +47,26 @@ export function ImageAdjustModal({
                 
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
                     <div 
-                        className={`w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none ${isDragging ? 'ring-4 ring-indigo-100' : ''}`}
+                        className="w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-indigo-500 relative overflow-hidden bg-gray-100 cursor-move select-none"
                         onMouseDown={onStartDrag}
                         onMouseMove={onMoveDrag}
-                        onMouseUp={() => setIsDragging(false)}
-                        onMouseLeave={() => setIsDragging(false)}
+                        onMouseUp={onEndDrag}
+                        onMouseLeave={onEndDrag}
                         onTouchStart={onStartDrag}
                         onTouchMove={onMoveDrag}
-                        onTouchEnd={() => setIsDragging(false)}
+                        onTouchEnd={onEndDrag}
                     >
-                        <img 
-                            src={adjustConfig.rawImage} 
-                            alt="Ajuste" 
-                            className="max-w-none transition-all duration-75 block pointer-events-none"
-                            style={{
-                                width: 'auto',
-                                height: 'auto',
-                                transformOrigin: 'center center',
-                                transform: `translate(${adjustConfig.offsetX}px, ${adjustConfig.offsetY}px) scale(${adjustConfig.zoom})`
-                            }}
-                        />
+                        {adjustConfig.rawImage && (
+                            <img 
+                                src={adjustConfig.rawImage} 
+                                alt="Ajuste" 
+                                className="max-w-none transition-all duration-75 block pointer-events-none"
+                                style={{
+                                    transformOrigin: 'center center',
+                                    transform: `translate(${adjustConfig.offsetX}px, ${adjustConfig.offsetY}px) scale(${adjustConfig.zoom})`
+                                }}
+                            />
+                        )}
                         <div className="absolute inset-0 rounded-full shadow-[0_0_0_999px_rgba(255,255,255,0.4)] pointer-events-none"></div>
                     </div>
 
@@ -107,10 +82,10 @@ export function ImageAdjustModal({
                                 <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3"/> Zoom In</span>
                             </div>
                             <input 
-                                type="range" min="0.5" max="5" step="0.01"
+                                type="range" min="0.1" max="4" step="0.01"
                                 className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                 value={adjustConfig.zoom}
-                                onChange={e => setAdjustConfig((prev: AdjustConfig) => ({ ...prev, zoom: parseFloat(e.target.value) }))}
+                                onChange={e => setZoom(parseFloat(e.target.value))}
                             />
                         </div>
 
@@ -134,10 +109,9 @@ export function ImageAdjustModal({
                     <button onClick={onClose} className="flex-1 py-3 text-xs font-bold text-gray-400">Cancelar</button>
                     <button 
                         onClick={onApply}
-                        disabled={loading}
-                        className="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="flex-1 bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
                     >
-                        {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Check className="w-4 h-4" />} Aplicar
+                        <Check className="w-4 h-4" /> Aplicar
                     </button>
                 </div>
             </div>

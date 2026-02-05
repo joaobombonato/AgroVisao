@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { User, Mail, Calendar, Phone, Shield, Save, Loader2, Info, CreditCard } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { supabase } from '../../../supabaseClient';
 import { toast } from 'react-hot-toast';
 import { ImageAdjustModal } from './ImageAdjustModal';
 import { ProfileHeader } from './ProfileHeader';
+import { useImageCrop } from '../../../hooks';
 
 // Componente de Input movido para FORA para evitar perda de foco ao digitar
 const InputField = memo(({ label, icon: Icon, value, onChange, type = "text", placeholder, readOnly = false, className = '' }: any) => (
@@ -28,8 +29,10 @@ const InputField = memo(({ label, icon: Icon, value, onChange, type = "text", pl
 export default function MinhaContaEditor() {
     const { session, dispatch } = useAppContext();
     const [loading, setLoading] = useState(false);
-    const [isAdjusting, setIsAdjusting] = useState(false);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [uploading, setUploading] = useState(false);
+
+    // Hook de ajuste de imagem (mesmo do FazendaPerfilEditor)
+    const imageCrop = useImageCrop(2, 176);
 
     const [formData, setFormData] = useState({
         full_name: '',
@@ -42,15 +45,6 @@ export default function MinhaContaEditor() {
         avatar_url: ''
     });
 
-    const [adjustConfig, setAdjustConfig] = useState({
-        zoom: 1.5,
-        offsetX: 0,
-        offsetY: 0,
-        rawImage: ''
-    });
-
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [previewUrl, setPreviewUrl] = useState('');
 
     useEffect(() => {
@@ -79,201 +73,119 @@ export default function MinhaContaEditor() {
         getSignedUrl();
     }, [formData.avatar_url]);
 
-    const applyPhoneMask = (v: string) => {
-        v = v.replace(/\D/g, "");
-        if (v.length > 11) v = v.slice(0, 11);
-        if (v.length > 10) return v.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-        if (v.length > 6) return v.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
-        if (v.length > 2) return v.replace(/(\d{2})(\d{0,4})/, "($1) $2");
-        return v;
-    };
-
-    const applyCNHMask = (v: string) => {
-        v = v.replace(/\D/g, "");
-        if (v.length > 11) v = v.slice(0, 11);
-        if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-        if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
-        if (v.length > 3) return v.replace(/(\d{3})(\d{0,3})/, "$1.$2");
-        return v;
-    };
-
     const loadProfile = async () => {
         try {
             setLoading(true);
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
-                .eq('id', session?.user?.id)
+                .eq('id', session.user.id)
                 .single();
 
             if (error) throw error;
             if (data) {
                 setFormData({
-                    full_name: data.full_name || data.nome || '',
-                    email: data.email || '',
+                    full_name: data.full_name || '',
+                    email: session.user.email || '',
                     phone: data.phone || '',
                     data_nascimento: data.data_nascimento || '',
-                    cnh_numero: data.config?.cnh_numero || '',
-                    cnh_vencimento: data.config?.cnh_vencimento || '',
+                    cnh_numero: data.cnh_numero || '',
+                    cnh_vencimento: data.cnh_vencimento || '',
                     funcao: data.funcao || '',
                     avatar_url: data.avatar_url || ''
                 });
             }
-        } catch (err: any) {
-            console.error("Erro ao carregar perfil:", err);
-            toast.error("Não foi possível carregar seus dados.");
+        } catch (error: any) {
+            console.error('Erro ao carregar perfil:', error.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSave = async () => {
+    const handleUpdateProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
         try {
             setLoading(true);
             const updates = {
+                id: session.user.id,
                 full_name: formData.full_name,
-                phone: formData.phone.replace(/\D/g, ''),
-                data_nascimento: formData.data_nascimento,
+                phone: formData.phone,
+                data_nascimento: formData.data_nascimento || null,
+                cnh_numero: formData.cnh_numero,
+                cnh_vencimento: formData.cnh_vencimento || null,
                 funcao: formData.funcao,
                 avatar_url: formData.avatar_url,
-                config: {
-                    cnh_numero: formData.cnh_numero.replace(/\D/g, ''),
-                    cnh_vencimento: formData.cnh_vencimento
-                },
-                updated_at: new Date().toISOString()
+                updated_at: new Date(),
             };
 
-            const { error } = await supabase
-                .from('profiles')
-                .update(updates)
-                .eq('id', session?.user?.id);
-
-            if (error) {
-                if (error.code === 'PGRST204') {
-                    try { await supabase.rpc('notify_pgrst_reload'); } catch (e) {}
-                    delete (updates as any).updated_at;
-                    const { error: retryError } = await supabase.from('profiles').update(updates).eq('id', session?.user?.id);
-                    if (retryError) throw retryError;
-                } else {
-                    throw error;
-                }
+            const { error } = await supabase.from('profiles').upsert(updates);
+            if (error) throw error;
+            
+            // Atualiza contexto global se necessário
+            if (session?.user) {
+                 dispatch({ 
+                    type: ACTIONS.UPDATE_USER_PROFILE, 
+                    profile: { ...session.user, ...updates } 
+                });
             }
-
-            const { data: updatedProfile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session?.user?.id)
-                .single();
-
-            if (updatedProfile) {
-                dispatch({ type: ACTIONS.UPDATE_USER_PROFILE, profile: updatedProfile });
-            }
-
-            toast.success("Perfil atualizado com sucesso!");
-        } catch (err: any) {
-            console.error("Erro ao salvar perfil:", err);
-            toast.error("Erro ao salvar alterações.");
+            toast.success('Perfil atualizado com sucesso!');
+        } catch (error: any) {
+            toast.error(error.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDateChange = (field: string, value: string) => {
-        if (value.length > 10) value = value.slice(0, 10);
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
-
-        if (file.size > 5 * 1024 * 1024) {
-            toast.error("Imagem muito grande. Limite de 5MB.");
-            return;
+        if (file) {
+            imageCrop.handleImageUpload(file);
         }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setAdjustConfig({ zoom: 1.5, offsetX: 0, offsetY: 0, rawImage: reader.result as string });
-            setIsAdjusting(true);
-        };
-        reader.readAsDataURL(file);
     };
 
-    const handleApplyAdjustment = async () => {
-        const canvas = canvasRef.current;
-        if (!canvas || !adjustConfig.rawImage) return;
+    const handleApplyImage = async () => {
+        const base64 = imageCrop.applyAdjustment(400);
+        if (!base64) return;
 
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        try {
+            setUploading(true);
+            const res = await fetch(base64);
+            const blob = await res.blob();
+            const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
 
-        const img = new Image();
-        img.src = adjustConfig.rawImage;
-        img.onload = async () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const size = canvas.width;
-            const aspect = img.width / img.height;
+            const fileExt = 'jpg';
+            const fileName = `${Math.random()}.${fileExt}`;
+            const filePath = `${session.user.id}/${fileName}`;
             
-            let drawW, drawH;
-            if (aspect > 1) {
-                drawH = size * adjustConfig.zoom;
-                drawW = drawH * aspect;
-            } else {
-                drawW = size * adjustConfig.zoom;
-                drawH = drawW / aspect;
-            }
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
 
-            const startX = (size - drawW) / 2 + (adjustConfig.offsetX * adjustConfig.zoom);
-            const startY = (size - drawH) / 2 + (adjustConfig.offsetY * adjustConfig.zoom);
+            if (uploadError) throw uploadError;
 
-            ctx.drawImage(img, startX, startY, drawW, drawH);
-
-            canvas.toBlob(async (blob) => {
-                if (!blob) {
-                    toast.error("Erro ao processar imagem.");
-                    return;
-                }
-
-                try {
-                    setLoading(true);
-                    const filePath = `${session?.user?.id}/${Date.now()}.jpg`;
-
-                    const { error: uploadError } = await supabase.storage
-                        .from('avatars')
-                        .upload(filePath, blob, { contentType: 'image/jpeg', upsert: true });
-
-                    if (uploadError) throw uploadError;
-
-                    setFormData(prev => ({ ...prev, avatar_url: filePath }));
-                    setIsAdjusting(false);
-                    toast.success("Foto processada com sucesso!");
-                } catch (err: any) {
-                    console.error("Erro no upload:", err);
-                    toast.error("Erro ao enviar imagem.");
-                } finally {
-                    setLoading(false);
-                }
-            }, 'image/jpeg', 0.8);
-        };
+            setFormData(prev => ({ ...prev, avatar_url: filePath }));
+            toast.success("Foto preparada! Salve o perfil para confirmar.");
+        } catch (error: any) {
+            toast.error('Erro no upload: ' + error.message);
+        } finally {
+            setUploading(false);
+        }
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+        <form onSubmit={handleUpdateProfile} className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 pb-24">
+            
             <ImageAdjustModal 
-                isOpen={isAdjusting}
-                onClose={() => setIsAdjusting(false)}
-                loading={loading}
-                adjustConfig={adjustConfig}
-                setAdjustConfig={setAdjustConfig}
-                onApply={handleApplyAdjustment}
-                isDragging={isDragging}
-                setIsDragging={setIsDragging}
-                dragStart={dragStart}
-                setDragStart={setDragStart}
-                canvasRef={canvasRef}
+                isOpen={imageCrop.isAdjusting}
+                onClose={() => imageCrop.setIsAdjusting(false)}
+                adjustConfig={imageCrop.config}
+                setZoom={imageCrop.setZoom}
+                setOffset={imageCrop.setOffset}
+                onApply={handleApplyImage}
+                onStartDrag={imageCrop.onStartDrag}
+                onMoveDrag={imageCrop.onMoveDrag}
+                onEndDrag={imageCrop.onEndDrag}
+                canvasRef={imageCrop.canvasRef}
             />
 
             <ProfileHeader 
@@ -281,92 +193,101 @@ export default function MinhaContaEditor() {
                 fullName={formData.full_name}
                 funcao={formData.funcao}
                 avatarUrl={formData.avatar_url}
-                loading={loading}
-                onFileSelect={handleImageFileSelect}
-                onAdjustClick={() => setIsAdjusting(true)}
+                loading={uploading}
+                onFileSelect={handleImageSelect}
+                onAdjustClick={() => imageCrop.setIsAdjusting(true)}
             />
 
-            {/* Formulário Principal */}
+            {/* Informações Pessoais */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-                <h4 className="font-bold text-gray-800 text-sm tracking-tight border-b border-gray-50 pb-3 flex items-center gap-2">
-                    <Info className="w-4 h-4 text-indigo-600" /> Meus Dados Pessoais
-                </h4>
+                <h3 className="font-bold text-gray-800 text-base tracking-tight border-b border-gray-50 pb-3 mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-indigo-600"/> Informações Pessoais
+                </h3>
 
-                <InputField 
-                    label="Nome Completo" 
-                    icon={User} 
-                    value={formData.full_name} 
-                    onChange={(e:any) => setFormData({...formData, full_name: e.target.value})} 
-                />
-
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField 
-                        label="E-mail (Login)" 
+                        label="Nome Completo" 
+                        icon={User} 
+                        value={formData.full_name} 
+                        onChange={(e: any) => setFormData({ ...formData, full_name: e.target.value })} 
+                        placeholder="Seu nome completo"
+                    />
+                    <InputField 
+                        label="Cargo / Função" 
+                        icon={Shield} 
+                        value={formData.funcao} 
+                        onChange={(e: any) => setFormData({ ...formData, funcao: e.target.value })} 
+                        placeholder="Ex: Gerente, Operador"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InputField 
+                        label="Email" 
                         icon={Mail} 
                         value={formData.email} 
-                        readOnly={true}
-                        className="opacity-50"
+                        onChange={(e: any) => setFormData({ ...formData, email: e.target.value })} 
+                        placeholder="seu@email.com" 
+                        readOnly
                     />
                     <InputField 
                         label="Telefone / WhatsApp" 
                         icon={Phone} 
                         value={formData.phone} 
-                        onChange={(e:any) => setFormData({...formData, phone: applyPhoneMask(e.target.value)})} 
+                        onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })} 
                         placeholder="(00) 00000-0000"
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <InputField 
-                        label="Data Nascimento" 
-                        icon={Calendar} 
-                        type="date"
-                        value={formData.data_nascimento} 
-                        onChange={(e:any) => handleDateChange('data_nascimento', e.target.value)} 
-                    />
-                    <InputField 
-                        label="Sua Função" 
-                        icon={Shield} 
-                        value={formData.funcao} 
-                        onChange={(e:any) => setFormData({...formData, funcao: e.target.value})} 
-                        placeholder="Ex: Agrônomo"
-                    />
-                </div>
+                <InputField 
+                    label="Data de Nascimento" 
+                    icon={Calendar} 
+                    type="date"
+                    value={formData.data_nascimento} 
+                    onChange={(e: any) => setFormData({ ...formData, data_nascimento: e.target.value })} 
+                />
             </div>
 
-            {/* Documentos Relacionados */}
+            {/* Documentação CNH */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">
-                <h4 className="font-bold text-gray-800 text-sm tracking-tight border-b border-gray-50 pb-3 flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-indigo-600" /> Documentação Técnica
-                </h4>
+                <h3 className="font-bold text-gray-800 text-base tracking-tight border-b border-gray-50 pb-3 mb-4 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-indigo-600"/> Carteira de Habilitação (CNH)
+                </h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-50 p-4 rounded-2xl flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                        Manter sua CNH atualizada é fundamental para operar máquinas e veículos da fazenda. 
+                        O sistema irá alertar sobre vencimentos próximos.
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField 
-                        label="Número da CNH" 
+                        label="Número de Registro" 
                         icon={CreditCard} 
                         value={formData.cnh_numero} 
-                        onChange={(e:any) => setFormData({...formData, cnh_numero: applyCNHMask(e.target.value)})} 
-                        placeholder="000.000.000-00"
+                        onChange={(e: any) => setFormData({ ...formData, cnh_numero: e.target.value })} 
+                        placeholder="Número da CNH"
                     />
                     <InputField 
-                        label="Vencimento CNH" 
+                        label="Validade" 
                         icon={Calendar} 
                         type="date"
                         value={formData.cnh_vencimento} 
-                        onChange={(e:any) => handleDateChange('cnh_vencimento', e.target.value)} 
+                        onChange={(e: any) => setFormData({ ...formData, cnh_vencimento: e.target.value })} 
                     />
                 </div>
-                <p className="text-[9px] text-gray-400 italic">O sistema irá te alertar automaticamente 30 dias antes do vencimento da sua CNH.</p>
             </div>
 
             <button 
-                onClick={handleSave}
+                type="submit" 
                 disabled={loading}
-                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-[2rem] shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 active:scale-95"
+                className="w-full bg-indigo-600 text-white font-bold py-4 rounded-[2rem] shadow-lg hover:bg-indigo-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95 text-sm uppercase tracking-wide"
             >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Salvar Meu Perfil
+                Salvar Alterações
             </button>
-        </div>
+        </form>
     );
 }
