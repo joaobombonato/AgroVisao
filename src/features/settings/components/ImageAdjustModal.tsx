@@ -82,7 +82,7 @@ export function ImageAdjustModal({
                                 <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3"/> Zoom In</span>
                             </div>
                             <input 
-                                type="range" min="0.01" max="5" step="0.01"
+                                type="range" min="0.01" max="3" step="0.01"
                                 className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                 value={adjustConfig.zoom}
                                 onChange={e => setZoom(parseFloat(e.target.value))}
