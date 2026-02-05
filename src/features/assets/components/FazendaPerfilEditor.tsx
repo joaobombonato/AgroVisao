@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Save, Building2, MapPin, User, Ruler, Loader2, ZoomIn, ZoomOut, Move, Check, X, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Save, Building2, MapPin, User, Ruler, Loader2, Search } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { dbService } from '../../../services';
 import { useGeocoding, useImageCrop } from '../../../hooks';
+import { LogoAdjustModal } from './LogoAdjustModal';
+import { FazendaLogoHeader } from './FazendaLogoHeader';
 
 // Mapeamento REC por mesorregião
 const getREC = (municipio: any) => {
@@ -43,10 +45,7 @@ export default function FazendaPerfilEditor() {
   const { fazendaId, fazendaSelecionada, dispatch, fazendasDisponiveis, setFazendaSelecionada } = useAppContext();
   const [loading, setLoading] = useState(false);
 
-  // Hook de geocoding
   const { geocodeAddress, getCurrentLocation, loading: geocoding } = useGeocoding();
-
-  // Hook de ajuste de imagem
   const {
     config: adjustConfig,
     isAdjusting,
@@ -61,7 +60,6 @@ export default function FazendaPerfilEditor() {
     onEndDrag
   } = useImageCrop(2, 176);
 
-  // Estado do formulário
   const [formData, setFormData] = useState({
     nome: '',
     tamanho_ha: '',
@@ -77,12 +75,10 @@ export default function FazendaPerfilEditor() {
     logo_url: ''
   });
 
-  // Estado IBGE
   const [estados, setEstados] = useState<any[]>([]);
   const [municipios, setMunicipios] = useState<any[]>([]);
   const [loadingLoc, setLoadingLoc] = useState(false);
 
-  // Carregar dados da fazenda ao montar
   useEffect(() => {
     if (fazendaSelecionada) {
       setFormData({
@@ -102,7 +98,6 @@ export default function FazendaPerfilEditor() {
     }
   }, [fazendaSelecionada]);
 
-  // Carregar Estados
   useEffect(() => {
     fetch('https://servicodados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome')
       .then(res => res.json())
@@ -110,7 +105,6 @@ export default function FazendaPerfilEditor() {
       .catch(err => console.error("Erro IBGE Estados:", err));
   }, []);
 
-  // Carregar Municípios
   useEffect(() => {
     if (!formData.estado) {
       setMunicipios([]);
@@ -124,7 +118,6 @@ export default function FazendaPerfilEditor() {
       .finally(() => setLoadingLoc(false));
   }, [formData.estado]);
 
-  // Handlers
   const handleSelectMunicipio = (mId: string) => {
     const mun = municipios.find(m => String(m.id) === mId);
     if (mun) {
@@ -161,16 +154,12 @@ export default function FazendaPerfilEditor() {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      cropHandleUpload(file);
-    }
+    if (file) cropHandleUpload(file);
   };
 
   const handleApplyAdjustment = () => {
     const result = applyAdjustment(400);
-    if (result) {
-      setFormData(prev => ({ ...prev, logo_url: result }));
-    }
+    if (result) setFormData(prev => ({ ...prev, logo_url: result }));
   };
 
   const handleSave = async () => {
@@ -226,114 +215,24 @@ export default function FazendaPerfilEditor() {
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+      <LogoAdjustModal 
+        isOpen={isAdjusting}
+        onClose={() => setIsAdjusting(false)}
+        adjustConfig={adjustConfig}
+        setZoom={setZoom}
+        setOffset={setOffset}
+        onApply={handleApplyAdjustment}
+        onStartDrag={onStartDrag}
+        onMoveDrag={onMoveDrag}
+        onEndDrag={onEndDrag}
+        canvasRef={canvasRef}
+      />
 
-      {/* Modal de Ajuste de Imagem */}
-      {isAdjusting && (
-        <div className="fixed inset-0 z-[1500] bg-black/80 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col">
-            <div className="p-5 border-b flex justify-between items-center bg-gray-50/50">
-              <h3 className="font-bold text-gray-800 text-sm tracking-tight">Ajustar Logotipo</h3>
-              <button onClick={() => setIsAdjusting(false)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
-              <div
-                className={`w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-green-500 relative overflow-hidden bg-gray-100 flex items-center justify-center shadow-inner cursor-move select-none`}
-                onMouseDown={onStartDrag}
-                onMouseMove={onMoveDrag}
-                onMouseUp={onEndDrag}
-                onMouseLeave={onEndDrag}
-                onTouchStart={onStartDrag}
-                onTouchMove={onMoveDrag}
-                onTouchEnd={onEndDrag}
-              >
-                {adjustConfig.rawImage && (
-                  <img
-                    src={adjustConfig.rawImage}
-                    alt="Ajuste"
-                    className="max-w-none transition-all duration-75 block pointer-events-none"
-                    style={{
-                      transformOrigin: 'center center',
-                      transform: `translate(${adjustConfig.offsetX}px, ${adjustConfig.offsetY}px) scale(${adjustConfig.zoom})`
-                    }}
-                  />
-                )}
-              </div>
-
-              <p className="text-[9px] font-medium text-gray-400 uppercase tracking-widest text-center">
-                Arraste a imagem para centralizar
-              </p>
-
-              <div className="w-full space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
-                    <span className="flex items-center gap-1"><ZoomOut className="w-3 h-3" /> Zoom Out</span>
-                    <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full">{(adjustConfig.zoom * 100).toFixed(0)}%</span>
-                    <span className="flex items-center gap-1"><ZoomIn className="w-3 h-3" /> Zoom In</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.1"
-                    max="4"
-                    step="0.01"
-                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                    value={adjustConfig.zoom}
-                    onChange={e => setZoom(parseFloat(e.target.value))}
-                  />
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <div />
-                    <button onClick={() => setOffset(adjustConfig.offsetX, adjustConfig.offsetY - 10)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronUp className="w-4 h-4 text-gray-600" /></button>
-                    <div />
-                    <button onClick={() => setOffset(adjustConfig.offsetX - 10, adjustConfig.offsetY)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronLeft className="w-4 h-4 text-gray-600" /></button>
-                    <button type="button" onClick={() => setOffset(0, 0)} className="w-14 h-9 flex items-center justify-center bg-green-600 text-white rounded-lg font-black text-[9px] shadow-md hover:bg-green-700 transition-all active:scale-95">RESET</button>
-                    <button onClick={() => setOffset(adjustConfig.offsetX + 10, adjustConfig.offsetY)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronRight className="w-4 h-4 text-gray-600" /></button>
-                    <div />
-                    <button onClick={() => setOffset(adjustConfig.offsetX, adjustConfig.offsetY + 10)} className="w-14 h-9 flex items-center justify-center bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors shadow-sm"><ChevronDown className="w-4 h-4 text-gray-600" /></button>
-                    <div />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 bg-gray-50/80 border-t flex gap-2">
-              <button onClick={() => setIsAdjusting(false)} className="flex-1 py-3 text-xs font-bold text-gray-500 hover:text-gray-700 transition-colors">Cancelar</button>
-              <button onClick={handleApplyAdjustment} className="flex-1 bg-green-600 text-white py-3 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 active:scale-95 transition-all text-xs">
-                <Check className="w-4 h-4" /> Aplicar
-              </button>
-            </div>
-          </div>
-          <canvas ref={canvasRef} width={400} height={400} className="hidden" />
-        </div>
-      )}
-
-      {/* Layout Principal do Editor */}
-      <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
-        <div className="relative group cursor-pointer">
-          <div className="w-32 h-32 rounded-full border-4 border-gray-100 overflow-hidden bg-gray-50 flex items-center justify-center shadow-inner">
-            {formData.logo_url ? (
-              <img src={formData.logo_url} alt="Logo Fazenda" className="w-full h-full object-cover" />
-            ) : (
-              <Building2 className="w-12 h-12 text-gray-300" />
-            )}
-          </div>
-
-          <label className="absolute bottom-0 right-0 bg-green-600 text-white p-2.5 rounded-full shadow-lg hover:bg-green-700 transition-colors cursor-pointer border-4 border-white">
-            <Camera className="w-5 h-5" />
-            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
-          </label>
-        </div>
-        {formData.logo_url && (
-          <button onClick={() => setIsAdjusting(true)} className="mt-5 text-xs font-bold text-green-600 hover:text-green-700 flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full transition-colors">
-            <Move className="w-3 h-3" /> Ajustar logotipo
-          </button>
-        )}
-        <p className="mt-4 text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em] text-center">Toque para selecionar a logo</p>
-      </div>
+      <FazendaLogoHeader 
+        logoUrl={formData.logo_url}
+        onFileChange={handleImageUpload}
+        onAdjustClick={() => setIsAdjusting(true)}
+      />
 
       {/* Formulário de Dados */}
       <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-4">
@@ -407,7 +306,6 @@ export default function FazendaPerfilEditor() {
           </div>
         </div>
 
-        {/* Info Regional */}
         {formData.rec_code && (
           <div className="p-3 bg-blue-50 rounded-2xl border border-blue-100 flex items-center gap-3">
             <div className="bg-white p-1.5 rounded-xl shadow-sm">
