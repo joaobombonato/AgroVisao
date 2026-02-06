@@ -1,10 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Satellite, Layers, Loader2, Scan, Download } from 'lucide-react';
+import { Satellite, Maximize2, Layers, Loader2, Plus, Check, X, Undo2, MousePointerClick, Locate, Scan, Download, CloudRain, AlertTriangle, BookOpen, Droplets, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../../../context/AppContext';
 import { toast } from 'react-hot-toast';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { calculateAreaHectares, pointsToGeoJSON } from '../utils/mapHelpers';
+import { 
+  getNDVIImage,
+  getTrueColorImage,
+  getEVIImage,
+  getSAVIImage,
+  getNDREImage,
+  getNDMIImage,
+  getAvailableDates
+} from '../services/satelliteService';
+import { calculateAreaHectares, pointsToGeoJSON, type OverlayType } from '../utils/mapHelpers';
 import { handleExportPNG } from '../utils/mapExportPNG';
 import { MapLegend } from '../components/SatelliteLegend';
 import { SatelliteCalendar } from '../components/SatelliteCalendar';
@@ -12,13 +21,46 @@ import { MapHeader } from '../components/MapHeader';
 import { TelemetryCard } from '../components/TelemetryCard';
 import { AnalysisControlBar } from '../components/AnalysisControlBar';
 import { MapInfoCards } from '../components/MapInfoCards';
-import { DrawingToolbar } from '../components/DrawingToolbar';
-import { MapEditCards } from '../components/MapEditCards';
-import { MapControls } from '../components/MapControls';
 import { AgronomicIntelligenceCard } from '../../../components/agronomic/AgronomicIntelligenceCard';
 import { fetchAgronomicData, type AgronomicResult } from '../../../services/agronomicService';
-import { defaultIcon, editIcon, TILE_LAYERS } from '../config/mapConfig';
-import { useSatelliteOverlay } from '../hooks/useSatelliteOverlay';
+
+const defaultIcon = L.icon({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+L.Marker.prototype.options.icon = defaultIcon;
+
+const editIcon = L.divIcon({
+  className: 'custom-edit-marker',
+  html: `<div style="
+    background-color: white;
+    border: 2px solid #16a34a;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  "></div>`,
+  iconSize: [12, 12],
+  iconAnchor: [6, 6]
+});
+
+const TILE_LAYERS = {
+  street: {
+    name: 'Mapa',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap'
+  },
+  satellite: {
+    name: 'Satélite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri'
+  }
+};
 
 
 export default function MapScreen() {
@@ -33,6 +75,7 @@ export default function MapScreen() {
   const markersRef = useRef<L.Marker[]>([]);
   const mainMarkerRef = useRef<L.Marker | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const imageOverlayRef = useRef<L.ImageOverlay | null>(null);
   const maskLayerRef = useRef<L.Polygon | null>(null);
   
   const isDrawingRef = useRef(false);
@@ -47,30 +90,19 @@ export default function MapScreen() {
   const [geojsonData, setGeojsonData] = useState<any>(null);
   
   const [activeTab, setActiveTab] = useState<'map' | 'analysis'>(fazendaSelecionada?.geojson ? 'analysis' : 'map');
+  const [overlayType, setOverlayType] = useState<OverlayType>('none');
+  const [availableImages, setAvailableImages] = useState<{ date: string, cloudCover: number }[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [loadingImages, setLoadingImages] = useState(false);
+  const [currentOverlayUrl, setCurrentOverlayUrl] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  
+  // Cache para evitar requisições redundantes (Economia de PUs)
+  const overlayCacheRef = useRef<Record<string, string>>({});
 
-  // Hook de Satellite Overlay com cache inteligente
-  const {
-    overlayType,
-    setOverlayType,
-    availableImages,
-    selectedImageIndex,
-    setSelectedImageIndex,
-    loadingImages,
-    setLoadingImages,
-    currentOverlayUrl,
-    showOverlay,
-    dateError,
-    loadDates,
-    imageOverlayRef
-  } = useSatelliteOverlay({
-    mapInstanceRef,
-    polygonLayerRef,
-    geojsonData,
-    activeTab,
-    fazendaId: fazendaSelecionada?.id
-  });
+  const [dateError, setDateError] = useState(false);
 
   // Estado para dados agronômicos (Solo)
   const [agronomic, setAgronomic] = useState<AgronomicResult | null>(null);
@@ -181,7 +213,6 @@ export default function MapScreen() {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
     let syncHandler: any = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     if (activeTab === 'analysis') {
       if (mainMarkerRef.current) map.removeLayer(mainMarkerRef.current);
@@ -199,36 +230,24 @@ export default function MapScreen() {
         map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
         
         // Define o zoom mínimo e o comportamento de sincronização (re-centralizar sempre no zoom out)
-        timeoutId = setTimeout(() => {
-          if (!mapInstanceRef.current) return;
-          
+        setTimeout(() => {
           const minZ = map.getZoom();
           map.setMinZoom(minZ);
           
-          let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
-          let isAnimating = false;
-          
-          // Handler com debounce: espera o zoom estabilizar antes de centralizar
+          let isInternalMove = false;
           syncHandler = () => {
-             if (isAnimating) return;
-             
-             // Limpa timeout anterior para criar um debounce
-             if (debounceTimeout) clearTimeout(debounceTimeout);
-             
-             // Espera 300ms sem novos eventos antes de verificar
-             debounceTimeout = setTimeout(() => {
-                // Se zoom está no mínimo (ou muito próximo), força centralização
-                if (map.getZoom() <= minZ + 0.2) {
-                   isAnimating = true;
-                   map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40], animate: true });
-                   setTimeout(() => { isAnimating = false; }, 800);
-                }
-             }, 300);
+             if (isInternalMove) return;
+             // Se o zoom atingir o mínimo, força o enquadramento perfeito como no botão "Centralizar"
+             if (map.getZoom() <= minZ + 0.01) {
+                isInternalMove = true;
+                map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40], animate: true });
+                setTimeout(() => { isInternalMove = false; }, 500);
+             }
           };
           
-          // Usar APENAS zoomend para evitar conflitos com o hook de overlay
           map.on('zoomend', syncHandler);
-        }, 800);
+          map.on('moveend', syncHandler);
+        }, 500);
       }
 
     } else {
@@ -246,9 +265,6 @@ export default function MapScreen() {
     }
 
     return () => {
-      // Cancela o timeout se ainda estiver pendente
-      if (timeoutId) clearTimeout(timeoutId);
-      // Remove os handlers se existirem
       if (syncHandler) {
          map.off('zoomend', syncHandler);
          map.off('moveend', syncHandler);
@@ -256,6 +272,106 @@ export default function MapScreen() {
     };
   }, [mapType, activeTab]);
 
+  // Overlay Logic com Cache Inteligente e Alerta de Nuvens
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !polygonLayerRef.current) return;
+    
+    // Remove overlay anterior do mapa sem revogar a URL (para permitir cache)
+    if (imageOverlayRef.current) { 
+      map.removeLayer(imageOverlayRef.current); 
+      imageOverlayRef.current = null; 
+    }
+    
+    if (overlayType === 'none' || !showOverlay || !geojsonData || activeTab !== 'analysis') return;
+    if (availableImages.length === 0) return;
+    
+    const selectedImage = availableImages[selectedImageIndex];
+    if (!selectedImage) return;
+
+    // Chave única para o cache
+    const cacheKey = `${selectedImage.date}_${overlayType}_${fazendaSelecionada?.id || 'temp'}`;
+
+    const loadOverlayImage = async () => {
+      // 1. Verificar Cache (Instantâneo e Grátis)
+      if (overlayCacheRef.current[cacheKey]) {
+        const cachedUrl = overlayCacheRef.current[cacheKey];
+        setCurrentOverlayUrl(cachedUrl);
+        imageOverlayRef.current = L.imageOverlay(cachedUrl, polygonLayerRef.current!.getBounds(), { opacity: 0.9, interactive: false }).addTo(map);
+        imageOverlayRef.current.bringToFront();
+        polygonLayerRef.current!.bringToFront();
+        return;
+      }
+
+      // 2. Solicitar ao Satélite (Custo de PUs)
+      setLoadingImages(true);
+      try {
+        // Calcular aspect ratio geográfico real para evitar imagem "esticada"
+        const bounds = polygonLayerRef.current!.getBounds();
+        const dLat = Math.abs(bounds.getNorth() - bounds.getSouth());
+        const dLng = Math.abs(bounds.getEast() - bounds.getWest());
+        const midLat = (bounds.getNorth() + bounds.getSouth()) / 2;
+        const cosLat = Math.cos(midLat * Math.PI / 180);
+        
+        const geoRatio = (dLng * cosLat) / dLat;
+        
+        // Define o maior lado como 1024px e calcula o outro proporcionalmente
+        let width = 1024;
+        let height = 1024;
+        if (geoRatio > 1) {
+          height = Math.max(Math.round(1024 / geoRatio), 256);
+        } else {
+          width = Math.max(Math.round(1024 * geoRatio), 256);
+        }
+        
+        let imageUrl = null;
+        
+        if (overlayType === 'ndvi') imageUrl = await getNDVIImage(geojsonData, selectedImage.date, width, height);
+        else if (overlayType === 'evi') imageUrl = await getEVIImage(geojsonData, selectedImage.date, width, height);
+        else if (overlayType === 'savi') imageUrl = await getSAVIImage(geojsonData, selectedImage.date, width, height);
+        else if (overlayType === 'ndre') imageUrl = await getNDREImage(geojsonData, selectedImage.date, width, height);
+        else if (overlayType === 'ndmi') imageUrl = await getNDMIImage(geojsonData, selectedImage.date, width, height);
+        else if (overlayType === 'truecolor') imageUrl = await getTrueColorImage(geojsonData, selectedImage.date, width, height);
+
+        if (imageUrl) {
+          overlayCacheRef.current[cacheKey] = imageUrl; // Salva no cache
+          setCurrentOverlayUrl(imageUrl);
+          imageOverlayRef.current = L.imageOverlay(imageUrl, polygonLayerRef.current!.getBounds(), { opacity: 0.9, interactive: false }).addTo(map);
+          imageOverlayRef.current.bringToFront();
+          polygonLayerRef.current!.bringToFront();
+        }
+      } catch (error) { 
+        console.error(error); 
+        toast.error('Erro ao carregar imagem'); 
+      } finally { 
+        setLoadingImages(false); 
+      }
+    };
+    loadOverlayImage();
+  }, [overlayType, selectedImageIndex, showOverlay, availableImages, geojsonData, activeTab]);
+
+  // Load Dates
+  const loadDates = async () => {
+    if (!geojsonData || loadingImages) return;
+    setLoadingImages(true);
+    setDateError(false);
+    try { 
+      const images = await getAvailableDates(geojsonData, 400); 
+      if (images.length === 0) setDateError(true);
+      setAvailableImages(images); 
+    } 
+    catch (e) { 
+        console.error(e); 
+        setDateError(true);
+    } 
+    finally { setLoadingImages(false); }
+  };
+
+  useEffect(() => {
+    if (geojsonData && availableImages.length === 0 && !loadingImages) {
+      loadDates();
+    }
+  }, [geojsonData]);
 
   useEffect(() => { isDrawingRef.current = isDrawing; }, [isDrawing]);
   useEffect(() => { drawPointsRef.current = drawPoints; }, [drawPoints]);
@@ -296,7 +412,7 @@ export default function MapScreen() {
     if (maskLayerRef.current) map.removeLayer(maskLayerRef.current);
     if (points.length > 1) {
       polylineRef.current = L.polyline(points, { color: '#ffffff', weight: 3, dashArray: '10, 10' }).addTo(map);
-      const tempPolygon = L.polygon(points, { color: '#16a34a', fillColor: '#16a34a', fillOpacity: 0.25, weight: 2 }).addTo(map);
+      const tempPolygon = L.polygon(points, { color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.2, weight: 2 }).addTo(map);
       polygonLayerRef.current = tempPolygon;
     }
   };
@@ -306,8 +422,6 @@ export default function MapScreen() {
   const startEditing = () => {
     const map = mapInstanceRef.current;
     if (!map || !geojsonData) return;
-    // Remove overlay de satélite para evitar quadrado verde visível
-    if (imageOverlayRef.current) { map.removeLayer(imageOverlayRef.current); imageOverlayRef.current = null; }
     if (polygonLayerRef.current) map.removeLayer(polygonLayerRef.current);
     if (maskLayerRef.current) map.removeLayer(maskLayerRef.current);
     markersRef.current.forEach(m => map.removeLayer(m)); markersRef.current = [];
@@ -361,8 +475,6 @@ export default function MapScreen() {
   const handleClear = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    // Remove overlay de satélite
-    if (imageOverlayRef.current) { map.removeLayer(imageOverlayRef.current); imageOverlayRef.current = null; }
     if (polygonLayerRef.current) { map.removeLayer(polygonLayerRef.current); polygonLayerRef.current = null; }
     if (maskLayerRef.current) { map.removeLayer(maskLayerRef.current); maskLayerRef.current = null; }
     setAreaHectares(null); setGeojsonData(null); setHasChanges(false);
@@ -443,28 +555,83 @@ export default function MapScreen() {
       )}
  
        {activeTab === 'map' && (
-          <MapEditCards
-            areaHectares={areaHectares}
-            isDrawing={isDrawing}
-            geojsonData={geojsonData}
-            canEdit={rolePermissions?.actions?.mapa_edicao !== false}
-            onStartDrawing={startDrawing}
-            onStartEditing={startEditing}
-          />
-        )}
+         <div className="space-y-3 animate-in slide-in-from-top-2 mb-3">
+             <div className="grid grid-cols-2 gap-3">
+                 {/* 1. AREA CARD */}
+                 <div className="bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center px-3">
+                     <div className="flex items-center gap-1 text-green-600 mb-0.5">
+                         <Maximize2 className="w-2.5 h-2.5" />
+                         <span className="text-[7.5px] font-black uppercase tracking-widest">Área Monitorada</span>
+                     </div>
+                     <div className="flex items-center gap-1">
+                         <span className="text-[13px] font-black text-gray-800">
+                             {areaHectares ? areaHectares.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '--'}
+                         </span>
+                         <span className="text-[8px] font-black text-green-600/70 uppercase">ha</span>
+                     </div>
+                 </div>
  
-
+                 {/* 2. MODIFY ACTION CARD */}
+                 {!isDrawing && rolePermissions?.actions?.mapa_edicao !== false && (
+                   geojsonData ? (
+                     <div 
+                       onClick={startEditing}
+                       className="bg-white h-12 rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center relative transition-all active:scale-95 px-3 cursor-pointer hover:bg-green-50/50 hover:border-green-100"
+                     >
+                       <div className="flex flex-col items-center justify-center w-full">
+                           <div className="flex items-center gap-1 text-green-600 mb-0.5">
+                               <Maximize2 className="w-2.5 h-2.5" />
+                               <span className="text-[7.5px] font-black uppercase tracking-widest">Ajustes</span>
+                           </div>
+                           <div className="flex items-center gap-1">
+                               <span className="text-[13px] font-black text-green-700">Modificar</span>
+                               <div className="bg-green-50 rounded-full p-0.5 ml-1">
+                                   <ChevronRight className="w-2.5 h-2.5 text-green-700" />
+                               </div>
+                           </div>
+                       </div>
+                     </div>
+                   ) : (
+                     <div 
+                       onClick={startDrawing}
+                       className="bg-green-600 h-12 rounded-xl border border-green-500 shadow-md flex flex-col items-center justify-center relative transition-all active:scale-95 px-3 cursor-pointer hover:bg-green-700"
+                     >
+                       <div className="flex flex-col items-center justify-center w-full text-white">
+                           <div className="flex items-center gap-1 mb-0.5">
+                             <Plus className="w-3 h-3" />
+                             <span className="text-[7.5px] font-black uppercase tracking-widest">Delimitar Divisa</span>
+                           </div>
+                           <span className="text-[13px] font-black uppercase">Desenhar Área</span>
+                       </div>
+                     </div>
+                   )
+                 )}
+             </div>
+         </div>
+       )}
  
 
       <div className="w-full flex flex-col">
         <div className="bg-white rounded-t-xl border-t border-x border-gray-200 px-3 sm:px-6 py-4 flex items-center justify-between z-10 relative">
             <div className="flex items-center gap-3 w-full justify-between">
                 {activeTab === 'map' ? (
-                    <MapControls 
-                      mapType={mapType} 
-                      setMapType={setMapType} 
-                      onLocateMe={handleLocateMe} 
-                    />
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-4">
+                            <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+                                {(['street', 'satellite'] as const).map(t => (
+                                    <button key={t} onClick={() => setMapType(t)} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${mapType === t ? 'bg-white shadow text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
+                                    {t === 'street' ? 'Mapa' : 'Satélite'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                             <button onClick={handleLocateMe} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" title="Minha Localização">
+                                <Locate className="w-5 h-5" />
+                             </button>
+                        </div>
+                     </div>
                 ) : (
                     <AnalysisControlBar 
                         overlayType={overlayType} 
@@ -501,19 +668,15 @@ export default function MapScreen() {
             )}
 
             {isDrawing && (
-                <DrawingToolbar
-                  drawPoints={drawPoints}
-                  onFinish={finishDrawing}
-                  onUndo={() => { 
-                    const pts = [...drawPoints]; 
-                    pts.pop(); 
-                    markersRef.current.pop()?.remove(); 
-                    setDrawPoints(pts); 
-                    drawPointsRef.current = pts; 
-                    updatePreview(pts, mapInstanceRef.current!); 
-                  }}
-                  onCancel={cancelDrawing}
-                />
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-green-100 flex items-center gap-4 z-[1000] animate-in slide-in-from-top-4">
+                    <div className="flex items-center gap-2 text-green-800 text-sm font-bold"><MousePointerClick className="w-4 h-4" /><span>{drawPoints.length} pontos</span></div>
+                    <div className="h-4 w-px bg-gray-300" />
+                    <div className="flex items-center gap-1">
+                        <button onClick={finishDrawing} className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition" title="Finalizar"><Check className="w-4 h-4" /></button>
+                        <button onClick={() => { const pts = [...drawPoints]; pts.pop(); markersRef.current.pop()?.remove(); setDrawPoints(pts); drawPointsRef.current = pts; updatePreview(pts, mapInstanceRef.current!); }} className="p-1.5 bg-gray-200 text-gray-600 rounded-full hover:bg-gray-300 transition" title="Desfazer"><Undo2 className="w-4 h-4" /></button>
+                        <button onClick={cancelDrawing} className="p-1.5 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition" title="Cancelar"><X className="w-4 h-4" /></button>
+                    </div>
+                </div>
             )}
             {activeTab === 'analysis' && showOverlay && <MapLegend type={overlayType} />}
             {loadingImages && <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-lg flex items-center gap-3 z-[1000] border border-gray-100"><Loader2 className="w-4 h-4 animate-spin text-green-600" /><span className="text-xs font-bold text-gray-600">Processando...</span></div>}
