@@ -37,6 +37,7 @@ export function ProfileHeader({
             </div>
             {avatarUrl && !avatarUrl.startsWith('http') && (
                 <button 
+                    type="button"
                     onClick={onAdjustClick}
                     className="mt-3 text-[10px] font-black text-indigo-600 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-full hover:bg-indigo-100 transition-colors uppercase tracking-widest"
                 >
