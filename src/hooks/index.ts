@@ -10,7 +10,6 @@ export * from './useGeocoding';
 export * from './useImageCrop';
 
 // Hooks de Feature (referenciados aqui para facilidade de import, opcional)
-export { usePolygonEditor } from '../features/map/hooks/usePolygonEditor';
 export { useEstoqueDiesel } from '../features/fuel/hooks/useEstoqueDiesel';
 export { useEstoqueProdutos } from '../features/assets/hooks/useEstoque'; // Movido
 export { useFazendaForm } from '../features/farm/hooks/useFazendaForm'; // Movido

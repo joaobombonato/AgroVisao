@@ -9,7 +9,6 @@ import { ConfirmModal } from '../../../components/ui/Shared';
 import { MapToolbar } from './MapToolbar';
 import { StatsPanel } from './StatsPanel';
 import { MapLegend } from './DrawingLegend';
-import { editIcon, TILE_LAYERS } from '../config/mapConfig';
 
 interface TalhaoMapEditorProps {
     farmGeoJSON: any;
@@ -18,6 +17,20 @@ interface TalhaoMapEditorProps {
     onSave: (data: { geojson: any; areaHectares: number }) => void;
     onClose: () => void;
 }
+
+const editIcon = L.divIcon({
+    className: 'custom-edit-marker',
+    html: `<div style="
+      background-color: white;
+      border: 2px solid #16a34a;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+});
 
 export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingTalhoes = [], onSave, onClose }: TalhaoMapEditorProps) {
     const mapRef = useRef<HTMLDivElement>(null);
@@ -56,9 +69,15 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
             attributionControl: false
         }).setView([-15, -50], 4);
 
-        // Usa TILE_LAYERS do config
-        const tileConfig = TILE_LAYERS[mapType];
-        L.tileLayer(tileConfig.url, { attribution: tileConfig.attribution }).addTo(map);
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri'
+        });
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'OpenStreetMap'
+        });
+
+        if (mapType === 'satellite') satelliteLayer.addTo(map);
+        else streetLayer.addTo(map);
 
         // Adicionar limite da fazenda se existir
         if (farmGeoJSON) {
@@ -630,8 +649,7 @@ export default function TalhaoMapEditor({ farmGeoJSON, initialGeoJSON, existingT
                             mapInstanceRef.current.eachLayer(l => {
                                 if (l instanceof L.TileLayer) mapInstanceRef.current?.removeLayer(l);
                             });
-                            const tileConfig = TILE_LAYERS[newType];
-                            L.tileLayer(tileConfig.url, { attribution: tileConfig.attribution }).addTo(mapInstanceRef.current);
+                            L.tileLayer(newType === 'satellite' ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInstanceRef.current);
                         }}
                         className="bg-white p-3 rounded-2xl shadow-lg border border-gray-100 flex items-center gap-2 hover:bg-gray-50 transition-all active:scale-95"
                     >
