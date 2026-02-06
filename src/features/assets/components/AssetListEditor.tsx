@@ -184,7 +184,7 @@ export default function AssetListEditor({ assetKey, onBack }: AssetListEditorPro
                         editor.setNewItemFields({ 
                             ...editor.newItemFields, 
                             geometry: data.geojson, 
-                            area_ha: data.areaHectares.toFixed(2) 
+                            area_ha: parseFloat(data.areaHectares.toFixed(2))
                         });
                         editor.setShowMap(false);
                     }}

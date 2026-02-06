@@ -89,7 +89,12 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
         return { success: true, online: true, data };
       } catch (e) { console.warn("Sync Insert Fail", e); }
     }
-    addToQueue({ id: U.id('sync-ins-'), table, payload, action: 'INSERT', timestamp: Date.now() });
+    // Se falhou online ou está offline, adiciona à fila (sem ID temporário)
+    const queuePayload = { ...payload };
+    if (queuePayload.id && String(queuePayload.id).startsWith('temp-')) {
+      delete queuePayload.id; // Remove ID temporário para que o Supabase gere o UUID
+    }
+    addToQueue({ id: U.id('sync-ins-'), table, payload: queuePayload, action: 'INSERT', timestamp: Date.now() });
     toast.success('Salvo Local (Offline)');
     return { success: true, online: false, data: recordWithId };
   }, [fazendaId, addToQueue, state.os, dispatch]);
