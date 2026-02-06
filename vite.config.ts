@@ -33,6 +33,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        navigateFallbackDenylist: [/^\/api-proxy-zarc/],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -79,6 +80,12 @@ export default defineConfig({
         target: 'https://sh.dataspace.copernicus.eu',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/copernicus-api/, '/api/v1'),
+        secure: false
+      },
+      '/api-proxy-zarc': {
+        target: 'https://dados.agricultura.gov.br',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api-proxy-zarc/, '/api/3/action/datastore_search'),
         secure: false
       }
     }

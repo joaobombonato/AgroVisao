@@ -5,7 +5,7 @@ import { useAssetEditor } from '../hooks/useAssetEditor';
 import { AssetForm } from './AssetForm';
 import { AssetList } from './AssetList';
 import TalhaoMapEditor from '../../map/components/TalhaoMapEditor';
-import FleetRenewalWizard from './FleetRenewalWizard';
+import FleetRenewalWizard from '../../insurance/components/FleetRenewalWizard';
 import { useAppContext } from '../../../context/AppContext';
 import { ASSET_DEFINITIONS } from '../../../config/assetsDefinitions';
 

@@ -172,6 +172,29 @@ export default function MinhaContaEditor() {
         }
     };
 
+    const handleAdjustExisting = async () => {
+        if (imageCrop.config.rawImage) {
+            imageCrop.setIsAdjusting(true);
+            return;
+        }
+
+        if (!previewUrl) return;
+
+        try {
+            const toastId = toast.loading("Carregando imagem...");
+            const response = await fetch(previewUrl);
+            const blob = await response.blob();
+            const file = new File([blob], "avatar.jpg", { type: blob.type });
+            
+            // O handleImageUpload já abre o modal (setIsAdjusting(true))
+            imageCrop.handleImageUpload(file);
+            toast.dismiss(toastId);
+        } catch (error) {
+            console.error(error);
+            toast.error("Não foi possível carregar a imagem.");
+        }
+    };
+
     return (
         <form onSubmit={handleUpdateProfile} className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 pb-24">
             
@@ -195,7 +218,7 @@ export default function MinhaContaEditor() {
                 avatarUrl={formData.avatar_url}
                 loading={uploading}
                 onFileSelect={handleImageSelect}
-                onAdjustClick={() => imageCrop.setIsAdjusting(true)}
+                onAdjustClick={handleAdjustExisting}
             />
 
             {/* Informações Pessoais */}

@@ -83,7 +83,7 @@ export function LogoAdjustModal({
                             <input
                                 type="range"
                                 min="0.1"
-                                max="4"
+                                max="1.5"
                                 step="0.01"
                                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                                 value={adjustConfig.zoom}

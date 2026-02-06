@@ -24,7 +24,7 @@ export function FazendaLogoHeader({ logoUrl, onFileChange, onAdjustClick }: Faze
                 </label>
             </div>
             {logoUrl && (
-                <button onClick={onAdjustClick} className="mt-5 text-xs font-bold text-green-600 hover:text-green-700 flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full transition-colors">
+                <button type="button" onClick={onAdjustClick} className="mt-5 text-xs font-bold text-green-600 hover:text-green-700 flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full transition-colors">
                     <Move className="w-3 h-3" /> Ajustar logotipo
                 </button>
             )}

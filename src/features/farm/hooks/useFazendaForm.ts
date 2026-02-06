@@ -12,6 +12,8 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../../../supabaseClient';
 import { useAppContext } from '../../../context/AppContext';
 import { U } from '../../../utils';
+import { dbService } from '../../../services';
+import { getREC } from '../utils/zarcUtils';
 
 interface FazendaFormData {
   nome: string;
@@ -41,22 +43,6 @@ const initialFormData: FazendaFormData = {
   regiao_imediata: '',
   rec_code: '',
   logo_base64: ''
-};
-
-// Mapeamento de códigos REC por município
-const REC_MAP: Record<string, string> = {
-  '3170107': 'REC_05',  // Uberlândia
-  '3106200': 'REC_04',  // Belo Horizonte
-  '5208707': 'REC_07',  // Goiânia
-  '5300108': 'REC_07',  // Brasília
-  '3550308': 'REC_03',  // São Paulo
-  '4106902': 'REC_06',  // Curitiba
-  '5002704': 'REC_08',  // Campo Grande
-  '5103403': 'REC_09',  // Cuiabá
-  '1100205': 'REC_10',  // Porto Velho
-  '1302603': 'REC_11',  // Manaus
-  '2927408': 'REC_01',  // Salvador
-  '2611606': 'REC_02',  // Recife
 };
 
 export function useFazendaForm() {
@@ -91,51 +77,9 @@ export function useFazendaForm() {
       .finally(() => setLoadingLoc(false));
   }, [formData.estado]);
 
-  // Obter código REC baseado no município
-  const getREC = (municipio: any): string => {
-    if (!municipio) return '';
-    const municipioId = municipio.id?.toString();
-    
-    // Verificar mapa direto
-    if (municipioId && REC_MAP[municipioId]) {
-      return REC_MAP[municipioId];
-    }
-    
-    // Fallback: buscar por região intermediária
-    const regiaoInt = municipio?.['regiao-intermediaria']?.id?.toString().slice(0, 2);
-    const regiaoMapping: Record<string, string> = {
-      '31': 'REC_05', // MG
-      '35': 'REC_03', // SP
-      '41': 'REC_06', // PR
-      '42': 'REC_06', // SC
-      '43': 'REC_06', // RS
-      '50': 'REC_08', // MS
-      '51': 'REC_09', // MT
-      '52': 'REC_07', // GO
-      '53': 'REC_07', // DF
-      '11': 'REC_10', // RO
-      '12': 'REC_10', // AC
-      '13': 'REC_11', // AM
-      '14': 'REC_11', // RR
-      '15': 'REC_11', // PA
-      '16': 'REC_11', // AP
-      '17': 'REC_07', // TO
-      '21': 'REC_02', // MA
-      '22': 'REC_02', // PI
-      '23': 'REC_02', // CE
-      '24': 'REC_02', // RN
-      '25': 'REC_02', // PB
-      '26': 'REC_02', // PE
-      '27': 'REC_01', // AL
-      '28': 'REC_01', // SE
-      '29': 'REC_01', // BA
-      '32': 'REC_04', // ES
-      '33': 'REC_03', // RJ
-    };
-    
-    return regiaoMapping[regiaoInt || ''] || 'REC_DEFAULT';
-  };
-
+  // Mapeamento REC por mesorregião (Lógica ZARC Detalhada)
+  // Fonte: FazendaPerfilEditor.tsx
+  
   // Selecionar Município
   const handleSelectMunicipio = (mId: string) => {
     const mun = municipios.find((m: any) => m.id.toString() === mId);
@@ -218,6 +162,55 @@ export function useFazendaForm() {
     }
   };
 
+
+  const autofillLocation = async (lat: number, lng: number, stateSigla: string, cityName: string) => {
+    setLoadingLoc(true);
+    try {
+        // 1. Buscar municipios do estado identificado (Manual fetch para evitar race condition)
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${stateSigla}/municipios`);
+        const munData = await res.json();
+        setMunicipios(munData); // Atualiza estado visual também
+
+        // 2. Encontrar cidade
+        const mun = munData.find((m: any) => m.nome === cityName);
+        
+        // 3. Preparar update
+        let updates: Partial<FazendaFormData> = {
+            latitude: lat,
+            longitude: lng,
+            estado: stateSigla,
+            cidade: cityName // Nome visual
+        };
+
+        if (mun) {
+            const microName = mun?.microrregiao?.nome || '';
+            const mesoName = mun?.microrregiao?.mesorregiao?.nome || '';
+            const regiaoImediata = mun?.['regiao-imediata']?.nome || '';
+            const recCode = getREC(mun);
+
+            updates = {
+                ...updates,
+                cidade: mun.nome, // Nome oficial do IBGE
+                microregiao: microName,
+                mesoregiao: mesoName,
+                regiao_imediata: regiaoImediata,
+                rec_code: recCode
+            };
+            toast.success(`Localização definida: ${mun.nome} - ${stateSigla}`);
+        } else {
+            toast.success(`Localização aproximiada: ${cityName} - ${stateSigla}`);
+        }
+
+        setFormData(prev => ({ ...prev, ...updates }));
+
+    } catch (err) {
+        console.error("Erro autofill location:", err);
+        toast.error("Erro ao carregar dados da região.");
+    } finally {
+        setLoadingLoc(false);
+    }
+  };
+
   return {
     formData,
     setFormData,
@@ -228,6 +221,7 @@ export function useFazendaForm() {
     handleSelectMunicipio,
     handleLocationChange,
     handleLogoChange,
-    handleSubmit
+    handleSubmit,
+    autofillLocation // Exposto
   };
 }
