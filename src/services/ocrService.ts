@@ -142,8 +142,20 @@ export const ocrService = {
             const resText = response.text();
             console.log(`Gemini (${modelName}) Raw Response:`, resText);
             
-            const jsonStr = resText.replace(/```json|```/g, "").trim();
-            const fields = JSON.parse(jsonStr);
+            const jsonMatch = resText.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? jsonMatch[0] : resText;
+            
+            let fields;
+            try {
+                fields = JSON.parse(jsonStr);
+            } catch (e) {
+                console.error("Erro ao converter JSON do Gemini:", e, "Texto:", jsonStr);
+                // Fallback: se não for JSON, tenta pegar campos via regex ou retorna vazio
+                fields = { 
+                    emitente: (resText.match(/emitente["\s:]+([^"\n,]+)/i) || [])[1] || null,
+                    total: (resText.match(/total["\s:]+([^"\n,]+)/i) || [])[1] || null
+                };
+            }
 
             return { 
                 rawText: resText, 

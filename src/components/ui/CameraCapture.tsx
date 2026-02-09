@@ -136,7 +136,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         <div className="relative bg-black flex items-center justify-center overflow-hidden h-[380px]">
             {!capturedImage ? (
                 <>
-                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain bg-black" />
                     <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 pointer-events-none opacity-90">
                         <div className="bg-black/60 px-4 py-2 rounded-full text-[10px] text-white backdrop-blur-md border border-white/20 flex items-center gap-2">
                              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
@@ -146,7 +146,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                 </>
             ) : (
                 <div className="w-full h-full relative flex flex-col">
-                    <img src={capturedImage} alt="Captura" className="w-full h-full object-cover bg-slate-800" />
+                    <img src={capturedImage} alt="Captura" className="w-full h-full object-contain bg-slate-800" />
                     
                     {/* Botões de Leitura (Floating) */}
                     {!ocrResult && !isProcessing && (
