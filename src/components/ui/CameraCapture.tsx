@@ -133,7 +133,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         </div>
 
         {/* Viewport da Câmera */}
-        <div className="relative bg-black flex items-center justify-center overflow-hidden h-[380px]">
+        <div className="relative bg-black flex items-center justify-center overflow-hidden h-[500px]">
             {!capturedImage ? (
                 <>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain bg-black" />

@@ -113,20 +113,26 @@ export const ocrService = {
             const base64Data = await base64Promise;
             const base64Content = base64Data.split(',')[1];
 
-            const prompt = `Analise esta foto de uma Nota Fiscal (DANFE) ou Boleto. 
-            Extraia o máximo de informações possível.
-            No campo "total", procure o Valor Total da Nota (número com vírgula).
-            No campo "chave", procure a Chave de Acesso de 44 dígitos.
-            Extraia os seguintes campos em formato JSON puro:
+            const prompt = `Analise esta foto de uma Nota Fiscal ou Boleto.
+            IMPORTANTE: Extraia apenas dados REAIS presentes na imagem.
+            
+            Campos específicos:
+            1. "emitente": Razão Social da empresa (busque por LTDA, S/A, etc).
+            2. "total": O valor final (Ex: "1.234,56"). Nunca invente valores.
+            3. "chave": A sequência de 44 dígitos da NFe (se houver).
+            4. "data": Data de emissão (DD/MM/AAAA).
+            5. "cnpj": O CNPJ do emitente.
+
+            Responda EXCLUSIVAMENTE em formato JSON puro, sem textos extras:
             {
-                "emitente": "nome da empresa",
-                "cnpj": "00.000.000/0000-00",
-                "data": "DD/MM/AAAA",
-                "total": "0,00",
-                "chave": "44 digitos",
-                "produtos": ["lista de produtos"]
+                "emitente": "string",
+                "cnpj": "string",
+                "data": "string",
+                "total": "string",
+                "chave": "string",
+                "produtos": []
             }
-            Responda APENAS o JSON. Se não encontrar um campo, deixe null.`;
+            Se não encontrar algo, deixe "".`;
 
             const result = await model.generateContent([
                 {

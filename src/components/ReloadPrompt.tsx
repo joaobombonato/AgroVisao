@@ -10,6 +10,10 @@ export default function ReloadPrompt() {
   } = useRegisterSW({
     onRegistered(r) {
       console.log('SW Registered: ' + r);
+      // Check for updates periodically
+      if (r) {
+        setInterval(() => r.update(), 60 * 60 * 1000); // Check every hour
+      }
     },
     onRegisterError(error) {
       console.log('SW registration error', error);
@@ -30,25 +34,31 @@ export default function ReloadPrompt() {
 
   React.useEffect(() => {
     if (needRefresh) {
+        // Auto-update if possible, or show urgent toast
+        const update = () => {
+          updateServiceWorker(true);
+        };
+
         toast((t) => (
             <div className="flex flex-col gap-2">
-                <span className="font-bold">Nova versão disponível!</span>
+                <span className="font-bold">⚠️ Nova versão obrigatória!</span>
+                <p className="text-xs">Para corrigir o erro de enquadramento e OCR, precisamos atualizar agora.</p>
                 <div className="flex gap-2">
                     <button 
-                        onClick={() => { updateServiceWorker(true); toast.dismiss(t.id); }}
-                        className="bg-green-600 text-white px-3 py-1 rounded text-xs"
+                        onClick={() => { update(); toast.dismiss(t.id); }}
+                        className="bg-green-600 text-white px-3 py-1 rounded text-xs font-bold"
                     >
-                        Atualizar
+                        Atualizar Agora
                     </button>
                     <button 
                         onClick={() => { close(); toast.dismiss(t.id); }}
                         className="bg-gray-200 text-gray-800 px-3 py-1 rounded text-xs"
                     >
-                        Fechar
+                        Depois
                     </button>
                 </div>
             </div>
-        ), { duration: Infinity, position: 'bottom-right' });
+        ), { duration: Infinity, position: 'bottom-center' });
     }
   }, [needRefresh, updateServiceWorker, setNeedRefresh]);
 
