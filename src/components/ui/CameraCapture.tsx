@@ -99,8 +99,9 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         const result = await ocrService.recognizeIntelligent(file);
         setOcrResult(result);
         toast.success("Leitura Inteligente concluída!", { icon: '✨' });
-    } catch (error) {
-        toast.error("Erro na leitura inteligente.");
+    } catch (error: any) {
+        console.error("Erro na leitura inteligente:", error);
+        toast.error("Erro na leitura inteligente: " + (error.message || "Verifique sua conexão ou chave de API"));
     } finally {
         setIsProcessing(false);
     }
@@ -133,7 +134,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         </div>
 
         {/* Viewport da Câmera */}
-        <div className="relative bg-black flex items-center justify-center overflow-hidden h-[500px]">
+        <div className="relative bg-black flex items-center justify-center overflow-hidden h-[600px]">
             {!capturedImage ? (
                 <>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain bg-black" />
@@ -150,30 +151,35 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                     
                     {/* Botões de Leitura (Floating) */}
                     {!ocrResult && !isProcessing && (
-                         <div className="absolute inset-x-0 bottom-4 px-4 flex flex-col gap-2">
-                             <button 
+                        <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-3 px-6 animate-in fade-in slide-in-from-bottom-4">
+                            <button
                                 onClick={processTesseract}
-                                className="w-full py-3 bg-white text-slate-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all"
-                             >
-                                 <FileText className="w-4 h-4 text-indigo-600" />
-                                 Leitura Rápida
-                             </button>
-                             <button 
+                                className="w-full bg-white text-slate-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-transform"
+                            >
+                                <FileText className="w-5 h-5 text-indigo-600" />
+                                Leitura Rápida
+                            </button>
+                            <button
                                 onClick={processGemini}
-                                className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xl active:scale-95 transition-all border border-indigo-400/30"
-                             >
-                                 <div className="flex -space-x-1">
-                                     <div className="w-1.5 h-1.5 bg-blue-300 rounded-full animate-bounce"></div>
-                                     <div className="w-1.5 h-1.5 bg-purple-300 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-                                 </div>
-                                 Leitura Inteligente (AI)
-                             </button>
+                                className="w-full bg-gradient-to-r from-indigo-600 to-blue-700 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-transform border border-indigo-400/30"
+                            >
+                                <div className="w-2 h-2 bg-indigo-200 rounded-full animate-pulse"></div>
+                                Leitura Inteligente (AI)
+                            </button>
+                        </div>
+                    )}
+
+                    {isProcessing && (
+                         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex flex-center flex-col items-center justify-center text-white p-6 z-50">
+                            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+                            <p className="font-bold text-lg animate-pulse">Lendo Documento...</p>
+                            <p className="text-xs text-white/70 mt-2 text-center">Isso pode levar alguns segundos dependendo da conexão.</p>
                          </div>
                     )}
 
                     {/* Conference Screen Overlay */}
                     {ocrResult && (
-                        <div className="absolute inset-0 bg-slate-900/95 overflow-y-auto p-5 text-white animate-in fade-in slide-in-from-bottom-5">
+                        <div className="absolute inset-0 bg-slate-900/95 overflow-y-auto p-5 text-white animate-in fade-in slide-in-from-bottom-5 z-[60]">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-sm flex items-center gap-2">
                                     {ocrResult.source === 'gemini' ? <span className="text-indigo-400">✨ IA</span> : '📄 Rápida'} 
@@ -246,20 +252,10 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                     )}
                 </div>
             )}
-            
-            <canvas ref={canvasRef} className="hidden" />
-            
-            {/* Loading Overlay */}
-            {isProcessing && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-sm">
-                    <div className="w-10 h-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-white font-bold text-[10px] mt-4">
-                        {ocrResult ? "Refinando..." : "Lendo nota..."}
-                    </p>
-                </div>
-            )}
         </div>
-
+        
+        <canvas ref={canvasRef} className="hidden" />
+        
         {/* Action Bar */}
         {!capturedImage && (
             <div className="bg-slate-900 p-6 flex justify-center items-center">

@@ -15,7 +15,40 @@ export interface OCRResult {
 }
 
 const API_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || "";
+if (!API_KEY) {
+    console.error("VITE_GOOGLE_AI_KEY is MISSING in process.env / import.meta.env");
+} else {
+    console.log("VITE_GOOGLE_AI_KEY is defined (length: " + API_KEY.length + ")");
+}
 const genAI = new GoogleGenerativeAI(API_KEY);
+
+// Helper para comprimir imagem antes de enviar para a IA
+const compressImage = async (file: File, maxWidth: number = 1200): Promise<string> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+            };
+            img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+    });
+};
 
 export const ocrService = {
     recognize: async (imageFile: File): Promise<OCRResult> => {
@@ -26,70 +59,49 @@ export const ocrService = {
                 { logger: m => console.log(m) }
             );
 
-            console.log("Tesseract Raw Output:", text);
+            // Limpeza de ruído comum do Tesseract
+            const cleanText = text
+                .replace(/[|~_\[\]]/g, ' ') // Remove caracteres de ruído
+                .replace(/\s+/g, ' '); // Normaliza espaços
+            
+            console.log("Tesseract Clean Output:", cleanText);
 
             const fields: OCRResult['fields'] = { produtos: [] };
 
-            // 1. Valor Total (Mais agressivo)
-            const totalKeywords = ['TOTAL', 'VALOR', 'V\\.LIQ', 'LIQ', 'DOC', 'PAGAR', 'VLR', 'NFE', 'NOTA'];
-            const totalMatch = text.match(new RegExp(`(?:${totalKeywords.join('|')})[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,7})`, 'i'));
+            // 1. Valor Total (Mais agressivo e focado em valores decimais)
+            const totalKeywords = ['TOTAL', 'VALOR', 'V\\.LIQ', 'LIQ', 'PAGAR', 'VLR', 'VALOR A PAGAR'];
+            const totalMatch = cleanText.match(new RegExp(`(?:${totalKeywords.join('|')})[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,10})`, 'i'));
             if (totalMatch) {
-                // Pega apenas números e o ponto/vírgula decimal
                 const valueStr = totalMatch[1].trim()
                     .replace(/\s/g, '')
-                    .replace(/[^0-9,.]/g, ''); // Garante limpeza de caracteres estranhos
+                    .replace(/[^0-9,.]/g, ''); 
                 fields.total = valueStr;
             }
 
             // 2. Data
-            const dateMatch = text.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
+            const dateMatch = cleanText.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
             if (dateMatch) fields.data = dateMatch[1];
 
             // 3. CNPJ / CPF
-            const cnpjMatch = text.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/);
+            const cnpjMatch = cleanText.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/);
             if (cnpjMatch) fields.cnpj = cnpjMatch[0];
 
-            // 4. Chave de Acesso (Processamento especial com faxina de espaços)
-            const digitsOnly = text.replace(/[^\d]/g, '');
+            // 4. Chave de Acesso
+            const digitsOnly = cleanText.replace(/[^\d]/g, '');
             const chaveMatch = digitsOnly.match(/(\d{44})/);
             if (chaveMatch) {
                 fields.chave = chaveMatch[1];
-            } else {
-                // Se não achou 44 seguidos, tenta pegar uma sequência longa que pareça chave
-                const longSequence = digitsOnly.match(/(\d{20,44})/);
-                if (longSequence) fields.chave = longSequence[1];
             }
 
-            // 5. Emitente (Melhorado: busca palavras chave de empresa primeiro)
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-            if (lines.length > 0) {
-                // Prioridade 1: Linhas que contém suffixes de empresa
-                const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'SERVICOS', 'COMERCIO', 'INDUSTRIA'];
-                const emitenteWithSuffix = lines.slice(0, 15).find(l => 
-                    suffixes.some(s => l.toUpperCase().includes(s)) && !l.includes('DANFE')
-                );
-
-                if (emitenteWithSuffix) {
-                    fields.emitente = emitenteWithSuffix.replace(/[:;]/g, '').trim();
-                } else {
-                    // Prioridade 2: Primeira linha em caixa alta que não seja título
-                    const possibleEmitente = lines.slice(0, 10).find(l => 
-                        !l.includes('DANFE') && 
-                        !l.includes('NOTA') && 
-                        !l.includes('DOCUMENTO') &&
-                        l === l.toUpperCase()
-                    );
-                    if (possibleEmitente) fields.emitente = possibleEmitente;
-                }
+            // 5. Emitente (Suffixes comuns)
+            const lines = cleanText.split('\n').concat(text.split('\n')).map(l => l.trim()).filter(l => l.length > 5);
+            const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'SERVICOS', 'COMERCIO', 'INDUSTRIA'];
+            const emitenteWithSuffix = lines.slice(0, 20).find(l => 
+                suffixes.some(s => l.toUpperCase().includes(s)) && !l.includes('DANFE')
+            );
+            if (emitenteWithSuffix) {
+                fields.emitente = emitenteWithSuffix.replace(/[:;]/g, '').trim();
             }
-
-            // 6. Produtos
-            lines.forEach(line => {
-                const upper = line.toUpperCase();
-                if (upper.includes('GL') || upper.includes('UN') || upper.includes('KG') || line.match(/^\d{2,3}\s+[A-Z]/)) {
-                    fields.produtos?.push(line.trim());
-                }
-            });
 
             return { rawText: text, source: 'tesseract', fields };
         } catch (error) {
@@ -105,13 +117,8 @@ export const ocrService = {
             console.log(`Tentando Gemini com modelo: ${modelName}`);
             const model = genAI.getGenerativeModel({ model: modelName });
 
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve) => {
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(imageFile);
-            });
-            const base64Data = await base64Promise;
-            const base64Content = base64Data.split(',')[1];
+            // Comprime a imagem para evitar estouro de banda e melhorar performance
+            const base64Content = await compressImage(imageFile);
 
             const prompt = `Analise esta foto de uma Nota Fiscal ou Boleto.
             IMPORTANTE: Extraia apenas dados REAIS presentes na imagem.
@@ -137,7 +144,7 @@ export const ocrService = {
             const result = await model.generateContent([
                 {
                     inlineData: {
-                        mimeType: imageFile.type,
+                        mimeType: "image/jpeg",
                         data: base64Content
                     }
                 },
@@ -146,7 +153,6 @@ export const ocrService = {
 
             const response = await result.response;
             const resText = response.text();
-            console.log(`Gemini (${modelName}) Raw Response:`, resText);
             
             const jsonMatch = resText.match(/\{[\s\S]*\}/);
             const jsonStr = jsonMatch ? jsonMatch[0] : resText;
@@ -155,11 +161,9 @@ export const ocrService = {
             try {
                 fields = JSON.parse(jsonStr);
             } catch (e) {
-                console.error("Erro ao converter JSON do Gemini:", e, "Texto:", jsonStr);
-                // Fallback: se não for JSON, tenta pegar campos via regex ou retorna vazio
                 fields = { 
-                    emitente: (resText.match(/emitente["\s:]+([^"\n,]+)/i) || [])[1] || null,
-                    total: (resText.match(/total["\s:]+([^"\n,]+)/i) || [])[1] || null
+                    emitente: (resText.match(/emitente["\s:]+([^"\n,]+)/i) || [])[1] || "",
+                    total: (resText.match(/total["\s:]+([^"\n,]+)/i) || [])[1] || ""
                 };
             }
 
