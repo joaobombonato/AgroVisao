@@ -2,7 +2,7 @@ import React, { useState, useMemo, Suspense } from 'react';
 import { CloudRain, Search, Check, Droplets, Cloud, Loader2, Satellite } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../../../components/ui/Shared';
-import { U } from '../../../utils';
+import { U, getOperationalDateLimits } from '../../../utils';
 import { toast } from 'react-hot-toast';
 
 // Lazy load weather component
@@ -134,6 +134,8 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
                    value={form.data_leitura} 
                    onChange={(e: any) => setForm({ ...form, data_leitura: e.target.value })} 
                    required 
+                   max={getOperationalDateLimits().max}
+                   min={getOperationalDateLimits().min}
                 />
                 
                 <SearchableSelect 

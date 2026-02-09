@@ -43,7 +43,7 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
 
     return (
         <div className="space-y-1 relative" ref={wrapperRef}>
-            <p className="text-xs font-medium text-gray-600">{label} {required && '*'}</p>
+            <p className="text-xs font-medium text-gray-600">{label} {required && <span className="text-red-500">*</span>}</p>
             <div 
                 className={`w-full px-3 py-2 border-2 rounded-lg bg-white flex justify-between items-center cursor-pointer transition-colors ${isOpen ? `${theme.borderFocus} ring-1 ${theme.ring}` : 'border-gray-200'}`}
                 onClick={() => setIsOpen(!isOpen)}

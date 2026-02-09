@@ -12,7 +12,7 @@ import { toast } from 'react-hot-toast';
 import { AlertTriangle } from 'lucide-react';
 import React from 'react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
-import { U } from '../../../utils';
+import { U, validateOperationalDate } from '../../../utils';
 import { useEstoqueDiesel } from '../../../hooks';
 
 interface AbastecimentoFormState {
@@ -74,17 +74,21 @@ export function useAbastecimentoForm() {
 
   // Cálculos dinâmicos
   const litrosCalculados = useMemo(() => {
-    const ini = U.parseDecimal(form.bombaInicial);
-    const fim = U.parseDecimal(form.bombaFinal);
-
-    if (fim >= ini) {
-      return (fim - ini).toFixed(2);
+    const i = U.parseDecimal(form.bombaInicial);
+    const f = U.parseDecimal(form.bombaFinal);
+    if (f >= i) {
+      return (f - i).toFixed(2).replace('.', ',');
     } else {
       // Virada de bomba
       const MODULO = 100000000;
-      return ((MODULO + fim) - ini).toFixed(2);
+      return ((MODULO + f) - i).toFixed(2).replace('.', ',');
     }
   }, [form.bombaInicial, form.bombaFinal]);
+
+  const getUnidadeMedida = () => {
+    const maquinaObj = (ativos?.maquinas || []).find((m: any) => m.nome === form.maquina);
+    return maquinaObj?.unidade_medida?.includes("Km") ? "Km" : "Horas";
+  };
 
   const mediaConsumo = useMemo(() => {
     if (!form.tanqueCheio) return 'N/A';
@@ -92,23 +96,37 @@ export function useAbastecimentoForm() {
     const l = U.parseDecimal(litrosCalculados);
     const hAnt = U.parseDecimal(form.horimetroAnterior);
     const hAtu = U.parseDecimal(form.horimetroAtual);
-    if (l > 0 && hAtu > hAnt) {
-      return (l / (hAtu - hAnt)).toFixed(2);
+    const diff = hAtu - hAnt;
+
+    if (l > 0 && diff > 0) {
+      const unidade = getUnidadeMedida();
+      // Se for Km (Veículo): Km / Litros = Km/L
+      if (unidade === 'Km') {
+          return (diff / l).toFixed(2);
+      }
+      // Se for Horas (Máquina): Litros / Horas = L/h
+      return (l / diff).toFixed(2);
     }
     return '0.00';
-  }, [litrosCalculados, form.horimetroAnterior, form.horimetroAtual, form.tanqueCheio]);
+  }, [litrosCalculados, form.horimetroAnterior, form.horimetroAtual, form.tanqueCheio, form.maquina, ativos.maquinas]);
 
-  const precoMedioDiesel = useMemo(() => {
+
+  const precoInfo = useMemo(() => {
     const compras = dados.compras || [];
+    const pFinanceiro = ativos.parametros?.financeiro?.precoDiesel;
+    const pSafe = pFinanceiro ? String(pFinanceiro).replace('.', ',') : '';
+    const precoBase = pSafe !== '' ? U.parseDecimal(pSafe) : 0;
+
     if (compras.length > 0) {
       const ultimaCompra = compras[compras.length - 1];
-      return U.parseDecimal(ultimaCompra.valorUnitario || 0);
+      const valSafe = ultimaCompra.valorUnitario ? String(ultimaCompra.valorUnitario).replace('.', ',') : '0';
+      const val = U.parseDecimal(valSafe);
+      return { val, source: 'Última Compra' };
     }
-    const pFinanceiro = ativos.parametros?.financeiro?.precoDiesel;
-    return pFinanceiro !== '' ? U.parseDecimal(pFinanceiro) : 0;
+    return { val: precoBase, source: 'Parâmetro Base' };
   }, [dados.compras, ativos.parametros]);
 
-  const custoEstimado = (U.parseDecimal(litrosCalculados) * precoMedioDiesel).toFixed(2);
+  const custoEstimado = U.parseDecimal(litrosCalculados) * precoInfo.val;
 
   // Função de envio
   const enviar = (e: any) => {
@@ -126,6 +144,16 @@ export function useAbastecimentoForm() {
       return;
     }
 
+    // Validação de Data (Nova Lógica Global)
+    const dateCheck = validateOperationalDate(form.data);
+    if (!dateCheck.valid) {
+        toast.error(dateCheck.error || 'Data inválida.');
+        return;
+    }
+    if (dateCheck.warning) {
+        if (!window.confirm(dateCheck.warning)) return;
+    }
+
     if (!form.maquina || U.parseDecimal(litrosCalculados) <= 0) {
       toast.error("Verifique os dados da Bomba e Máquina");
       return;
@@ -136,9 +164,28 @@ export function useAbastecimentoForm() {
       return;
     }
 
-    if (U.parseDecimal(form.horimetroAtual) <= U.parseDecimal(form.horimetroAnterior)) {
-      toast.error("Hodômetro Atual deve ser maior que o Anterior");
-      return;
+    // Validação Sequencial Estrita (Horímetro)
+    const hAtual = U.parseDecimal(form.horimetroAtual);
+    const hAnt = U.parseDecimal(form.horimetroAnterior);
+    
+    // Aceita igual apenas se for o primeiro registro ou ajuste, mas no geral deve ser maior
+    if (hAtual <= hAnt && hAnt > 0) {
+       toast.error(`Hodômetro Atual (${hAtual}) deve ser MAIOR que o Anterior (${hAnt})`);
+       return;
+    }
+
+    // Validação Sequencial Estrita (Bomba) - Exceto virada
+    const bFinal = U.parseDecimal(form.bombaFinal);
+    const bInicial = U.parseDecimal(form.bombaInicial);
+    // Se a diferença for negativa e não parecer virada (ex: diferença pequena negativa), bloqueia
+    // Virada geralmente é uma diferença grande negativa que se torna positiva com o módulo
+    if (bFinal < bInicial) {
+        const diff = bInicial - bFinal;
+        if (diff < 500000) { // Se a diferença for menor que 500k, provavelmente não é virada de 1M, é erro de digitação
+             if (!window.confirm(`A leitura final (${bFinal}) é menor que a inicial (${bInicial}). É uma virada de bomba?`)) {
+                 return;
+             }
+        }
     }
 
     const novo = {
@@ -259,6 +306,8 @@ export function useAbastecimentoForm() {
     litrosCalculados,
     mediaConsumo,
     custoEstimado,
-    enviar
+    precoInfo,
+    enviar,
+    getUnidadeMedida
   };
 }

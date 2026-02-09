@@ -50,6 +50,7 @@ export const ASSET_DEFINITIONS: any = {
       { key: "nome", label: "Código de Identificação", placeholder: "Ex: M00 (Máquina), V00 (Veículo)", required: true, showInList: true },
       { key: "fabricante", label: "Máquina e Fabricante", placeholder: "Ex: Trator John Deere, Colheitadeira Case", showInList: true },
       { key: "descricao", label: "Modelo / Potência", placeholder: "Ex: 6125J - 125 CV", required: true, showInList: true },
+      { key: "unidade_medida", label: "Medidor Principal", type: "select", options: ["Horas (Máquinas)", "Km (Veículos)"], default: "", required: true, showInList: true },
       { key: "horimetro_inicial", label: "Horímetro/Km Inicial", type: "text", mask: "decimal", placeholder: "Ex: 6.500,50", required: true, showInList: true },
       { key: "ultima_revisao", label: "Última Revisão Realizada (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 5.370,00", required: true, showInList: true },
       { key: "intervalo_revisao", label: "Intervalo de Manutenção (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 250", required: true, showInList: true },
@@ -221,15 +222,15 @@ export const ASSET_DEFINITIONS: any = {
   },
   // Tabela: locais_monitoramento
   locaisChuva: {
-    title: "Estações de Chuva",
+    title: "Local (Pluviômetro)",
     table: "locais_monitoramento",
     color: "cyan",
     type: "complex",
-    label: "Estação",
+    label: "Pluviômetro",
     placeholder: "Ex: Pluviômetro Sede / Divisa Norte",
     icon: CloudRain,
     fields: [
-      { key: "nome", label: "Nome da Estação", placeholder: "Ex: Sede", showInList: true, required: true },
+      { key: "nome", label: "Nome do Local", placeholder: "Ex: Sede", showInList: true, required: true },
       { key: "tipo", label: "Tipo", hidden: true, default: "chuva" },
     ],
   },
@@ -244,6 +245,8 @@ export const ASSET_DEFINITIONS: any = {
     fields: [
       { key: "nome", label: "Ponto de Consumo", placeholder: "Ex: Secador 01", showInList: true, required: true },
       { key: "identificador_externo", label: "Nº do Medidor (CEMIG)", placeholder: "Ex: 12345678", showInList: true },
+      { key: "meta_consumo", label: "Meta de Consumo (kWh)", type: "text", mask: "metric", placeholder: "Ex: 500,0", showInList: true },
+      { key: "observacao_antiga", label: "Obs / Numeração Antiga", placeholder: "Ex: Troca de medidor em 2025...", showInList: true },
       { key: "tipo", label: "Tipo", hidden: true, default: "energia" },
     ],
   },

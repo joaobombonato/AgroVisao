@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Fuel, ChevronDown, Check, Gauge, Truck, ChevronUp, Factory, Plus } from 'lucide-react';
-import { useAppContext } from '../../../context/AppContext';
+import { Fuel, ChevronDown, Check, Gauge, Truck, ChevronUp, Factory, Plus, Wrench, AlertCircle } from 'lucide-react';
+import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { PageHeader, Input, SearchableSelect } from '../../../components/ui/Shared';
-import { U } from '../../../utils';
+import { U, getOperationalDateLimits } from '../../../utils';
+import { toast } from 'react-hot-toast';
 import { 
   CompraCombustivelForm, 
   EstoquePainel, 
-  AbastecimentoHistorico
+  AbastecimentoHistorico,
+  AjusteEstoqueModal
 } from '../components';
 import { useAbastecimentoForm } from '../hooks/useAbastecimentoForm';
 
@@ -30,8 +32,13 @@ export default function AbastecimentoScreen() {
     litrosCalculados,
     mediaConsumo,
     custoEstimado,
-    enviar
+    precoInfo,
+    enviar,
+    getUnidadeMedida
   } = useAbastecimentoForm();
+
+  const [showAjusteForm, setShowAjusteForm] = useState(false);
+  const { genericSave } = useAppContext();
 
   return (
     <div className="space-y-4 p-4 pb-24">
@@ -48,13 +55,26 @@ export default function AbastecimentoScreen() {
           <h2 className="font-bold border-b pb-2 mb-3 text-gray-700 text-center uppercase text-sm flex items-center justify-center gap-2">
             <Factory className="w-5 h-5 text-gray-600" /> Controle de Estoque
           </h2>
-          <button 
-            onClick={() => setShowCompraForm(true)} 
-            className="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 active:scale-95 flex items-center justify-center gap-2 text-sm"
-          >
-            <Plus className="w-4 h-4" /> Nova Compra de Diesel
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+                onClick={() => setShowCompraForm(true)} 
+                className="bg-green-600 text-white py-2 rounded-lg font-bold shadow-sm hover:bg-green-700 active:scale-95 flex items-center justify-center gap-2 text-xs"
+            >
+                <Plus className="w-4 h-4" /> Comprar Diesel
+            </button>
+            <button 
+                onClick={() => setShowAjusteForm(true)} 
+                className="bg-amber-500 text-white py-2 rounded-lg font-bold shadow-sm hover:bg-amber-600 active:scale-95 flex items-center justify-center gap-2 text-xs"
+            >
+                <Wrench className="w-4 h-4" /> Ajustar Estoque
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* MODAL DE AJUSTE DE ESTOQUE */}
+      {showAjusteForm && (
+          <AjusteEstoqueModal onClose={() => setShowAjusteForm(false)} />
       )}
 
       {/* FORMULÁRIO DE REGISTRO DE CONSUMO */}
@@ -71,6 +91,8 @@ export default function AbastecimentoScreen() {
             value={form.data} 
             onChange={(e: any) => setForm({ ...form, data: e.target.value })} 
             required 
+            max={getOperationalDateLimits().max}
+            min={getOperationalDateLimits().min}
           />
 
           <SearchableSelect 
@@ -148,7 +170,7 @@ export default function AbastecimentoScreen() {
               />
             </div>
 
-            <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 mt-2 text-center">Leitura Hodômetro / Horímetro</div>
+            <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 mt-2 text-center">Leitura {getUnidadeMedida() === 'Km' ? 'Hodômetro' : 'Horímetro'}</div>
 
             {/* HORÍMETRO ANTERIOR (AUTO) */}
             <div className="space-y-1">
@@ -189,11 +211,12 @@ export default function AbastecimentoScreen() {
             </div>
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">Média Consumo</p>
-              <p className="text-xl font-bold">{mediaConsumo} <span className="text-xs text-gray-500">Hr/L</span></p>
+              <p className="text-xl font-bold">{mediaConsumo} <span className="text-xs text-gray-500">{getUnidadeMedida() === 'Km' ? 'Km/L' : 'L/h'}</span></p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">Custo Estimado</p>
               <p className="text-xl font-bold text-green-400">R$ {U.formatValue(custoEstimado)}</p>
+              <p className="text-[9px] text-gray-500">Base: R$ {U.formatValue(precoInfo?.val)} ({precoInfo?.source})</p>
             </div>
           </div>
 

@@ -3,7 +3,7 @@ import { Zap, Search, ChevronDown, Check, X, History, Calculator } from 'lucide-
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 
-import { U } from '../utils';
+import { U, validateOperationalDate, getOperationalDateLimits } from '../utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
@@ -78,6 +78,34 @@ export default function EnergiaScreen() {
     e.preventDefault();
     if (U.parseDecimal(consumo) <= 0) { toast.error("Leitura Atual deve ser maior que a Anterior"); return; }
     
+    // 1. Validação de Data
+    const dateCheck = validateOperationalDate(form.data_leitura);
+    if (!dateCheck.valid) { toast.error(dateCheck.error || 'Data Inválida'); return; }
+    if (dateCheck.warning && !window.confirm(dateCheck.warning)) return;
+
+
+    // 2. Validação Sequencial (Leitura > Anterior)
+    const atual = U.parseDecimal(form.leituraAtual);
+    const anterior = U.parseDecimal(form.leituraAnterior);
+    if (atual <= anterior && anterior > 0) {
+        toast.error(`A leitura atual (${atual}) deve ser MAIOR que a anterior (${anterior}).`);
+        return;
+    }
+
+    // 3. Validação de Frequência (1 por Mês)
+    const mesAtual = form.data_leitura.substring(0, 7); // YYYY-MM
+    const jaExisteMes = (dados.energia || []).some((r: any) => 
+        (r.ponto === form.ponto || r.medidor === form.medidor) && 
+        (r.data_leitura || r.data).startsWith(mesAtual)
+    );
+
+    // Verificar se existe OS cancelada para permitir re-leitura? 
+    // Por enquanto, bloqueia se tiver registro ativo.
+    if (jaExisteMes) {
+        toast.error(`Já existe uma leitura registrada para este medidor em ${mesAtual}.`);
+        return;
+    }
+    
     const novo = { 
         ...form, 
         consumo, 
@@ -140,6 +168,8 @@ export default function EnergiaScreen() {
                 value={form.data_leitura} 
                 onChange={(e: any) => setForm({ ...form, data_leitura: e.target.value })} 
                 required 
+                max={getOperationalDateLimits().max}
+                min={getOperationalDateLimits().min}
             />
           
           <SearchableSelect 
@@ -205,19 +235,22 @@ export default function EnergiaScreen() {
                   
                   {/* Comparativo de Tendência */}
                   {(() => {
-                      const meta = ativos.parametros?.energia?.metaConsumo || 0;
+                      // Busca a meta específica do ponto selecionado
+                      const pontoObj = ativos.pontosEnergia.find((p: any) => p.nome === form.ponto || p === form.ponto);
+                      const metaLocal = pontoObj && typeof pontoObj === 'object' ? U.parseDecimal(pontoObj.meta_consumo) : 0;
+                      
                       const valConsumo = U.parseDecimal(consumo);
                       
-                      if (meta > 0 && valConsumo > 0) {
-                          const isHigh = valConsumo > meta;
-                          const diff = Math.abs(valConsumo - meta);
+                      if (metaLocal > 0 && valConsumo > 0) {
+                          const isHigh = valConsumo > metaLocal;
+                          const diff = Math.abs(valConsumo - metaLocal);
                           return (
                               <div className={`flex items-center gap-1 text-[10px] mt-2 px-2 py-0.5 rounded-full w-fit ${isHigh ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
-                                  {isHigh ? '▲' : '▼'} {diff} kWh da Meta
+                                  {isHigh ? '▲' : '▼'} {diff} kWh da Meta ({metaLocal})
                               </div>
                           );
                       }
-                      return <div className="text-[10px] text-gray-500 mt-2">Sem meta definida</div>;
+                      return <div className="text-[10px] text-gray-500 mt-2">Sem meta definida para este medidor</div>;
                   })()}
               </div>
 

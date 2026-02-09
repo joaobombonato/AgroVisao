@@ -1,5 +1,6 @@
 import React from 'react';
 import { SearchableSelect, Input } from '../../../components/ui/Shared';
+import { U, getOperationalDateLimits } from '../../../utils';
 
 interface RecHeaderFieldsProps {
     header: any;
@@ -28,6 +29,8 @@ export default function RecHeaderFields({
                 value={header.data} 
                 onChange={(e: any) => setHeader({ ...header, data: e.target.value })} 
                 required 
+                max={getOperationalDateLimits().max}
+                min={getOperationalDateLimits().min}
             />
 
             <div className="grid grid-cols-2 gap-3">

@@ -272,11 +272,11 @@ export default function FazendaPerfilEditor() {
             <div className="relative">
               <Ruler className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <input
-                type="number"
+                type="text"
                 className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-semibold text-gray-700"
                 placeholder="0.00"
                 value={formData.tamanho_ha || ''}
-                onChange={e => setFormData({ ...formData, tamanho_ha: e.target.value })}
+                onChange={e => setFormData({ ...formData, tamanho_ha: e.target.value.replace('.', ',') })}
               />
             </div>
           </div>

@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Fuel, X, Plus, Minus, Check } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { Input } from '../../../components/ui/Shared';
-import { U } from '../../../utils';
+import { U, getOperationalDateLimits } from '../../../utils';
 import { toast } from 'react-hot-toast';
 
 interface CompraCombustivelFormProps {
@@ -66,11 +66,13 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
         
         <form onSubmit={enviar} className="p-4 space-y-3">
           <Input 
-            label="Data da Compra (DD/MM/AAAA)" 
+            label="Data da Compra" 
             type="date" 
             value={form.data} 
             onChange={(e: any) => setForm({ ...form, data: e.target.value })} 
             required 
+            max={getOperationalDateLimits().max}
+            min={getOperationalDateLimits().min}
           />
           
           <div className="space-y-1">
@@ -88,10 +90,10 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
             <div className="space-y-1">
               <Input 
                 label="Litros (L)" 
-                mask="metric"
+                mask="decimal"
                 placeholder="Ex: 500" 
                 value={form.litros} 
-                onChange={(e: any) => setForm({ ...form, litros: e.target.value })}
+                onChange={(e: any) => setForm({ ...form, litros: e.target.value.replace('.', ',') })}
                 required
               />
             </div>
@@ -101,7 +103,7 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
                 mask="decimal"
                 placeholder="Ex: 6,45" 
                 value={form.valorUnitario} 
-                onChange={(e: any) => setForm({ ...form, valorUnitario: e.target.value })}
+                onChange={(e: any) => setForm({ ...form, valorUnitario: e.target.value.replace('.', ',') })}
                 required
               />
             </div>
@@ -115,7 +117,7 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
             {showFrete && (
               <div className="grid grid-cols-2 gap-3 bg-gray-50 p-2 rounded-lg animate-in slide-in-from-top-1">
                 <Input label="NF Frete" mask="metric" placeholder="Nº da NF Frete" value={form.nfFrete} onChange={(e:any) => setForm({ ...form, nfFrete: e.target.value })} />
-                <Input label="Valor Frete (R$)" mask="currency" placeholder="Ex: 150,00" value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value })} />
+                <Input label="Valor Frete (R$)" mask="currency" placeholder="Ex: 150,00" value={form.valorFrete} onChange={(e:any) => setForm({ ...form, valorFrete: e.target.value.replace('.', ',') })} />
               </div>
             )}
           </div>

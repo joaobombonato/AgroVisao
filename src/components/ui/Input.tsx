@@ -33,8 +33,8 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
     }
 
     if (mask === 'decimal') {
-        // Permite números e uma única vírgula
-        let clean = val.replace(/[^\d,]/g, '');
+        // Permite números, vírgula e ponto (milhar)
+        let clean = val.replace(/[^\d,.]/g, '');
         const parts = clean.split(',');
         if (parts.length > 2) clean = parts[0] + ',' + parts.slice(1).join('');
         
@@ -48,6 +48,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
     }
 
     if (mask === 'metric') {
+        // Permite digitar ponto, mas o formatador já insere auto
         const digits = val.replace(/\D/g, '');
         if (!digits) {
             e.target.value = '';
@@ -115,7 +116,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
 
   return (
     <div className="space-y-1">
-      {label && <p className="text-xs font-medium text-gray-600">{label}</p>}
+      {label && <p className="text-xs font-medium text-gray-600">{label} {props.required && <span className="text-red-500">*</span>}</p>}
       <input 
         {...props} 
         onChange={handleChange}

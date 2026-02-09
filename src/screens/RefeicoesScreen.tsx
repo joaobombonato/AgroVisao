@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Utensils, Search, ChevronDown, Check, X, Coffee, Users, DollarSign, Calendar, ChevronRight, ChevronUp } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, TableWithShowMore, SearchableSelect, Input } from '../components/ui/Shared';
-import { U } from '../utils';
+import { U, getOperationalDateLimits } from '../utils';
 import { toast } from 'react-hot-toast';
 
 // ==========================================
@@ -173,6 +173,8 @@ export default function RefeicoesScreen() {
              value={form.data_refeicao} 
              onChange={(e: any) => setForm({ ...form, data_refeicao: e.target.value })} 
              required 
+             max={getOperationalDateLimits().max}
+             min={getOperationalDateLimits().min}
           />
 
           <div className="flex gap-10">
@@ -244,8 +246,7 @@ export default function RefeicoesScreen() {
                          type="text" 
                          value={form.qtd} 
                          onChange={(e: any) => {
-                            const val = e.target.value.replace(/\D/g, '');
-                            setForm({...form, qtd: val});
+                             setForm({...form, qtd: e.target.value});
                          }}
                          className="w-full pl-8 pr-2 py-2 border-2 border-orange-300 rounded-lg text-sm font-bold text-gray-900 focus:outline-none focus:bg-orange-50"
                          placeholder="Qtd..."

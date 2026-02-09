@@ -76,14 +76,6 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     placeholder="Ex: 0,92"
                 />
                 <Input 
-                    label="Meta de Consumo Mensal (kWh)" 
-                    value={getVal('energia', 'metaConsumo')} 
-                    onChange={(e: any) => handleChange('energia', 'metaConsumo', e.target.value)}
-                    type="text"
-                    mask="metric"
-                    placeholder="Ex: 500,0"
-                />
-                <Input 
                     label="Dia do Fechamento (Leitura)" 
                     value={getVal('energia', 'diaLeitura')} 
                     onChange={(e: any) => handleChange('energia', 'diaLeitura', e.target.value)}
@@ -121,6 +113,14 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     type="text"
                     mask="metric"
                     placeholder="Ex: 500"
+                />
+                <Input 
+                    label="Bomba Inicial (Leitura)" 
+                    value={getVal('estoque', 'bombaInicial')} 
+                    onChange={(e: any) => handleChange('estoque', 'bombaInicial', e.target.value)}
+                    type="text"
+                    mask="decimal"
+                    placeholder="Ex: 12500,0"
                 />
                 <Input 
                     label="Preço de Referência Diesel (R$)" 

@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye } from 'lucide-react';
+import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye, ScanBarcode } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
-import { U } from '../utils';
+import { U, getOperationalDateLimits } from '../utils';
 import { toast } from 'react-hot-toast';
+import { BarcodeScanner } from '../components/ui/BarcodeScanner';
+import { CameraCapture } from '../components/ui/CameraCapture';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Roxo)
@@ -16,7 +18,7 @@ import { toast } from 'react-hot-toast';
 // TELA PRINCIPAL: DOCUMENTOS
 // ==========================================
 export default function DocumentosScreen() {
-  const { dados, dispatch, setTela, ativos, genericSave } = useAppContext();
+  const { dados, dispatch, setTela, ativos, genericSave, userProfile } = useAppContext();
   
   // Lista de Setores para Tramitação
   const setores = ['Administrativo', 'Gerência Rural', 'Técnico', 'Financeiro', 'Diretoria', 'Campo (Operacional)'];
@@ -27,7 +29,8 @@ export default function DocumentosScreen() {
       tipo: '', 
       nome: '', 
       codigo: '', 
-      remetente: 'Gerência Rural', 
+      valor: '',
+      remetente: userProfile?.full_name || 'Usuário Atual', 
       destinatario: '', 
       obs: '',
       parentId: '' 
@@ -41,22 +44,90 @@ export default function DocumentosScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  // Manipulação de Arquivo (Upload)
-  const handleFileSelect = (e: any) => {
+  const [uploading, setUploading] = useState(false);
+  const [fileUrl, setFileUrl] = useState('');
+
+  // Manipulação de Arquivo (Upload Real)
+  const handleFileSelect = async (e: any) => {
       if (e.target.files && e.target.files[0]) {
-          setFileSelected(e.target.files[0].name);
-          toast.success("Arquivo anexado com sucesso!");
+          const file = e.target.files[0];
+          setFileSelected(file.name);
+          setUploading(true);
+          
+          try {
+            // Import dinâmico ou uso direto se importado no topo
+            const { storageService } = await import('../services/storage');
+            const url = await storageService.uploadFile(file, 'documents');
+            
+            if (url) {
+                setFileUrl(url);
+                toast.success("Arquivo enviado para nuvem!");
+            } else {
+                toast.error("Erro ao enviar arquivo.");
+                setFileSelected('');
+            }
+          } catch (err) {
+            console.error(err);
+            toast.error("Falha no upload.");
+          } finally {
+            setUploading(false);
+          }
       }
   };
 
-  // Simulação de Scanner/OCR
-  const handleScanAction = () => {
-      if (cameraInputRef.current) {
-          cameraInputRef.current.click();
-      } else {
-         toast("Abrindo Câmera / Scanner...", { icon: '📷' });
+
+  
+  // Estado da Câmera (Foto do Documento)
+  const [showCamera, setShowCamera] = useState(false);
+
+  const handlePhotoSuccess = async (file: File, ocrResult?: any) => {
+      // Upload automático da foto tirada
+      setFileSelected(file.name);
+      setUploading(true);
+      setShowCamera(false);
+      
+      // Se tiver OCR, preenche o formulário com inteligência
+      if (ocrResult) {
+          const { fields, source } = ocrResult;
+          
+          let obsAuto = `[Lido via ${source === 'gemini' ? 'IA' : 'OCR'}]\n`;
+          if (fields.emitente) obsAuto += `Emitente: ${fields.emitente}\n`;
+          if (fields.produtos?.length > 0) {
+              obsAuto += `Itens: ${fields.produtos.join(', ').substring(0, 100)}...\n`;
+          }
+
+          setForm(prev => ({
+              ...prev,
+              codigo: fields.chave || fields.cnpj || prev.codigo,
+              obs: (prev.obs || '') + obsAuto,
+              // Se tiver valor e o formulário estiver vazio, preenche
+              valor: fields.total ? String(fields.total).replace('.', ',') : prev.valor,
+          }));
+          
+          if (fields.total) toast.success(`Valor detectado: R$ ${fields.total}`, { icon: '💰' });
+      }
+
+      try {
+        const { storageService } = await import('../services/storage');
+        const url = await storageService.uploadFile(file, 'documents');
+        
+        if (url) {
+            setFileUrl(url);
+            toast.success("Foto salva e dados extraídos!", { icon: '✅' });
+        }
+      } catch (err) {
+        toast.error("Falha ao salvar arquivo.");
+      } finally {
+        setUploading(false);
       }
   };
+
+  /* 
+  // Versão Anterior (Input Nativo) - Desativado em favor do Componente Visual
+  const handleScanAction = () => {
+      if (cameraInputRef.current) { cameraInputRef.current.click(); }
+  };
+  */
 
   const handleCameraCapture = (e: any) => {
       if (e.target.files && e.target.files[0]) {
@@ -64,6 +135,15 @@ export default function DocumentosScreen() {
           setForm(prev => ({ ...prev, codigo: '3523 0908 9999 0001 2345 (OCR Lido)', obs: prev.obs + '\n[Sistema]: Texto extraído via OCR automaticamente.' }));
           toast.success("Documento digitalizado e OCR processado!");
       }
+  };
+
+  // Estado do Scanner
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handleScanSuccess = (code: string) => {
+      setForm({ ...form, codigo: code });
+      toast.success("Código lido com sucesso!", { icon: '📷' });
+      setShowScanner(false);
   };
 
   // Gerador de NF Rápido
@@ -88,6 +168,7 @@ export default function DocumentosScreen() {
           tipo: 'Resposta / Anexo',
           nome: `Ref: ${docOriginal.nome}`,
           codigo: '',
+          valor: '',
           remetente: docOriginal.destinatario, // Quem recebeu agora responde
           destinatario: docOriginal.remetente, // Para quem enviou
           obs: '',
@@ -118,7 +199,8 @@ export default function DocumentosScreen() {
     const novo = { 
         ...form, 
         id: U.id('DOC-'), 
-        arquivo: fileSelected || 'Sem anexo',
+        arquivo: fileUrl ? fileUrl : (fileSelected || 'Sem anexo'), // Prioriza URL do Storage
+        nome_arquivo: fileSelected, // Salva nome original
         status: 'Enviado'
     };
     
@@ -149,8 +231,9 @@ export default function DocumentosScreen() {
         data_abertura: new Date().toISOString()
     });
     
-    setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', remetente: 'Gerência Rural', destinatario: '', obs: '', parentId: '' });
+    setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', valor: '', remetente: userProfile?.full_name || 'Usuário Atual', destinatario: '', obs: '', parentId: '' });
     setFileSelected('');
+    setFileUrl(''); // Reset URL
     setIsResponseMode(false);
     toast.success('Documento tramitado com sucesso!');
   };
@@ -173,18 +256,30 @@ export default function DocumentosScreen() {
     <div className="space-y-4 p-4 pb-24">
       <PageHeader setTela={setTela} title="Documentos & NF" icon={FolderOpen} colorClass="bg-purple-600" />
       
-      {/* PAINEL DE AÇÕES RÁPIDAS */}
-      <div className="grid grid-cols-3 gap-2">
-          <button type="button" onClick={handleScanAction} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
-              <Camera className="w-6 h-6 text-purple-600 mb-1" />
-              <span className="text-[10px] font-bold text-gray-600 text-center">Escanear / Foto</span>
-              <input type="file" accept="image/*" capture="environment" ref={cameraInputRef} className="hidden" onChange={handleCameraCapture} />
-          </button>
+       {/* PAINEL DE AÇÕES RÁPIDAS */}
+       <div className="grid grid-cols-3 gap-2">
+           <button type="button" onClick={() => setShowCamera(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
+               <Camera className="w-6 h-6 text-purple-600 mb-1" />
+               <span className="text-[10px] font-bold text-gray-600 text-center">Foto do Doc</span>
+           </button>
+           
+           {/* Modal de Câmera (Foto) */}
+           {showCamera && (
+               <CameraCapture onCapture={handlePhotoSuccess} onClose={() => setShowCamera(false)} />
+           )}
 
-          <button type="button" onClick={handleGerarNF} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
-              <Barcode className="w-6 h-6 text-blue-600 mb-1" />
-              <span className="text-[10px] font-bold text-gray-600 text-center">Gerar NF (Barras)</span>
+          <button type="button" onClick={() => setShowScanner(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
+              <ScanBarcode className="w-6 h-6 text-blue-600 mb-1" />
+              <span className="text-[10px] font-bold text-gray-600 text-center">Ler Cód. Barras</span>
           </button>
+          
+          {/* Modal do Scanner */}
+          {showScanner && (
+            <BarcodeScanner 
+                onScanSuccess={handleScanSuccess} 
+                onClose={() => setShowScanner(false)} 
+            />
+          )}
 
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
               <Paperclip className="w-6 h-6 text-gray-600 mb-1" />
@@ -202,7 +297,16 @@ export default function DocumentosScreen() {
         
         <form onSubmit={enviar} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-             <Input label="Data" type="date" value={form.data} onChange={(e:any) => setForm({ ...form, data: e.target.value })} required />
+             <Input 
+                label="Data" 
+                type="date" 
+                value={form.data} 
+                onChange={(e:any) => setForm({ ...form, data: e.target.value })} 
+                required 
+                readOnly={true}
+                max={U.todayIso()}
+                min={U.todayIso()}
+             />
              <Input label="Código / Barras" placeholder="Auto ou Digite" value={form.codigo} onChange={(e:any) => setForm({ ...form, codigo: e.target.value })} />
           </div>
 
@@ -210,14 +314,30 @@ export default function DocumentosScreen() {
           <Input label="Nome do Arquivo / Assunto" placeholder="Descreva o documento" value={form.nome} onChange={(e:any) => setForm({ ...form, nome: e.target.value })} required />
 
           <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Send className="w-3 h-3"/> Fluxo de Tramitação</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Send className="w-3 h-3"/> Fluxo de Tramitação (Quem?)</p>
               <div className="flex items-center gap-2">
                   <div className="flex-1">
-                      <SearchableSelect label="De (Remetente)" options={setores} value={form.remetente} onChange={(e:any) => setForm({...form, remetente: e.target.value})} required color="purple" />
+                      {/* REMETENTE FIXO (USUÁRIO LOGADO) */}
+                      <Input 
+                        label="De (Remetente)" 
+                        value={form.remetente} 
+                        readOnly={true}
+                        className="bg-gray-200 text-gray-700 cursor-not-allowed border-gray-300 pointer-events-none"
+                      />
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-5" />
                   <div className="flex-1">
-                      <SearchableSelect label="Para (Destino)" options={setores} value={form.destinatario} onChange={(e:any) => setForm({...form, destinatario: e.target.value})} required color="purple" />
+                      <SearchableSelect 
+                        label="Para (Destino)" 
+                        /* Apenas Colaboradores, removido setores 'fake' */
+                        options={Array.from(new Set([
+                            ...(ativos?.colaboradores?.map((c:any) => c.nome) || [])
+                        ])).filter(name => name !== form.remetente)} 
+                        value={form.destinatario} 
+                        onChange={(e:any) => setForm({...form, destinatario: e.target.value})} 
+                        required 
+                        color="purple" 
+                      />
                   </div>
               </div>
           </div>
@@ -225,7 +345,9 @@ export default function DocumentosScreen() {
           <div className="flex items-center justify-between p-3 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
              <div className="flex items-center gap-2">
                  <Paperclip className="w-5 h-5 text-gray-400" />
-                 <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">{fileSelected || "Nenhum arquivo anexado"}</span>
+                 <span className="text-xs font-bold text-gray-600 truncate max-w-[150px]">
+                    {uploading ? 'Enviando...' : (fileSelected || "Nenhum arquivo anexado")}
+                 </span>
              </div>
              {!fileSelected && <span className="text-[10px] text-purple-600 font-bold cursor-pointer" onClick={() => fileInputRef.current?.click()}>SELECIONAR</span>}
              {fileSelected && <X className="w-4 h-4 text-red-500 cursor-pointer" onClick={() => setFileSelected('')} />}

@@ -42,7 +42,7 @@ export default function PrincipalScreen() {
            
            <div className="flex items-center gap-4 mb-6 relative z-10">
               <div className="p-3 bg-white/20 backdrop-blur-md rounded-xl border border-white/10 shrink-0">
-                 <Settings className="w-7 h-7 text-white animate-pulse" />
+                 <Settings className="w-7 h-7 text-white animate-spin" />
               </div>
               <div>
                  <h2 className="text-xl font-black text-white tracking-tight">AgroVisão Onboarding 🚀</h2>
@@ -163,7 +163,7 @@ export default function PrincipalScreen() {
                        {ativos?.locais?.length > 0 ? <Check className="w-5 h-5" /> : <span className="text-xs font-bold">7</span>}
                     </div>
                     <div className="text-left">
-                       <p className={`text-sm font-bold ${ativos?.locais?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Estações de Chuva</p>
+                       <p className={`text-sm font-bold ${ativos?.locais?.length > 0 ? 'text-green-700' : 'text-gray-700'}`}>Local (Pluviômetro)</p>
                        <p className="text-[10px] text-gray-400">Cadastre seus pluviômetros</p>
                     </div>
                  </div>

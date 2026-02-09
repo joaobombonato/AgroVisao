@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Calendar, Phone, CreditCard, ChevronRight, Loader2 } from 'lucide-react';
+import { User, Calendar, Phone, CreditCard, ChevronRight, Loader2, Settings } from 'lucide-react';
 import { Input } from '../../../components/ui/Shared';
 
 interface ProfileOnboardingProps {
@@ -51,7 +51,7 @@ export function ProfileOnboarding({
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
             <div className="w-full max-w-md bg-white rounded-[3rem] p-10 shadow-xl border border-gray-100 flex flex-col items-center text-center animate-in fade-in zoom-in duration-500">
                 <div className="w-20 h-20 bg-indigo-50 rounded-[2.2rem] flex items-center justify-center mb-8 shadow-inner border border-indigo-100/50">
-                    <User className="w-10 h-10 text-indigo-600" />
+                    <Settings className="w-10 h-10 text-indigo-600 animate-spin" />
                 </div>
                 
                 <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">Bem-vindo!</h2>

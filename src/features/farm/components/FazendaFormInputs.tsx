@@ -32,11 +32,11 @@ export default function FazendaFormInputs({ formData, setFormData }: FazendaForm
                     Tamanho (hectares)
                 </label>
                 <input
-                    type="number"
+                    type="text"
                     placeholder="Ex: 500"
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
                     value={formData.tamanho_ha}
-                    onChange={e => setFormData({ ...formData, tamanho_ha: e.target.value })}
+                    onChange={e => setFormData({ ...formData, tamanho_ha: e.target.value.replace('.', ',') })}
                 />
             </div>
             

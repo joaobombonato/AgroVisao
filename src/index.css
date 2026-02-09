@@ -4,6 +4,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom Styles for Html5QrcodeScanner to make it fit better */
+#reader__dashboard_section_csr span, 
+#reader__dashboard_section_swaplink {
+    display: none !important;
+}
+#reader video {
+    object-fit: cover;
+    border-radius: 8px;
+}
+#reader > div:first-child {
+    display: none; /* Hides "Scanner Ready" text sometimes */
+}
+
 /* Se precisar de algum estilo global extra, coloque aqui */
 body {
   background-color: #f9fafb; /* gray-50 */
@@ -16,4 +29,19 @@ body {
 
 .leaflet-popup-content-wrapper {
   border-radius: 12px;
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
