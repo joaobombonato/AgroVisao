@@ -5,6 +5,7 @@ import { useAppContext, ACTIONS, AppProvider } from './context/AppContext';
 import { GlobalStyles, ConfirmModal, OSDetailsModal } from './components/ui/Shared';
 import { APP_VERSION } from './constants';
 import ReloadPrompt from './components/ReloadPrompt';
+import { IOSInstallBanner } from './components/ui/IOSInstallBanner';
 
 // -- [Lazy Imports] --
 const DashboardScreen = React.lazy(() => import('./screens/DashboardScreen'));
@@ -192,6 +193,8 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
                     </div>
                   </div>
                 )}
+                
+                <IOSInstallBanner />
 
                 <React.Suspense fallback={
                     <div className="flex items-center justify-center h-64">

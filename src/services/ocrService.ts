@@ -31,11 +31,13 @@ export const ocrService = {
             const fields: OCRResult['fields'] = { produtos: [] };
 
             // 1. Valor Total (Mais agressivo)
-            const totalKeywords = ['TOTAL', 'VALOR', 'LIQ', 'DOC', 'PAGAR', 'VLR', 'NFE'];
-            const totalMatch = text.match(new RegExp(`(?:${totalKeywords.join('|')})\\.?\\s*(?:R\\$)?\\s*([\\d\\.\\,\\ ]{2,})`, 'i'));
+            const totalKeywords = ['TOTAL', 'VALOR', 'V\\.LIQ', 'LIQ', 'DOC', 'PAGAR', 'VLR', 'NFE', 'NOTA'];
+            const totalMatch = text.match(new RegExp(`(?:${totalKeywords.join('|')})[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,7})`, 'i'));
             if (totalMatch) {
                 // Pega apenas números e o ponto/vírgula decimal
-                const valueStr = totalMatch[1].trim().replace(/\s/g, '');
+                const valueStr = totalMatch[1].trim()
+                    .replace(/\s/g, '')
+                    .replace(/[^0-9,.]/g, ''); // Garante limpeza de caracteres estranhos
                 fields.total = valueStr;
             }
 
@@ -58,17 +60,27 @@ export const ocrService = {
                 if (longSequence) fields.chave = longSequence[1];
             }
 
-            // 5. Emitente (Tenta pegar a primeira linha que parece nome de empresa)
+            // 5. Emitente (Melhorado: busca palavras chave de empresa primeiro)
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-            if (lines.length > 3) {
-                // Geralmente o emitente está nas primeiras linhas, em caixa alta
-                const possibleEmitente = lines.slice(0, 10).find(l => 
-                    !l.includes('DANFE') && 
-                    !l.includes('NOTA') && 
-                    !l.includes('DOCUMENTO') &&
-                    l === l.toUpperCase()
+            if (lines.length > 0) {
+                // Prioridade 1: Linhas que contém suffixes de empresa
+                const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'SERVICOS', 'COMERCIO', 'INDUSTRIA'];
+                const emitenteWithSuffix = lines.slice(0, 15).find(l => 
+                    suffixes.some(s => l.toUpperCase().includes(s)) && !l.includes('DANFE')
                 );
-                if (possibleEmitente) fields.emitente = possibleEmitente;
+
+                if (emitenteWithSuffix) {
+                    fields.emitente = emitenteWithSuffix.replace(/[:;]/g, '').trim();
+                } else {
+                    // Prioridade 2: Primeira linha em caixa alta que não seja título
+                    const possibleEmitente = lines.slice(0, 10).find(l => 
+                        !l.includes('DANFE') && 
+                        !l.includes('NOTA') && 
+                        !l.includes('DOCUMENTO') &&
+                        l === l.toUpperCase()
+                    );
+                    if (possibleEmitente) fields.emitente = possibleEmitente;
+                }
             }
 
             // 6. Produtos

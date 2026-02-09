@@ -146,7 +146,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                 </>
             ) : (
                 <div className="w-full h-full relative flex flex-col">
-                    <img src={capturedImage} alt="Captura" className="w-full h-full object-contain bg-slate-800" />
+                    <img src={capturedImage} alt="Captura" className="w-full h-full object-cover bg-slate-800" />
                     
                     {/* Botões de Leitura (Floating) */}
                     {!ocrResult && !isProcessing && (
