@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.5"; // Emergency Key & Model Fix
+export const APP_VERSION = "v4.5.6"; // Tesseract Context Precision
 
 export const DADOS_INICIAIS = {
   chuvas: [],

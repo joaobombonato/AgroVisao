@@ -18,7 +18,7 @@ export interface OCRResult {
 const USER_KEY_FALLBACK = "AIzaSyBRRHp4pdro2x4S0Pn8r8tPnlTYMC6cjZk";
 const API_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || USER_KEY_FALLBACK;
 
-console.log("[OCR] API KEY Check:", API_KEY ? `Defined (starts with ${API_KEY.substring(0, 5)})` : "MISSING");
+console.log("[OCR] SDK Init. Key:", API_KEY ? `(starts with ${API_KEY.substring(0, 5)})` : "MISSING");
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
@@ -66,40 +66,19 @@ export const ocrService = {
                 { logger: m => console.log("[Tesseract]", m.status) }
             );
 
-            const cleanText = text.replace(/[|~_\[\]]/g, ' ').replace(/[ ]+/g, ' '); 
+            // Preservamos as linhas para análise de contexto
+            const lines = text.split('\n').map(l => l.trim().toUpperCase());
             const fields: OCRResult['fields'] = { produtos: [] };
 
-            // 1. Valor Total (Focado em termos de NF)
-            const totalPatterns = [
-                /VALOR TOTAL DA NOTA[^0-9]*([\d., ]+)/i,
-                /VALOR TOTAL[^0-9]*([\d., ]+)/i,
-                /TOTAL[^0-9]*([\d., ]+)/i,
-                /PAGAR[^0-9]*([\d., ]+)/i
-            ];
-            
-            for (const pattern of totalPatterns) {
-                const match = cleanText.match(pattern);
-                if (match && match[1]) {
-                    const val = match[1].trim().replace(/\s/g, '').replace(/[^0-9,.]/g, '');
-                    if (val.length >= 2 && val.includes(',')) {
-                        fields.total = val;
-                        break;
-                    }
-                }
-            }
+            console.log("[OCR] Tesseract Lines Count:", lines.length);
 
-            // 2. Data e CNPJ
-            const dateMatch = cleanText.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
-            if (dateMatch) fields.data = dateMatch[1];
-            const cnpjMatch = cleanText.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/);
-            if (cnpjMatch) fields.cnpj = cnpjMatch[0];
-
-            // 3. Chave de Acesso (DIFÍCIL: Detecta blocos de números com espaços)
-            // A chave de acesso geralmente tem 44 dígitos, muitas vezes separados por espaços
-            const potentialChave = text.match(/(\d[\d\s]{40,60}\d)/g);
-            if (potentialChave) {
-                for (const candidate of potentialChave) {
-                    const digits = candidate.replace(/[^\d]/g, '');
+            // 1. CHAVE DE ACESSO (Prioridade 44 dígitos)
+            // Procuramos a linha que contém "CHAVE DE ACESSO" e o número nela ou abaixo
+            const chaveKeywordIndex = lines.findIndex(l => l.includes('CHAVE DE ACESSO') || l.includes('CHAVE DE AC'));
+            if (chaveKeywordIndex !== -1) {
+                // Tenta na mesma linha ou nas 2 próximas
+                for (let i = chaveKeywordIndex; i <= chaveKeywordIndex + 2 && i < lines.length; i++) {
+                    const digits = lines[i].replace(/[^\d]/g, '');
                     if (digits.length === 44) {
                         fields.chave = digits;
                         break;
@@ -107,18 +86,58 @@ export const ocrService = {
                 }
             }
             if (!fields.chave) {
-                const digitsOnly = text.replace(/[^\d]/g, '');
-                const chave44 = digitsOnly.match(/(\d{44})/);
-                if (chave44) fields.chave = chave44[1];
+                // Fallback global mas SEM concatenar aleatoriamente
+                const allDigits = text.replace(/[^\d]/g, '');
+                const chaveMatch = allDigits.match(/(\d{44})/);
+                if (chaveMatch) fields.chave = chaveMatch[1];
             }
 
-            // 4. Emitente
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+            // 2. VALOR TOTAL (Busca contextual)
+            const valorKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL DA NOTA', 'TOTAL', 'LIQUIDO', 'PAGAR'];
+            for (const kw of valorKeywords) {
+                const idx = lines.findIndex(l => l.includes(kw));
+                if (idx !== -1) {
+                    // Busca um padrão de decimal (ex: 326,00) na linha ou na próxima
+                    for (let i = idx; i <= idx + 1 && i < lines.length; i++) {
+                        const match = lines[i].match(/(\d{1,6}[\.,]\d{2})/);
+                        if (match) {
+                            fields.total = match[1].replace(/\./g, '').replace(',', '.').trim();
+                            break;
+                        }
+                    }
+                }
+                if (fields.total) break;
+            }
+
+            // 3. DATA EMISSÃO (Prioridade sobre vencimento)
+            const dataKeywords = ['DATA EMISSÃO', 'DATA DE EMISSÃO', 'DATA EMISSAO', 'EMISSAO'];
+            for (const kw of dataKeywords) {
+                const idx = lines.findIndex(l => l.includes(kw));
+                if (idx !== -1) {
+                    const match = lines[idx].match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
+                    if (match) {
+                        fields.data = match[1];
+                        break;
+                    }
+                }
+            }
+            if (!fields.data) {
+                // Fallback primeira data encontrada
+                const firstDate = text.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
+                if (firstDate) fields.data = firstDate[1];
+            }
+
+            // 4. CNPJ
+            const cnpjMatch = text.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/);
+            if (cnpjMatch) fields.cnpj = cnpjMatch[0];
+
+            // 5. Emitente (Primeiras linhas com LTDA/SA)
             const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'EMPRESA'];
-            fields.emitente = lines.slice(0, 20).find(l => suffixes.some(s => l.toUpperCase().includes(s)));
+            fields.emitente = lines.slice(0, 15).find(l => suffixes.some(s => l.includes(s)));
 
             return { rawText: text, source: 'tesseract', fields };
         } catch (error: any) {
+            console.error("[OCR] Erro Tesseract:", error);
             throw new Error("Erro no Tesseract local.");
         }
     },
@@ -126,24 +145,31 @@ export const ocrService = {
     recognizeIntelligent: async (imageFile: File): Promise<OCRResult> => {
         if (!API_KEY) throw new Error("API Key não encontrada.");
         
-        // Tentamos os modelos mais prováveis de estarem ativos em AI Studio
-        const MODELS = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro"];
+        // Tentativa de contornar erro 404 (tentando o modelo mais padrão possível)
+        // O erro 404 para gemini-1.5-flash no v1beta pode indicar que o SDK está pedindo algo errado ou o modelo não existe nesse endpoint.
+        const MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
 
         const tryModel = async (modelName: string) => {
-            console.log(`[Gemini] Model: ${modelName}`);
+            console.log(`[Gemini] Tentando: ${modelName}`);
             const model = genAI.getGenerativeModel({ model: modelName });
-            const base64Content = await compressImage(imageFile, 1200);
+            
+            // Comprimimos mais para garantir que não seja erro de payload
+            const base64Content = await compressImage(imageFile, 1024);
 
-            const prompt = `Extraia dados desta Nota Fiscal/Boleto. 
+            const prompt = `Extraia dados desta Nota Fiscal. 
             Responda APENAS JSON: {"emitente":"", "total":"", "chave":"", "data":"", "cnpj":""}.
+            Total deve ser número com ponto decimal. 
             A chave tem 44 dígitos.`;
 
+            // Tentativa manual de ver se v1 funciona (o SDK infelizmente abstrai o endpoint)
             const result = await model.generateContent([
                 { inlineData: { mimeType: "image/jpeg", data: base64Content } },
                 { text: prompt }
             ]);
 
-            const resText = (await result.response).text();
+            const response = await result.response;
+            const resText = response.text();
+            
             const jsonStr = resText.match(/\{[\s\S]*\}/)?.[0] || resText;
             const fields = JSON.parse(jsonStr);
 
@@ -161,11 +187,9 @@ export const ocrService = {
             } catch (err: any) {
                 console.warn(`Falha no ${model}:`, err.message);
                 lastError = err;
-                if (err.message?.includes("API_KEY_INVALID")) break;
             }
         }
 
-        const msg = lastError?.message || "Erro desconhecido";
-        throw new Error(`Erro na IA: ${msg}. Chave iniciada em ${API_KEY.substring(0, 5)}...`);
+        throw new Error(`Erro na IA: ${lastError?.message || "Erro desconhecido"}.`);
     }
 };
