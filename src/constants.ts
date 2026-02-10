@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.9"; // 7 OCR Fields + Alignment Guide
+export const APP_VERSION = "v4.5.10"; // Final Build Fix + Alignment Guide
 
 export const DADOS_INICIAIS = {
   chuvas: [],

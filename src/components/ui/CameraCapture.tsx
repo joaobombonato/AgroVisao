@@ -231,7 +231,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                       <span className="text-[9px] uppercase tracking-tighter">Leitura Inteligente</span>
                     </button>
                   </div>
-                  <button onClick={() => setCapturedImage(null) || startCamera()} className="text-[11px] text-gray-500 font-bold hover:text-white transition-colors py-2 uppercase tracking-widest">Tirar Outra Foto</button>
+                  <button onClick={() => { setCapturedImage(null); startCamera(); }} className="text-[11px] text-gray-500 font-bold hover:text-white transition-colors py-2 uppercase tracking-widest">Tirar Outra Foto</button>
                 </div>
               )}
 
