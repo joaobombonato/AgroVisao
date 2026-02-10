@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.11"; // Optimized OCR Mockup Layout
+export const APP_VERSION = "v4.5.12"; // Restructured OCR UI + DANFE Calibration
 
 export const DADOS_INICIAIS = {
   chuvas: [],
