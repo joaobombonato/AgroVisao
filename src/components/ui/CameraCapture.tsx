@@ -7,6 +7,16 @@ interface CameraCaptureProps {
   onClose: () => void;
 }
 
+interface EditableFields {
+  emitente: string;
+  numeroNF: string;
+  dataEmissao: string;
+  total: string;
+  chave: string;
+  vencimentos: string;
+  produtos: string;
+}
+
 export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -14,7 +24,15 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState<any>(null);
-  const [editableFields, setEditableFields] = useState<any>({});
+  const [editableFields, setEditableFields] = useState<EditableFields>({
+    emitente: "",
+    numeroNF: "",
+    dataEmissao: "",
+    total: "",
+    chave: "",
+    vencimentos: "",
+    produtos: ""
+  });
 
   useEffect(() => {
     startCamera();
@@ -93,18 +111,17 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
       .then(res => res.blob())
       .then(blob => {
         const file = new File([blob], `foto_doc_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        // Converte volta para arrays antes de retornar
         const finalFields = {
           ...editableFields,
-          vencimentos: editableFields.vencimentos.split(",").map((s: string) => s.trim()).filter(Boolean),
-          produtos: editableFields.produtos.split(",").map((s: string) => s.trim()).filter(Boolean)
+          vencimentos: (editableFields.vencimentos || "").split(",").map((s: string) => s.trim()).filter(Boolean),
+          produtos: (editableFields.produtos || "").split(",").map((s: string) => s.trim()).filter(Boolean)
         };
         onCapture(file, { ...ocrResult, fields: finalFields });
         onClose();
       });
   };
 
-  const updateField = (name: string, value: string) => {
+  const updateField = (name: keyof EditableFields, value: string) => {
     setEditableFields(prev => ({ ...prev, [name]: value }));
   };
 
@@ -112,7 +129,6 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     <div className="fixed inset-0 z-[1500] bg-black/90 flex flex-col items-center justify-center p-0 sm:p-4 backdrop-blur-md">
       <div className="bg-slate-900 w-full max-w-lg h-full sm:h-auto sm:max-h-[90vh] sm:rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col relative border border-white/10">
         
-        {/* Header */}
         <div className="p-4 border-b border-white/5 flex justify-between items-center bg-slate-900/50">
           <h3 className="font-bold text-white text-sm flex items-center gap-2">
             <Camera className="w-5 h-5 text-indigo-400"/> 
@@ -123,7 +139,6 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </button>
         </div>
 
-        {/* Viewport */}
         <div className="relative bg-black flex-1 min-h-[40vh] flex items-center justify-center overflow-hidden">
           {!capturedImage ? (
             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-contain" />
@@ -149,7 +164,6 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                 </div>
               )}
 
-              {/* Editable Conference Screen */}
               {ocrResult && (
                 <div className="absolute inset-0 bg-slate-900/95 overflow-y-auto p-4 text-white animate-in fade-in slide-in-from-bottom-5 z-[60]">
                   <div className="flex items-center justify-between mb-4">
@@ -161,25 +175,23 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
 
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
-                      <Field label="Emitente" value={editableFields.emitente} onChange={v => updateField('emitente', v)} />
+                      <Field label="Emitente" value={editableFields.emitente} onChange={(v: string) => updateField('emitente', v)} />
                       <div className="grid grid-cols-2 gap-3">
-                        <Field label="Nº NF" value={editableFields.numeroNF} onChange={v => updateField('numeroNF', v)} />
-                        <Field label="Data Emissão" value={editableFields.dataEmissao} onChange={v => updateField('dataEmissao', v)} />
+                        <Field label="Nº NF" value={editableFields.numeroNF} onChange={(v: string) => updateField('numeroNF', v)} />
+                        <Field label="Data Emissão" value={editableFields.dataEmissao} onChange={(v: string) => updateField('dataEmissao', v)} />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <Field label="Valor Total" value={editableFields.total} onChange={v => updateField('total', v)} prefix="R$" />
-                        <Field label="Vencimentos" value={editableFields.vencimentos} onChange={v => updateField('vencimentos', v)} placeholder="Separados por vírgula" />
+                        <Field label="Valor Total" value={editableFields.total} onChange={(v: string) => updateField('total', v)} prefix="R$" />
+                        <Field label="Vencimentos" value={editableFields.vencimentos} onChange={(v: string) => updateField('vencimentos', v)} placeholder="Separados por vírgula" />
                       </div>
-                      <Field label="Chave de Acesso" value={editableFields.chave} onChange={v => updateField('chave', v)} rows={2} />
-                      <Field label="Produtos" value={editableFields.produtos} onChange={v => updateField('produtos', v)} rows={2} placeholder="Lista de produtos" />
+                      <Field label="Chave de Acesso" value={editableFields.chave} onChange={(v: string) => updateField('chave', v)} rows={2} />
+                      <Field label="Produtos" value={editableFields.produtos} onChange={(v: string) => updateField('produtos', v)} rows={2} placeholder="Lista de produtos" />
                     </div>
 
-                    {ocrResult.source === 'tesseract' && (
-                      <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/5">
-                        <label className="text-[8px] text-gray-500 uppercase font-bold block mb-1">Dica</label>
-                        <p className="text-[9px] text-gray-400">Você pode editar os campos acima para corrigir qualquer leitura imprecisa do scanner.</p>
-                      </div>
-                    )}
+                    <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/5">
+                      <label className="text-[8px] text-gray-500 uppercase font-bold block mb-1">Dica</label>
+                      <p className="text-[9px] text-gray-400">Você pode editar os campos acima para corrigir qualquer leitura imprecisa do scanner.</p>
+                    </div>
                   </div>
 
                   <div className="mt-6 flex gap-3 pb-8">
@@ -210,7 +222,16 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   );
 };
 
-const Field = ({ label, value, onChange, prefix, rows = 1, placeholder }: any) => (
+interface FieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  prefix?: string;
+  rows?: number;
+  placeholder?: string;
+}
+
+const Field = ({ label, value, onChange, prefix, rows = 1, placeholder }: FieldProps) => (
   <div className="space-y-1">
     <label className="text-[9px] text-gray-400 uppercase font-bold px-1">{label}</label>
     <div className="relative group">
