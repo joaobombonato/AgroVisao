@@ -6,6 +6,7 @@ import { GlobalStyles, ConfirmModal, OSDetailsModal } from './components/ui/Shar
 import { APP_VERSION } from './constants';
 import ReloadPrompt from './components/ReloadPrompt';
 import { IOSInstallBanner } from './components/ui/IOSInstallBanner';
+import { PullToRefresh } from './components/ui/PullToRefresh';
 
 // -- [Lazy Imports] --
 const DashboardScreen = React.lazy(() => import('./screens/DashboardScreen'));
@@ -84,14 +85,10 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
 
   const [screenId, ...rest] = tela.split(':');
   const subTab = rest.join(':');
-  const mainRef = React.useRef<HTMLDivElement>(null);
 
   // Reset Scroll ao trocar de tela
   useEffect(() => {
-    // Reset para o topo tanto do container interno quanto da janela global
-    if (mainRef.current) {
-      mainRef.current.scrollTop = 0;
-    }
+    // Reset para o topo - window.scrollTo(0,0) é suficiente agora que o root é o scroll container
     window.scrollTo(0, 0);
   }, [tela]);
 
@@ -169,7 +166,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
           </div>
         </header>
 
-        <main ref={mainRef} className="flex-1 overflow-y-auto pb-24">
+        <PullToRefresh onRefresh={() => window.location.reload()}>
              <div className="max-w-md mx-auto w-full">
                 {/* Banner de Instalação (PWA) */}
                 {deferredPrompt && (
@@ -204,7 +201,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
                     <ScreenComponent initialTab={subTab} />
                 </React.Suspense>
              </div>
-        </main>
+        </PullToRefresh>
 
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe z-[1000]">
            <div className="max-w-md mx-auto flex justify-around items-center h-16 px-2">
