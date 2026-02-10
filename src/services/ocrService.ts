@@ -57,29 +57,40 @@ export const ocrService = {
             const lines = text.split('\n').map(l => l.trim().toUpperCase());
             const fields: OCRResult['fields'] = { produtos: [], vencimentos: [] };
 
-            // 1. CHAVE DE ACESSO (EXATAMENTE 44 DÍGITOS)
-            const allDigits = text.replace(/[^\d]/g, '');
-            const chaveMatch = allDigits.match(/(\d{44})/);
+            // 1. CHAVE DE ACESSO (CONSERTO DE CARACTERES COMUNS)
+            // Remove espaços e limpa caracteres que o Tesseract confunde (O -> 0, I -> 1, S -> 5, etc)
+            let cleanChave = text.toUpperCase().replace(/[^0-9OISBZA]/g, '');
+            // Substituições comuns em OCR de baixa qualidade
+            cleanChave = cleanChave
+                .replace(/O/g, '0')
+                .replace(/I/g, '1')
+                .replace(/S/g, '5')
+                .replace(/B/g, '8')
+                .replace(/Z/g, '2')
+                .replace(/A/g, '4')
+                .replace(/[^0-9]/g, ''); // Garante só números no final
+
+            const chaveMatch = cleanChave.match(/(\d{44})/);
             if (chaveMatch) {
                 fields.chave = chaveMatch[1];
-            } else {
-                // Tenta reconstruir se houver espaços entre blocos de 4
-                const blocks = text.match(/\d{4}\s\d{4}\s\d{4}/g);
-                if (blocks) {
-                    const merged = text.replace(/[^\d]/g, '').match(/(\d{44})/);
-                    if (merged) fields.chave = merged[1];
-                }
             }
 
-            // 2. VALOR TOTAL
-            const valorKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL DA NOTA', 'TOTAL', 'LIQUIDO', 'PAGAR'];
+            // 2. VALOR TOTAL (Busca contextual melhorada)
+            const valorKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL DA NOTA', 'TOTAL', 'LIQUIDO', 'PAGAR', 'VALOR TOTAL DA NF'];
             for (const kw of valorKeywords) {
                 const idx = lines.findIndex(l => l.includes(kw));
                 if (idx !== -1) {
                     for (let i = idx; i <= idx + 2 && i < lines.length; i++) {
-                        const match = lines[i].match(/(\d{1,6}[\.,]\d{2})/);
+                        // Regex melhorado para capturar valores monetários brasileiros
+                        const match = lines[i].match(/(?:R\$?\s?)?(\d{1,3}(?:\.\d{3})*,\d{2})/);
                         if (match) {
                             fields.total = match[1].replace(/\./g, '').replace(',', '.').trim();
+                            break;
+                        }
+                        // Fallback para padrão americano ou sem separador de milhar .00
+                        const altMatch = lines[i].match(/(\d{1,6}\.\d{2})/);
+                        if (altMatch) {
+                            fields.total = altMatch[1].trim();
                             break;
                         }
                     }
