@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.3"; // Correção Emergencial OCR
+export const APP_VERSION = "v4.5.4"; // Fix Gemini 404 & Tesseract Regex
 
 export const DADOS_INICIAIS = {
   chuvas: [],

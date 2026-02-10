@@ -50,7 +50,6 @@ const compressImage = async (file: File, maxWidth: number = 1024): Promise<strin
                     resolve(dataUrl.split(',')[1]);
                 } catch (err) {
                     console.error("Erro no canvas:", err);
-                    // Fallback para original
                     resolve(e.target?.result?.toString().split(',')[1] || "");
                 }
             };
@@ -70,7 +69,7 @@ export const ocrService = {
                 { logger: m => console.log("[Tesseract]", m.status, Math.round(m.progress * 100) + "%") }
             );
 
-            // Limpeza de ruído mas PRESERVA LINHAS para extração de campos
+            // Limpeza de ruído
             const cleanText = text
                 .replace(/[|~_\[\]]/g, ' ') 
                 .replace(/[ ]+/g, ' '); 
@@ -79,13 +78,24 @@ export const ocrService = {
 
             const fields: OCRResult['fields'] = { produtos: [] };
 
-            // 1. Valor Total
-            const totalKeywords = ['TOTAL', 'VALOR', 'V\\.LIQ', 'LIQ', 'PAGAR', 'VLR', 'VALOR A PAGAR'];
-            const totalMatch = cleanText.match(new RegExp(`(?:${totalKeywords.join('|')})[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,10})`, 'i'));
-            if (totalMatch) {
-                fields.total = totalMatch[1].trim()
-                    .replace(/\s/g, '')
-                    .replace(/[^0-9,.]/g, ''); 
+            // 1. Valor Total (Focado no rótulo da Nota Fiscal)
+            // Prioriza o padrão "VALOR TOTAL DA NOTA"
+            const totalKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL', 'LIQ', 'PAGAR'];
+            let foundTotal = false;
+            
+            for (const kw of totalKeywords) {
+                const regex = new RegExp(`${kw}[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,12})`, 'i');
+                const match = cleanText.match(regex);
+                if (match && match[1]) {
+                    const val = match[1].trim()
+                        .replace(/\s/g, '')
+                        .replace(/[^0-9,.]/g, '');
+                    if (val.length >= 2) {
+                        fields.total = val;
+                        foundTotal = true;
+                        break;
+                    }
+                }
             }
 
             // 2. Data
@@ -96,10 +106,20 @@ export const ocrService = {
             const cnpjMatch = cleanText.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/);
             if (cnpjMatch) fields.cnpj = cnpjMatch[0];
 
-            // 4. Chave de Acesso
-            const digitsOnly = cleanText.replace(/[^\d]/g, '');
-            const chaveMatch = digitsOnly.match(/(\d{44})/);
-            if (chaveMatch) fields.chave = chaveMatch[1];
+            // 4. Chave de Acesso (PRIORIDADE ABSOLUTA: 44 DÍGITOS)
+            // Remove tudo que não é dígito e busca exatamente 44
+            const digitsOnly = text.replace(/[^\d]/g, '');
+            const chave44 = digitsOnly.match(/(\d{44})/);
+            
+            if (chave44) {
+                fields.chave = chave44[1];
+            } else {
+                // Se não achou 44, tenta sequências longas mas IGNORE as que parecem Protocolo (15 dígitos)
+                const longSequences = digitsOnly.match(/(\d{20,44})/);
+                if (longSequences && longSequences[1].length > 15) {
+                    fields.chave = longSequences[1];
+                }
+            }
 
             // 5. Emitente
             const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
@@ -122,16 +142,18 @@ export const ocrService = {
         console.log("[OCR] Iniciando Gemini...");
         if (!API_KEY) throw new Error("Chave Gemini não encontrada no .env");
         
+        // Modelos estáveis e rápidos
+        const MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
+
         const tryModel = async (modelName: string) => {
             console.log(`[Gemini] Tentando modelo: ${modelName}`);
             const model = genAI.getGenerativeModel({ model: modelName });
 
             let base64Content: string;
             try {
-                base64Content = await compressImage(imageFile);
-                console.log("[Gemini] Imagem comprimida com sucesso.");
+                base64Content = await compressImage(imageFile, 1200); 
+                console.log("[Gemini] Imagem comprimida.");
             } catch (err) {
-                console.warn("[Gemini] Falha na compressão, enviando original...");
                 const reader = new FileReader();
                 const base64Promise = new Promise<string>((resolve) => {
                     reader.onload = () => resolve((reader.result as string).split(',')[1]);
@@ -140,10 +162,10 @@ export const ocrService = {
                 base64Content = await base64Promise;
             }
 
-            const prompt = `Analise esta foto de uma Nota Fiscal ou Boleto.
-            IMPORTANTE: Extraia apenas dados REAIS presentes na imagem.
-            Campos: "emitente", "total", "chave", "data", "cnpj", "produtos" (lista).
-            Responda EXCLUSIVAMENTE em formato JSON. Se não achar, use "".`;
+            const prompt = `Extraia dados desta Nota Fiscal/Boleto.
+            IMPORTANTE: Apenas dados REAIS.
+            Campos: "emitente", "total" (Ex: 123.45), "chave" (44 dígitos), "data", "cnpj".
+            Responda em JSON puro.`;
 
             const result = await model.generateContent([
                 {
@@ -157,7 +179,6 @@ export const ocrService = {
 
             const response = await result.response;
             const resText = response.text();
-            console.log("[Gemini] Resposta recebida.");
             
             const jsonMatch = resText.match(/\{[\s\S]*\}/);
             const jsonStr = jsonMatch ? jsonMatch[0] : resText;
@@ -166,7 +187,6 @@ export const ocrService = {
             try {
                 fields = JSON.parse(jsonStr);
             } catch (e) {
-                console.warn("[Gemini] Falha ao parsear JSON, usando fallback regex.");
                 fields = { 
                     emitente: (resText.match(/emitente["\s:]+([^"\n,]+)/i) || [])[1] || "",
                     total: (resText.match(/total["\s:]+([^"\n,]+)/i) || [])[1] || ""
@@ -183,20 +203,22 @@ export const ocrService = {
             };
         };
 
-        try {
-            return await tryModel("gemini-1.5-flash");
-        } catch (error: any) {
-            console.error("[Gemini] Flash Error:", error);
-            if (error.message?.includes("API_KEY_INVALID")) {
-                throw new Error("Chave de API do Google Inválida ou Expirada.");
-            }
-            console.warn("[Gemini] Tentando Fallback para Pro...");
+        let lastError: any = null;
+        for (const modelName of MODELS) {
             try {
-                return await tryModel("gemini-1.5-pro");
-            } catch (innerError: any) {
-                console.error("[Gemini] Pro Error:", innerError);
-                throw innerError;
+                return await tryModel(modelName);
+            } catch (error: any) {
+                console.warn(`[Gemini] Falha no modelo ${modelName}:`, error);
+                lastError = error;
+                // Se for erro de quota ou modelo não encontrado, tenta o próximo
             }
         }
+
+        // Se todos falharem
+        const errorMsg = lastError?.message || "Erro desconhecido na IA";
+        if (errorMsg.includes("404") || errorMsg.includes("not found")) {
+            throw new Error("Erro de Configuração na IA (404). Verifique se seu plano permite estes modelos.");
+        }
+        throw lastError;
     }
 };
