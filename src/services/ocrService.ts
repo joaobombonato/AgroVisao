@@ -14,12 +14,14 @@ export interface OCRResult {
     };
 }
 
-const API_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || "";
-console.log("[OCR] API KEY Check:", API_KEY ? "Defined (len: " + API_KEY.length + ")" : "MISSING");
+// Chave fornecida pelo usuario para fallback caso o .env falhe no deploy
+const USER_KEY_FALLBACK = "AIzaSyBRRHp4pdro2x4S0Pn8r8tPnlTYMC6cjZk";
+const API_KEY = import.meta.env.VITE_GOOGLE_AI_KEY || USER_KEY_FALLBACK;
+
+console.log("[OCR] API KEY Check:", API_KEY ? `Defined (starts with ${API_KEY.substring(0, 5)})` : "MISSING");
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Helper para comprimir imagem antes de enviar para a IA
 const compressImage = async (file: File, maxWidth: number = 1024): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -32,11 +34,9 @@ const compressImage = async (file: File, maxWidth: number = 1024): Promise<strin
                     const canvas = document.createElement('canvas');
                     let width = img.width;
                     let height = img.height;
-
-                    if (width > maxWidth) {
-                        height = (maxWidth / width) * height;
-                        width = maxWidth;
-                    }
+                    const scale = Math.min(1, maxWidth / width);
+                    width *= scale;
+                    height *= scale;
 
                     canvas.width = width;
                     canvas.height = height;
@@ -46,10 +46,8 @@ const compressImage = async (file: File, maxWidth: number = 1024): Promise<strin
                         return;
                     }
                     ctx.drawImage(img, 0, 0, width, height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                    resolve(dataUrl.split(',')[1]);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
                 } catch (err) {
-                    console.error("Erro no canvas:", err);
                     resolve(e.target?.result?.toString().split(',')[1] || "");
                 }
             };
@@ -61,164 +59,113 @@ const compressImage = async (file: File, maxWidth: number = 1024): Promise<strin
 
 export const ocrService = {
     recognize: async (imageFile: File): Promise<OCRResult> => {
-        console.log("[OCR] Iniciando Tesseract...");
         try {
             const { data: { text } } = await Tesseract.recognize(
                 imageFile,
                 'por', 
-                { logger: m => console.log("[Tesseract]", m.status, Math.round(m.progress * 100) + "%") }
+                { logger: m => console.log("[Tesseract]", m.status) }
             );
 
-            // Limpeza de ruído
-            const cleanText = text
-                .replace(/[|~_\[\]]/g, ' ') 
-                .replace(/[ ]+/g, ' '); 
-            
-            console.log("[OCR] Tesseract Output Length:", text.length);
-
+            const cleanText = text.replace(/[|~_\[\]]/g, ' ').replace(/[ ]+/g, ' '); 
             const fields: OCRResult['fields'] = { produtos: [] };
 
-            // 1. Valor Total (Focado no rótulo da Nota Fiscal)
-            // Prioriza o padrão "VALOR TOTAL DA NOTA"
-            const totalKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL', 'LIQ', 'PAGAR'];
-            let foundTotal = false;
+            // 1. Valor Total (Focado em termos de NF)
+            const totalPatterns = [
+                /VALOR TOTAL DA NOTA[^0-9]*([\d., ]+)/i,
+                /VALOR TOTAL[^0-9]*([\d., ]+)/i,
+                /TOTAL[^0-9]*([\d., ]+)/i,
+                /PAGAR[^0-9]*([\d., ]+)/i
+            ];
             
-            for (const kw of totalKeywords) {
-                const regex = new RegExp(`${kw}[^\\d]*R?\\$?\\s*([\\d\\.\\,\\ ]{2,12})`, 'i');
-                const match = cleanText.match(regex);
+            for (const pattern of totalPatterns) {
+                const match = cleanText.match(pattern);
                 if (match && match[1]) {
-                    const val = match[1].trim()
-                        .replace(/\s/g, '')
-                        .replace(/[^0-9,.]/g, '');
-                    if (val.length >= 2) {
+                    const val = match[1].trim().replace(/\s/g, '').replace(/[^0-9,.]/g, '');
+                    if (val.length >= 2 && val.includes(',')) {
                         fields.total = val;
-                        foundTotal = true;
                         break;
                     }
                 }
             }
 
-            // 2. Data
+            // 2. Data e CNPJ
             const dateMatch = cleanText.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/);
             if (dateMatch) fields.data = dateMatch[1];
-
-            // 3. CNPJ
-            const cnpjMatch = cleanText.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/);
+            const cnpjMatch = cleanText.match(/(\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})/);
             if (cnpjMatch) fields.cnpj = cnpjMatch[0];
 
-            // 4. Chave de Acesso (PRIORIDADE ABSOLUTA: 44 DÍGITOS)
-            // Remove tudo que não é dígito e busca exatamente 44
-            const digitsOnly = text.replace(/[^\d]/g, '');
-            const chave44 = digitsOnly.match(/(\d{44})/);
-            
-            if (chave44) {
-                fields.chave = chave44[1];
-            } else {
-                // Se não achou 44, tenta sequências longas mas IGNORE as que parecem Protocolo (15 dígitos)
-                const longSequences = digitsOnly.match(/(\d{20,44})/);
-                if (longSequences && longSequences[1].length > 15) {
-                    fields.chave = longSequences[1];
+            // 3. Chave de Acesso (DIFÍCIL: Detecta blocos de números com espaços)
+            // A chave de acesso geralmente tem 44 dígitos, muitas vezes separados por espaços
+            const potentialChave = text.match(/(\d[\d\s]{40,60}\d)/g);
+            if (potentialChave) {
+                for (const candidate of potentialChave) {
+                    const digits = candidate.replace(/[^\d]/g, '');
+                    if (digits.length === 44) {
+                        fields.chave = digits;
+                        break;
+                    }
                 }
             }
-
-            // 5. Emitente
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
-            const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'SERVICOS', 'COMERCIO', 'INDUSTRIA'];
-            const emitenteWithSuffix = lines.slice(0, 20).find(l => 
-                suffixes.some(s => l.toUpperCase().includes(s)) && !l.includes('DANFE')
-            );
-            if (emitenteWithSuffix) {
-                fields.emitente = emitenteWithSuffix.replace(/[:;]/g, '').trim();
+            if (!fields.chave) {
+                const digitsOnly = text.replace(/[^\d]/g, '');
+                const chave44 = digitsOnly.match(/(\d{44})/);
+                if (chave44) fields.chave = chave44[1];
             }
+
+            // 4. Emitente
+            const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+            const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'EMPRESA'];
+            fields.emitente = lines.slice(0, 20).find(l => suffixes.some(s => l.toUpperCase().includes(s)));
 
             return { rawText: text, source: 'tesseract', fields };
         } catch (error: any) {
-            console.error("[OCR] Tesseract Fatal Error:", error);
-            throw new Error("Erro no Tesseract: " + (error.message || "Falha local"));
+            throw new Error("Erro no Tesseract local.");
         }
     },
 
     recognizeIntelligent: async (imageFile: File): Promise<OCRResult> => {
-        console.log("[OCR] Iniciando Gemini...");
-        if (!API_KEY) throw new Error("Chave Gemini não encontrada no .env");
+        if (!API_KEY) throw new Error("API Key não encontrada.");
         
-        // Modelos estáveis e rápidos
-        const MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b"];
+        // Tentamos os modelos mais prováveis de estarem ativos em AI Studio
+        const MODELS = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-pro"];
 
         const tryModel = async (modelName: string) => {
-            console.log(`[Gemini] Tentando modelo: ${modelName}`);
+            console.log(`[Gemini] Model: ${modelName}`);
             const model = genAI.getGenerativeModel({ model: modelName });
+            const base64Content = await compressImage(imageFile, 1200);
 
-            let base64Content: string;
-            try {
-                base64Content = await compressImage(imageFile, 1200); 
-                console.log("[Gemini] Imagem comprimida.");
-            } catch (err) {
-                const reader = new FileReader();
-                const base64Promise = new Promise<string>((resolve) => {
-                    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-                    reader.readAsDataURL(imageFile);
-                });
-                base64Content = await base64Promise;
-            }
-
-            const prompt = `Extraia dados desta Nota Fiscal/Boleto.
-            IMPORTANTE: Apenas dados REAIS.
-            Campos: "emitente", "total" (Ex: 123.45), "chave" (44 dígitos), "data", "cnpj".
-            Responda em JSON puro.`;
+            const prompt = `Extraia dados desta Nota Fiscal/Boleto. 
+            Responda APENAS JSON: {"emitente":"", "total":"", "chave":"", "data":"", "cnpj":""}.
+            A chave tem 44 dígitos.`;
 
             const result = await model.generateContent([
-                {
-                    inlineData: {
-                        mimeType: "image/jpeg",
-                        data: base64Content
-                    }
-                },
+                { inlineData: { mimeType: "image/jpeg", data: base64Content } },
                 { text: prompt }
             ]);
 
-            const response = await result.response;
-            const resText = response.text();
-            
-            const jsonMatch = resText.match(/\{[\s\S]*\}/);
-            const jsonStr = jsonMatch ? jsonMatch[0] : resText;
-            
-            let fields;
-            try {
-                fields = JSON.parse(jsonStr);
-            } catch (e) {
-                fields = { 
-                    emitente: (resText.match(/emitente["\s:]+([^"\n,]+)/i) || [])[1] || "",
-                    total: (resText.match(/total["\s:]+([^"\n,]+)/i) || [])[1] || ""
-                };
-            }
+            const resText = (await result.response).text();
+            const jsonStr = resText.match(/\{[\s\S]*\}/)?.[0] || resText;
+            const fields = JSON.parse(jsonStr);
 
             return { 
                 rawText: resText, 
                 source: 'gemini' as const, 
-                fields: {
-                    ...fields,
-                    produtos: Array.isArray(fields.produtos) ? fields.produtos : []
-                } 
+                fields: { ...fields, produtos: [] } 
             };
         };
 
         let lastError: any = null;
-        for (const modelName of MODELS) {
+        for (const model of MODELS) {
             try {
-                return await tryModel(modelName);
-            } catch (error: any) {
-                console.warn(`[Gemini] Falha no modelo ${modelName}:`, error);
-                lastError = error;
-                // Se for erro de quota ou modelo não encontrado, tenta o próximo
+                return await tryModel(model);
+            } catch (err: any) {
+                console.warn(`Falha no ${model}:`, err.message);
+                lastError = err;
+                if (err.message?.includes("API_KEY_INVALID")) break;
             }
         }
 
-        // Se todos falharem
-        const errorMsg = lastError?.message || "Erro desconhecido na IA";
-        if (errorMsg.includes("404") || errorMsg.includes("not found")) {
-            throw new Error("Erro de Configuração na IA (404). Verifique se seu plano permite estes modelos.");
-        }
-        throw lastError;
+        const msg = lastError?.message || "Erro desconhecido";
+        throw new Error(`Erro na IA: ${msg}. Chave iniciada em ${API_KEY.substring(0, 5)}...`);
     }
 };
