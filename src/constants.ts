@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.6"; // Tesseract Context Precision
+export const APP_VERSION = "v4.5.7"; // 7 Editable OCR Fields
 
 export const DADOS_INICIAIS = {
   chuvas: [],
