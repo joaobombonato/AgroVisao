@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.12"; // Restructured OCR UI + DANFE Calibration
+export const APP_VERSION = "v4.5.13"; // Surgical Precision NFe Alignment
 
 export const DADOS_INICIAIS = {
   chuvas: [],

@@ -91,7 +91,6 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     
-    // Garantir que o vídeo tem dimensões
     if (video.videoWidth === 0) {
         toast.error("Aguardando carregamento da câmera...");
         return;
@@ -146,66 +145,67 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     setEditableFields(prev => ({ ...prev, [name]: value }));
   };
 
-  // Overlay Calibrado - Espaçamento Aumentado (DANFE Real)
+  // Overlay Calibrado (v4.5.13) - Precisão Cirúrgica conforme Anotações do Usuário
   const NFeOverlay = () => (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-4">
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6">
       <div 
-        className="relative w-full aspect-[210/297] max-h-[75vh] border-2 border-dashed border-indigo-400/30 rounded-lg shadow-[0_0_100px_rgba(0,0,0,0.7)]"
+        className="relative w-full aspect-[210/297] max-h-[78vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.8)]"
       >
-        {/* Cantos destacados */}
-        <div className="absolute -top-1 -left-1 w-10 h-10 border-l-4 border-t-4 border-indigo-400 rounded-tl-xl" />
-        <div className="absolute -top-1 -right-1 w-10 h-10 border-r-4 border-t-4 border-indigo-400 rounded-tr-xl" />
-        <div className="absolute -bottom-1 -left-1 w-10 h-10 border-l-4 border-b-4 border-indigo-400 rounded-bl-xl" />
-        <div className="absolute -bottom-1 -right-1 w-10 h-10 border-r-4 border-b-4 border-indigo-400 rounded-br-xl" />
+        {/* Cantos destacados - Estilo Lente */}
+        <div className="absolute -top-1 -left-1 w-12 h-12 border-l-4 border-t-4 border-indigo-500 rounded-tl-2xl" />
+        <div className="absolute -top-1 -right-1 w-12 h-12 border-r-4 border-t-4 border-indigo-500 rounded-tr-2xl" />
+        <div className="absolute -bottom-1 -left-1 w-12 h-12 border-l-4 border-b-4 border-indigo-500 rounded-bl-2xl" />
+        <div className="absolute -bottom-1 -right-1 w-12 h-12 border-r-4 border-b-4 border-indigo-500 rounded-br-2xl" />
 
-        {/* --- ZONEAMENTO CALIBRADO --- */}
+        {/* --- CALIBRAÇÃO DE PRECISÃO (PERCENTUAL DO A4) --- */}
         
-        {/* Emitente (Topo Esquerdo) */}
-        <div className="absolute top-[8%] left-[2%] w-[48%] h-[12%] border border-cyan-400/50 rounded-lg flex items-center justify-center bg-cyan-400/5">
-           <span className="text-[8px] text-cyan-400 font-black uppercase">Emitente</span>
+        {/* 1. Emitente (Top Left) */}
+        <div className="absolute top-[3%] left-[2%] w-[32%] h-[12%] border border-cyan-400/60 rounded flex items-center justify-center bg-cyan-400/5 backdrop-blur-[1px]">
+           <span className="text-[7px] text-cyan-400 font-black uppercase tracking-widest">Emitente</span>
         </div>
 
-        {/* Chave de Acesso (Topo Direito) */}
-        <div className="absolute top-[8%] right-[2%] w-[48%] h-[12%] border-2 border-yellow-400/50 rounded-lg flex items-center justify-center bg-yellow-400/10">
-           <span className="text-[9px] text-yellow-400 font-black uppercase">Chave de Acesso</span>
+        {/* 2. DANFE / Nº NF (Center Top) */}
+        <div className="absolute top-[3%] left-[36%] w-[14%] h-[12%] border border-blue-400/60 rounded flex items-center justify-center bg-blue-400/5">
+           <span className="text-[7px] text-blue-400 font-black uppercase text-center leading-tight">Nº da<br/>NF</span>
         </div>
 
-        {/* Número NF (Centro Topo) */}
-        <div className="absolute top-[21%] left-[30%] w-[40%] h-[6%] border border-blue-400/50 rounded-md flex items-center justify-center bg-blue-400/5">
-           <span className="text-[7px] text-blue-400 font-black uppercase">Nº da NF</span>
+        {/* 3. Chave de Acesso (Top Right) */}
+        <div className="absolute top-[3%] right-[2%] w-[44%] h-[12%] border-2 border-yellow-400/70 rounded flex items-center justify-center bg-yellow-400/10">
+           <span className="text-[8px] text-yellow-400 font-black uppercase tracking-wider">Chave de Acesso</span>
         </div>
 
-        {/* Vencimento (Fatura - Lateral Esquerda) */}
-        <div className="absolute top-[35%] left-[2%] w-[35%] h-[8%] border border-pink-400/50 rounded-lg flex items-center justify-center bg-pink-400/5">
-           <span className="text-[7px] text-pink-400 font-black uppercase">Vencimentos</span>
+        {/* 4. CNPJ Emitente (Below Chave) */}
+        <div className="absolute top-[17%] right-[2%] w-[38%] h-[5%] border border-cyan-500/30 rounded flex items-center justify-center bg-cyan-500/5">
+           <span className="text-[6px] text-cyan-500 font-bold uppercase">CNPJ Emitente</span>
         </div>
 
-        {/* Data Emissão (Middle Right) */}
-        <div className="absolute top-[35%] right-[2%] w-[35%] h-[8%] border border-orange-400/50 rounded-lg flex items-center justify-center bg-orange-400/5">
+        {/* 5. Data Emissão (Below CNPJ) */}
+        <div className="absolute top-[24%] right-[2%] w-[25%] h-[6%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
            <span className="text-[7px] text-orange-400 font-black uppercase">Data Emissão</span>
         </div>
 
-        {/* Valor Total (Right Section, above Products) */}
-        <div className="absolute top-[48%] right-[2%] w-[40%] h-[8%] border-2 border-red-500/60 rounded-xl flex items-center justify-center bg-red-500/10">
-           <span className="text-[10px] text-red-400 font-black uppercase">Valor Total</span>
+        {/* 6. Vencimentos/Fatura (Middle Left) */}
+        <div className="absolute top-[38%] left-[2%] w-[40%] h-[8%] border border-pink-400/60 rounded flex items-center justify-center bg-pink-400/10">
+           <span className="text-[7px] text-pink-400 font-black uppercase">Vencimentos</span>
         </div>
 
-        {/* Produtos Area (Bottom Section - More Space) */}
-        <div className="absolute bottom-[4%] inset-x-[2%] h-[38%] border border-indigo-500/30 rounded-xl bg-indigo-500/5 flex flex-col pt-1">
-            <div className="text-center">
-               <span className="text-[8px] text-indigo-300 font-black uppercase tracking-widest">Produtos / Itens</span>
+        {/* 7. Valor Total (Middle Right - Critical) */}
+        <div className="absolute top-[48%] right-[2%] w-[30%] h-[5%] border-2 border-red-500/70 rounded-lg flex items-center justify-center bg-red-500/15">
+           <span className="text-[9px] text-red-400 font-black uppercase">Valor Total</span>
+        </div>
+
+        {/* 8. Produtos (Bottom Section) */}
+        <div className="absolute bottom-[2%] inset-x-[2%] h-[42%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
+            <div className="w-full h-5 bg-indigo-500/10 flex items-center justify-center">
+               <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest">Tabela de Produtos</span>
             </div>
-            <div className="flex-1 grid grid-cols-4 divide-x divide-indigo-500/10 mt-2 px-2">
-               {[...Array(4)].map((_, i) => <div key={i} className="border-t border-indigo-500/10" />)}
+            <div className="w-full h-full opacity-10 grid grid-cols-4 divide-x divide-indigo-400/30">
+               {[...Array(4)].map((_, i) => <div key={i} className="border-t border-indigo-400/30" />)}
             </div>
         </div>
 
-        {/* Scanning Line Animation */}
-        <div className="absolute inset-x-0 h-1 bg-indigo-400/40 shadow-[0_0_20px_rgba(129,140,248,0.5)] animate-scan-y top-0" />
-      </div>
-
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20">
-         <ScanLine className="w-20 h-20 text-indigo-400/20" />
+        {/* Laser de Escaneamento Animado (Sutil) */}
+        <div className="absolute inset-x-0 h-1 bg-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-laser-scan z-20" />
       </div>
     </div>
   );
@@ -213,38 +213,38 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   return (
     <div className="fixed inset-0 z-[1500] bg-black flex flex-col overflow-hidden">
       
-      {/* Header Fixo (Fora da área da câmera) */}
-      <div className="bg-slate-900 border-b border-white/5 p-5 flex justify-between items-center z-[1600]">
-        <div className="flex items-center gap-4">
-          <div className="bg-indigo-600/20 p-2.5 rounded-2xl">
+      {/* Dynamic Header */}
+      <div className="bg-[#0f172a] border-b border-white/5 p-5 flex justify-between items-center z-[110] relative">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-600/20 p-2.5 rounded-2xl border border-indigo-500/20">
             <ScanLine className="w-6 h-6 text-indigo-400"/>
           </div>
           <div>
-            <h3 className="font-bold text-white text-base tracking-tight">Scanner VisãoAgro</h3>
-            <p className="text-[11px] text-gray-500 font-medium">Capture sua NF-e com o melhor ângulo</p>
+            <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Alinhamento NFe-A4</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => setFlashOn(!flashOn)} className={`p-3 rounded-2xl transition-all ${flashOn ? 'bg-yellow-400 text-black shadow-lg shadow-yellow-400/20' : 'bg-white/5 text-gray-400'}`}>
+           <button onClick={() => setFlashOn(!flashOn)} className={`p-3 rounded-2xl transition-all ${flashOn ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-400 border border-white/5'}`}>
               <Zap className="w-5 h-5" />
            </button>
-           <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 transition-colors">
+           <button onClick={onClose} className="p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-gray-400 border border-white/5 transition-colors">
               <X className="w-6 h-6" />
            </button>
         </div>
       </div>
 
-      {/* Viewport Principal */}
+      {/* Main Viewport */}
       <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
         
         <style>{`
-          @keyframes scan-y {
-            0% { top: 5%; opacity: 0; }
-            10% { opacity: 0.8; }
-            90% { opacity: 0.8; }
-            100% { top: 95%; opacity: 0; }
+          @keyframes laser-scan {
+            0% { top: 0%; opacity: 0; }
+            5% { opacity: 1; }
+            95% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
           }
-          .animate-scan-y { animation: scan-y 4s linear infinite; }
+          .animate-laser-scan { animation: laser-scan 4s linear infinite; }
         `}</style>
 
         {!capturedImage ? (
@@ -259,95 +259,85 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
             {/* Guide Overlay */}
             <NFeOverlay />
 
-            {/* Shutter Button (Subposto à área inferior da câmera) */}
-            <div className="absolute bottom-10 left-0 right-0 z-50 flex flex-col items-center gap-6 pointer-events-none">
+            {/* Shutter Button (Simplificado conforme solicitado) */}
+            <div className="absolute bottom-10 left-0 right-0 z-50 flex justify-center pointer-events-none">
               <button 
                 onClick={(e) => { e.stopPropagation(); takePhoto(); }}
-                className="w-24 h-24 rounded-full bg-indigo-600 flex items-center justify-center p-1 active:scale-95 transition-all shadow-2xl pointer-events-auto border-4 border-white/20"
+                className="w-24 h-24 rounded-full bg-white flex items-center justify-center p-1 active:scale-90 transition-all shadow-[0_0_50px_rgba(255,255,255,0.3)] pointer-events-auto group"
               >
-                <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-4 border-slate-950">
-                   <Camera className="w-10 h-10 text-slate-950" />
+                <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center border-[6px] border-slate-950 relative overflow-hidden">
+                   <div className="absolute inset-0 bg-indigo-600 opacity-0 group-active:opacity-20 transition-opacity" />
+                   <Camera className="w-10 h-10 text-slate-900" />
                 </div>
               </button>
-              <div className="bg-black/60 backdrop-blur-md px-6 py-2 rounded-full border border-white/10">
-                 <p className="text-[11px] font-black text-white uppercase tracking-[3px]">Toque para Digitalizar</p>
-              </div>
             </div>
           </>
         ) : (
-          <div className="w-full h-full relative flex flex-col bg-slate-950">
+          <div className="w-full h-full relative flex flex-col bg-[#020617]">
             <img src={capturedImage} alt="Captura" className="flex-1 w-full object-contain" />
             
-            {/* Seletor de Processamento */}
+            {/* Post-Capture UI */}
             {!ocrResult && !isProcessing && (
               <div className="absolute inset-x-0 bottom-10 flex flex-col items-center gap-4 px-8 animate-in fade-in slide-in-from-bottom-10">
-                <div className="w-full p-5 bg-black/90 backdrop-blur-2xl border border-white/10 rounded-[40px] shadow-2xl flex items-center gap-4">
-                   <div className="bg-indigo-600/30 p-3 rounded-2xl">
-                      <FileText className="w-8 h-8 text-indigo-400" />
-                   </div>
-                   <div className="text-left">
-                      <p className="text-sm font-black text-white uppercase tracking-tight">Enquadramento OK</p>
-                      <p className="text-[11px] text-gray-500 font-medium tracking-tight">Iniciando análise inteligente...</p>
-                   </div>
-                </div>
-                
                 <div className="flex w-full gap-4">
-                  <button onClick={() => processOCR('fast')} className="flex-1 bg-white text-slate-900 font-black py-6 rounded-[35px] text-xs uppercase tracking-tighter active:scale-95 transition-all">
-                    Leitura Rápida
+                  <button onClick={() => processOCR('fast')} className="flex-1 bg-white text-slate-950 font-black py-6 rounded-[35px] text-xs uppercase tracking-widest active:scale-95 transition-all">
+                    Rápido
                   </button>
-                  <button onClick={() => processOCR('ai')} className="flex-1 bg-indigo-600 text-white font-black py-6 rounded-[35px] text-xs uppercase tracking-tighter active:scale-95 transition-all shadow-xl shadow-indigo-600/20">
-                    Leitura com IA
+                  <button onClick={() => processOCR('ai')} className="flex-1 bg-indigo-600 text-white font-black py-6 rounded-[35px] text-xs uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-600/20">
+                    IA Avançada
                   </button>
                 </div>
-                <button onClick={() => { setCapturedImage(null); startCamera(); }} className="text-[11px] text-gray-400 font-black hover:text-white transition-colors py-4 uppercase tracking-[4px]">Tirar nova foto</button>
+                <button onClick={() => { setCapturedImage(null); startCamera(); }} className="text-[11px] text-gray-500 font-black hover:text-white transition-colors py-4 uppercase tracking-[4px]">Descartar e Refazer</button>
               </div>
             )}
 
             {isProcessing && (
-              <div className="absolute inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center text-white p-8 z-[200]">
-                <div className="w-20 h-20 border-[6px] border-indigo-400/20 border-t-indigo-500 rounded-full animate-spin mb-8"></div>
-                <h3 className="font-black text-2xl tracking-tighter uppercase">Analisando DANFE</h3>
-                <p className="text-gray-500 text-[10px] font-bold mt-2 uppercase tracking-[4px]">Aguarde a extração dos dados</p>
+              <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-3xl flex flex-col items-center justify-center text-white p-8 z-[200]">
+                <div className="relative mb-10">
+                   <div className="w-24 h-24 border-[6px] border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+                   <div className="absolute inset-0 flex items-center justify-center">
+                      <ScanLine className="w-8 h-8 text-indigo-400 animate-pulse" />
+                   </div>
+                </div>
+                <h3 className="font-black text-2xl tracking-tighter uppercase italic">Extraindo Dados</h3>
+                <p className="text-gray-600 text-[10px] font-black mt-3 uppercase tracking-[6px]">Mapeando Arquitetura NFe</p>
               </div>
             )}
 
             {/* Conference Screen */}
             {ocrResult && (
-              <div className="absolute inset-0 bg-slate-950 flex flex-col z-[300] animate-in fade-in slide-in-from-bottom-10">
-                <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5">
+              <div className="absolute inset-0 bg-[#020617] flex flex-col z-[300] animate-in fade-in slide-in-from-bottom-10">
+                <div className="p-8 pb-4 flex justify-between items-center border-b border-white/5 bg-slate-900/40">
                   <div className="flex items-center gap-4">
-                    <div className="bg-green-500/10 p-3 rounded-2xl border border-green-500/20">
-                      <Check className="w-6 h-6 text-green-400" />
+                    <div className="bg-emerald-500/10 p-3 rounded-2xl border border-emerald-500/20">
+                      <Check className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
-                      <h3 className="font-black text-white text-xl">Conferência</h3>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Digitalização Concluída</p>
+                      <h3 className="font-black text-white text-xl tracking-tight">Vincular Nota</h3>
+                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Verifique os dados extraídos</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-indigo-600/20 text-indigo-400 text-[9px] font-black rounded-lg uppercase tracking-widest">
-                    {ocrResult.source === 'gemini' ? "IA" : "Local"}
-                  </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+                <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
                   <div className="grid grid-cols-1 gap-6">
-                    <Field label="Emitente / Fornecedor" value={editableFields.emitente} onChange={(v: string) => updateField('emitente', v)} />
+                    <Field label="Emitente (RAZÃO SOCIAL)" value={editableFields.emitente} onChange={(v: string) => updateField('emitente', v)} />
                     <div className="grid grid-cols-2 gap-4">
                       <Field label="Nº NF" value={editableFields.numeroNF} onChange={(v: string) => updateField('numeroNF', v)} />
-                      <Field label="Data Emissão" value={editableFields.dataEmissao} onChange={(v: string) => updateField('dataEmissao', v)} />
+                      <Field label="Data de Emissão" value={editableFields.dataEmissao} onChange={(v: string) => updateField('dataEmissao', v)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <Field label="Valor Total" value={editableFields.total} onChange={(v: string) => updateField('total', v)} prefix="R$" />
-                      <Field label="Vencimentos" value={editableFields.vencimentos} onChange={(v: string) => updateField('vencimentos', v)} placeholder="Ex: 20/03/24" />
+                      <Field label="Valor Total (R$)" value={editableFields.total} onChange={(v: string) => updateField('total', v)} prefix="R$" />
+                      <Field label="Vencimentos" value={editableFields.vencimentos} onChange={(v: string) => updateField('vencimentos', v)} placeholder="Ex: 10/06/2024" />
                     </div>
-                    <Field label="Chave de Acesso" value={editableFields.chave} onChange={(v: string) => updateField('chave', v)} rows={2} />
-                    <Field label="Produtos" value={editableFields.produtos} onChange={(v: string) => updateField('produtos', v)} rows={2} placeholder="Lista de itens encontrados" />
+                    <Field label="Chave de Acesso (44 DÍGITOS)" value={editableFields.chave} onChange={(v: string) => updateField('chave', v)} rows={2} />
+                    <Field label="Itens / Produtos" value={editableFields.produtos} onChange={(v: string) => updateField('produtos', v)} rows={2} placeholder="Descrição dos itens capturados" />
                   </div>
                 </div>
 
-                <div className="p-8 flex gap-4 bg-slate-900/50 backdrop-blur-md">
-                  <button onClick={() => { setOcrResult(null); startCamera(); setCapturedImage(null); }} className="flex-1 py-5 bg-white/5 rounded-[30px] font-black uppercase text-xs tracking-widest border border-white/5">Refazer</button>
-                  <button onClick={confirmCapture} className="flex-[2] py-5 bg-indigo-600 text-white rounded-[30px] font-black uppercase text-xs tracking-[4px] shadow-xl shadow-indigo-600/20">Confirmar</button>
+                <div className="p-8 pt-6 flex gap-4 bg-slate-900/80 backdrop-blur-xl border-t border-white/5">
+                  <button onClick={() => { setOcrResult(null); startCamera(); setCapturedImage(null); }} className="flex-1 py-6 bg-white/5 rounded-[35px] font-black uppercase text-xs tracking-widest border border-white/5 text-gray-400">Refazer</button>
+                  <button onClick={confirmCapture} className="flex-[2] py-6 bg-indigo-600 text-white rounded-[35px] font-black uppercase text-xs tracking-[5px] shadow-2xl shadow-indigo-600/30 active:scale-95 transition-all">Confirmar</button>
                 </div>
               </div>
             )}
@@ -371,14 +361,14 @@ interface FieldProps {
 
 const Field = ({ label, value, onChange, prefix, rows = 1, placeholder }: FieldProps) => (
   <div className="space-y-2 group">
-    <label className="text-[10px] text-slate-500 uppercase font-black px-1 tracking-widest group-focus-within:text-indigo-400 transition-colors">{label}</label>
+    <label className="text-[10px] text-slate-600 uppercase font-black px-1 tracking-[2px] group-focus-within:text-indigo-400 transition-colors uppercase">{label}</label>
     <div className="relative">
-      {prefix && <span className="absolute left-5 top-5 text-sm text-indigo-400 font-black">{prefix}</span>}
+      {prefix && <span className="absolute left-6 top-6 text-sm text-indigo-400 font-black">{prefix}</span>}
       {rows > 1 ? (
         <textarea
           value={value}
           onChange={e => onChange(e.target.value)}
-          className={`w-full bg-white/5 border border-white/10 rounded-[25px] p-5 text-sm font-bold text-white focus:border-indigo-500/30 focus:bg-white/10 outline-none transition-all font-mono leading-relaxed ${prefix ? 'pl-11' : ''}`}
+          className={`w-full bg-white/5 border border-white/10 rounded-[30px] p-6 text-sm font-bold text-white focus:border-indigo-500/40 focus:bg-white/10 outline-none transition-all font-mono leading-relaxed ${prefix ? 'pl-12' : ''}`}
           rows={rows}
           placeholder={placeholder}
         />
@@ -387,11 +377,11 @@ const Field = ({ label, value, onChange, prefix, rows = 1, placeholder }: FieldP
           type="text"
           value={value}
           onChange={e => onChange(e.target.value)}
-          className={`w-full bg-white/5 border border-white/10 rounded-[25px] p-5 text-sm font-bold text-white focus:border-indigo-500/30 focus:bg-white/10 outline-none transition-all ${prefix ? 'pl-11' : ''}`}
+          className={`w-full bg-white/5 border border-white/10 rounded-[30px] p-6 text-sm font-bold text-white focus:border-indigo-500/40 focus:bg-white/10 outline-none transition-all ${prefix ? 'pl-12' : ''}`}
           placeholder={placeholder}
         />
       )}
-      <Edit2 className="absolute right-5 top-5 w-4 h-4 text-white/5 group-focus-within:text-indigo-400 transition-colors" />
+      <Edit2 className="absolute right-6 top-6 w-4 h-4 text-white/5 group-focus-within:text-indigo-400 transition-colors" />
     </div>
   </div>
 );
