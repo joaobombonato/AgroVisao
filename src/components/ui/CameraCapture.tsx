@@ -9,6 +9,7 @@ interface CameraCaptureProps {
 
 interface EditableFields {
   emitente: string;
+  cnpjEmitente: string;
   numeroNF: string;
   dataEmissao: string;
   total: string;
@@ -27,6 +28,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   const [flashOn, setFlashOn] = useState(false);
   const [editableFields, setEditableFields] = useState<EditableFields>({
     emitente: "",
+    cnpjEmitente: "",
     numeroNF: "",
     dataEmissao: "",
     total: "",
@@ -44,6 +46,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     if (ocrResult?.fields) {
       setEditableFields({
         emitente: ocrResult.fields.emitente || "",
+        cnpjEmitente: ocrResult.fields.cnpjEmitente || "",
         numeroNF: ocrResult.fields.numeroNF || "",
         dataEmissao: ocrResult.fields.dataEmissao || "",
         total: ocrResult.fields.total || "",
@@ -145,11 +148,11 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     setEditableFields(prev => ({ ...prev, [name]: value }));
   };
 
-  // Overlay Calibrado (v4.5.13) - Precisão Cirúrgica conforme Anotações do Usuário
+  // Overlay Calibrado (v4.5.14) - Calibração Cirúrgica v2
   const NFeOverlay = () => (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6">
       <div 
-        className="relative w-full aspect-[210/297] max-h-[78vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.8)]"
+        className="relative w-full aspect-[210/297] max-h-[82vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.85)]"
       >
         {/* Cantos destacados - Estilo Lente */}
         <div className="absolute -top-1 -left-1 w-12 h-12 border-l-4 border-t-4 border-indigo-500 rounded-tl-2xl" />
@@ -157,45 +160,45 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         <div className="absolute -bottom-1 -left-1 w-12 h-12 border-l-4 border-b-4 border-indigo-500 rounded-bl-2xl" />
         <div className="absolute -bottom-1 -right-1 w-12 h-12 border-r-4 border-b-4 border-indigo-500 rounded-br-2xl" />
 
-        {/* --- CALIBRAÇÃO DE PRECISÃO (PERCENTUAL DO A4) --- */}
+        {/* --- CALIBRAÇÃO DE PRECISÃO v2 (PERCENTUAL DO A4) --- */}
         
-        {/* 1. Emitente (Top Left) */}
-        <div className="absolute top-[3%] left-[2%] w-[32%] h-[12%] border border-cyan-400/60 rounded flex items-center justify-center bg-cyan-400/5 backdrop-blur-[1px]">
+        {/* 1. Emitente (Topo Esquerdo - Mais retangular) */}
+        <div className="absolute top-[3%] left-[2%] w-[38%] h-[8%] border border-cyan-400/60 rounded flex items-center justify-center bg-cyan-400/5 transition-all">
            <span className="text-[7px] text-cyan-400 font-black uppercase tracking-widest">Emitente</span>
         </div>
 
-        {/* 2. DANFE / Nº NF (Center Top) */}
-        <div className="absolute top-[3%] left-[36%] w-[14%] h-[12%] border border-blue-400/60 rounded flex items-center justify-center bg-blue-400/5">
-           <span className="text-[7px] text-blue-400 font-black uppercase text-center leading-tight">Nº da<br/>NF</span>
-        </div>
-
-        {/* 3. Chave de Acesso (Top Right) */}
-        <div className="absolute top-[3%] right-[2%] w-[44%] h-[12%] border-2 border-yellow-400/70 rounded flex items-center justify-center bg-yellow-400/10">
+        {/* 2. Chave de Acesso (Topo Direito - Metade vertical) */}
+        <div className="absolute top-[3%] right-[2%] w-[42%] h-[6%] border-2 border-yellow-400/70 rounded flex items-center justify-center bg-yellow-400/10">
            <span className="text-[8px] text-yellow-400 font-black uppercase tracking-wider">Chave de Acesso</span>
         </div>
 
-        {/* 4. CNPJ Emitente (Below Chave) */}
-        <div className="absolute top-[17%] right-[2%] w-[38%] h-[5%] border border-cyan-500/30 rounded flex items-center justify-center bg-cyan-500/5">
-           <span className="text-[6px] text-cyan-500 font-bold uppercase">CNPJ Emitente</span>
+        {/* 3. Nº da NF (Abaixo do centro-topo - Metade vertical) */}
+        <div className="absolute top-[13%] left-[38%] w-[12%] h-[4%] border border-blue-400/60 rounded flex items-center justify-center bg-blue-400/5">
+           <span className="text-[6px] text-blue-400 font-black uppercase text-center leading-tight">Nº da NF</span>
         </div>
 
-        {/* 5. Data Emissão (Below CNPJ) */}
-        <div className="absolute top-[24%] right-[2%] w-[25%] h-[6%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
-           <span className="text-[7px] text-orange-400 font-black uppercase">Data Emissão</span>
+        {/* 4. CNPJ Emitente (Centro Direito - Metade horizontal/vertical) */}
+        <div className="absolute top-[20%] right-[2%] w-[18%] h-[2.5%] border border-cyan-500/50 rounded flex items-center justify-center bg-cyan-400/5">
+           <span className="text-[5px] text-cyan-500 font-black uppercase">CNPJ Emitente</span>
         </div>
 
-        {/* 6. Vencimentos/Fatura (Middle Left) */}
-        <div className="absolute top-[38%] left-[2%] w-[40%] h-[8%] border border-pink-400/60 rounded flex items-center justify-center bg-pink-400/10">
-           <span className="text-[7px] text-pink-400 font-black uppercase">Vencimentos</span>
+        {/* 5. Data Emissão (Colado embaixo do CNPJ, a direita) */}
+        <div className="absolute top-[23%] right-[2%] w-[15%] h-[4%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
+           <span className="text-[6px] text-orange-400 font-black uppercase">Data</span>
         </div>
 
-        {/* 7. Valor Total (Middle Right - Critical) */}
-        <div className="absolute top-[48%] right-[2%] w-[30%] h-[5%] border-2 border-red-500/70 rounded-lg flex items-center justify-center bg-red-500/15">
-           <span className="text-[9px] text-red-400 font-black uppercase">Valor Total</span>
+        {/* 6. Vencimentos (Subir para o meio - Tamanho do Valor Total anterior) */}
+        <div className="absolute top-[32%] left-[2%] w-[30%] h-[5%] border border-pink-400/60 rounded flex items-center justify-center bg-pink-400/10">
+           <span className="text-[7px] text-pink-400 font-black uppercase">Vencimento</span>
         </div>
 
-        {/* 8. Produtos (Bottom Section) */}
-        <div className="absolute bottom-[2%] inset-x-[2%] h-[42%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
+        {/* 7. Valor Total (Subir para a altura do antigo vencimento) */}
+        <div className="absolute top-[42%] right-[2%] w-[30%] h-[5%] border-2 border-red-500/80 rounded-lg flex items-center justify-center bg-red-500/15">
+           <span className="text-[9px] text-red-500 font-black uppercase">Valor Total</span>
+        </div>
+
+        {/* 8. Produtos (Subir para a altura do antigo Valor Total) */}
+        <div className="absolute top-[52%] bottom-[2%] inset-x-[2%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
             <div className="w-full h-5 bg-indigo-500/10 flex items-center justify-center">
                <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest">Tabela de Produtos</span>
             </div>
@@ -204,7 +207,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
             </div>
         </div>
 
-        {/* Laser de Escaneamento Animado (Sutil) */}
+        {/* Laser de Escaneamento Animado */}
         <div className="absolute inset-x-0 h-1 bg-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.6)] animate-laser-scan z-20" />
       </div>
     </div>
@@ -221,7 +224,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Alinhamento NFe-A4</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento A4 Precisão</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -259,7 +262,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
             {/* Guide Overlay */}
             <NFeOverlay />
 
-            {/* Shutter Button (Simplificado conforme solicitado) */}
+            {/* Shutter Button (Simplificado) */}
             <div className="absolute bottom-10 left-0 right-0 z-50 flex justify-center pointer-events-none">
               <button 
                 onClick={(e) => { e.stopPropagation(); takePhoto(); }}
@@ -299,8 +302,8 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                       <ScanLine className="w-8 h-8 text-indigo-400 animate-pulse" />
                    </div>
                 </div>
-                <h3 className="font-black text-2xl tracking-tighter uppercase italic">Extraindo Dados</h3>
-                <p className="text-gray-600 text-[10px] font-black mt-3 uppercase tracking-[6px]">Mapeando Arquitetura NFe</p>
+                <h3 className="font-black text-2xl tracking-tighter uppercase italic">Escaneando</h3>
+                <p className="text-gray-600 text-[10px] font-black mt-3 uppercase tracking-[6px]">Arquitetura de Dados NFe</p>
               </div>
             )}
 
@@ -314,7 +317,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                     </div>
                     <div>
                       <h3 className="font-black text-white text-xl tracking-tight">Vincular Nota</h3>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Verifique os dados extraídos</p>
+                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Confirme os dados extraídos</p>
                     </div>
                   </div>
                 </div>
@@ -322,14 +325,18 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
                 <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
                   <div className="grid grid-cols-1 gap-6">
                     <Field label="Emitente (RAZÃO SOCIAL)" value={editableFields.emitente} onChange={(v: string) => updateField('emitente', v)} />
+                    
                     <div className="grid grid-cols-2 gap-4">
+                      <Field label="CNPJ Emitente" value={editableFields.cnpjEmitente} onChange={(v: string) => updateField('cnpjEmitente', v)} />
                       <Field label="Nº NF" value={editableFields.numeroNF} onChange={(v: string) => updateField('numeroNF', v)} />
-                      <Field label="Data de Emissão" value={editableFields.dataEmissao} onChange={(v: string) => updateField('dataEmissao', v)} />
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
+                      <Field label="Data de Emissão" value={editableFields.dataEmissao} onChange={(v: string) => updateField('dataEmissao', v)} />
                       <Field label="Valor Total (R$)" value={editableFields.total} onChange={(v: string) => updateField('total', v)} prefix="R$" />
-                      <Field label="Vencimentos" value={editableFields.vencimentos} onChange={(v: string) => updateField('vencimentos', v)} placeholder="Ex: 10/06/2024" />
                     </div>
+
+                    <Field label="Vencimentos" value={editableFields.vencimentos} onChange={(v: string) => updateField('vencimentos', v)} placeholder="Ex: 10/06/2024" />
                     <Field label="Chave de Acesso (44 DÍGITOS)" value={editableFields.chave} onChange={(v: string) => updateField('chave', v)} rows={2} />
                     <Field label="Itens / Produtos" value={editableFields.produtos} onChange={(v: string) => updateField('produtos', v)} rows={2} placeholder="Descrição dos itens capturados" />
                   </div>
@@ -361,7 +368,7 @@ interface FieldProps {
 
 const Field = ({ label, value, onChange, prefix, rows = 1, placeholder }: FieldProps) => (
   <div className="space-y-2 group">
-    <label className="text-[10px] text-slate-600 uppercase font-black px-1 tracking-[2px] group-focus-within:text-indigo-400 transition-colors uppercase">{label}</label>
+    <label className="text-[10px] text-slate-600 uppercase font-black px-1 tracking-[2px] group-focus-within:text-indigo-400 transition-colors">{label}</label>
     <div className="relative">
       {prefix && <span className="absolute left-6 top-6 text-sm text-indigo-400 font-black">{prefix}</span>}
       {rows > 1 ? (

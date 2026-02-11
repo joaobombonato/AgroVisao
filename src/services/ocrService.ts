@@ -7,7 +7,7 @@ export interface OCRResult {
     fields: {
         total?: string;
         dataEmissao?: string;
-        cnpj?: string;
+        cnpjEmitente?: string;
         chave?: string;
         produtos?: string[];
         emitente?: string;
@@ -120,7 +120,10 @@ export const ocrService = {
             const nfMatch = text.match(/N[º°].?\s*(\d{3}[\d\.]*)/i);
             if (nfMatch) fields.numeroNF = nfMatch[1].replace(/\D/g, '');
 
-            // 6. EMITENTE
+            // 6. EMITENTE E CNPJ
+            const cnpjMatch = text.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+            if (cnpjMatch) fields.cnpjEmitente = cnpjMatch[1];
+
             const emitKeywords = ['RAZÃO SOCIAL', 'IDENTIFICAÇÃO DO EMITENTE', 'EMITENTE'];
             const emitIdx = lines.findIndex(l => emitKeywords.some(kw => l.includes(kw)));
             if (emitIdx !== -1) {
@@ -142,7 +145,7 @@ export const ocrService = {
             const model = genAI.getGenerativeModel({ model: modelName });
             const base64Content = await compressImage(imageFile, 1024);
             const prompt = `Extraia os dados desta Nota Fiscal. Responda APENAS JSON:
-            {"emitente":"", "numeroNF":"", "dataEmissao":"", "total":"", "chave":"", "vencimentos":[], "produtos":[]}
+            {"emitente":"", "cnpjEmitente":"", "numeroNF":"", "dataEmissao":"", "total":"", "chave":"", "vencimentos":[], "produtos":[]}
             Total deve ser número decimal. A chave tem 44 dígitos.`;
             const result = await model.generateContent([{ inlineData: { mimeType: "image/jpeg", data: base64Content } }, { text: prompt }]);
             const resText = (await result.response).text();
