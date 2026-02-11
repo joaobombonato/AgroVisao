@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.14"; // Surgical Calibration v2 - Ultra Precision
+export const APP_VERSION = "v4.5.15"; // Surgical Calibration v3 - Final Polish
 
 export const DADOS_INICIAIS = {
   chuvas: [],
