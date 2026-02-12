@@ -163,42 +163,42 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         {/* --- CALIBRAÇÃO DE PRECISÃO v4 --- */}
         
         {/* 1. Emitente (Pouca coisa maior na vertical) */}
-        <div className="absolute top-[6%] left-[2%] w-[38%] h-[10.5%] border border-cyan-400/60 rounded flex items-center justify-center bg-cyan-400/5 transition-all">
+        <div className="absolute top-[6%] left-[2%] w-[38%] h-[10%] border border-cyan-400/60 rounded flex items-center justify-center bg-cyan-400/5 transition-all">
            <span className="text-[7px] text-cyan-400 font-black uppercase tracking-widest">Emitente</span>
         </div>
 
         {/* 2. Nº da NF (Colar na lateral do emitente e pouco mais para cima) */}
-        <div className="absolute top-[11.5%] left-[40.5%] w-[12%] h-[4.5%] border border-blue-400/60 rounded flex items-center justify-center bg-blue-400/5">
+        <div className="absolute top-[11.5%] left-[40%] w-[12%] h-[5%] border border-blue-400/60 rounded flex items-center justify-center bg-blue-400/5">
            <span className="text-[6px] text-blue-400 font-black uppercase text-center leading-tight">Nº da NF</span>
         </div>
 
         {/* 3. Chave de Acesso (Pouca coisa para a esquerda) */}
-        <div className="absolute top-[6%] right-[5%] w-[42%] h-[6%] border-2 border-yellow-400/70 rounded flex items-center justify-center bg-yellow-400/10">
+        <div className="absolute top-[6%] right-[5%] w-[42%] h-[7%] border-2 border-yellow-400/70 rounded flex items-center justify-center bg-yellow-400/10">
            <span className="text-[8px] text-yellow-400 font-black uppercase tracking-wider">Chave de Acesso</span>
         </div>
 
         {/* 4. CNPJ Emitente (Pouca coisa pra cima e para a esquerda) */}
-        <div className="absolute top-[18.5%] right-[18%] w-[18%] h-[2.8%] border border-cyan-500/50 rounded flex items-center justify-center bg-cyan-400/5">
+        <div className="absolute top-[18.5%] right-[20%] w-[18%] h-[2.8%] border border-cyan-500/50 rounded flex items-center justify-center bg-cyan-400/5">
            <span className="text-[5px] text-cyan-500 font-black uppercase">CNPJ Emitente</span>
         </div>
 
         {/* 5. Data Emissão (Pouca coisa pra cima e para a esquerda) */}
-        <div className="absolute top-[23.5%] right-[8%] w-[15%] h-[4%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
+        <div className="absolute top-[21%] right-[8%] w-[15%] h-[5%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
            <span className="text-[6px] text-orange-400 font-black uppercase">Data</span>
         </div>
 
         {/* 6. Vencimentos (Mesma medida pra cima - era 32%) */}
-        <div className="absolute top-[27%] left-[2%] w-[30%] h-[5%] border border-pink-400/60 rounded flex items-center justify-center bg-pink-400/10">
+        <div className="absolute top-[30%] left-[2%] w-[50%] h-[5%] border border-pink-400/60 rounded flex items-center justify-center bg-pink-400/10">
            <span className="text-[7px] text-pink-400 font-black uppercase">Vencimento</span>
         </div>
 
         {/* 7. Valor Total (Pouca coisa pra cima e para a esquerda) */}
-        <div className="absolute top-[35.5%] right-[5%] w-[15%] h-[4%] border-2 border-red-500/80 rounded-lg flex items-center justify-center bg-red-500/15">
+        <div className="absolute top-[35.5%] right-[6%] w-[16%] h-[4%] border-2 border-red-500/80 rounded-lg flex items-center justify-center bg-red-500/15">
            <span className="text-[8px] text-red-500 font-black uppercase">V. Total</span>
         </div>
 
         {/* 8. Produtos (Pouca coisa pra cima e metade do comprimento) */}
-        <div className="absolute top-[46.5%] bottom-[5%] left-[2%] w-[48%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
+        <div className="absolute top-[48%] bottom-[2%] left-[2%] w-[48%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
             <div className="w-full h-5 bg-indigo-500/10 flex items-center justify-center">
                <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest">Tabela de Produtos</span>
             </div>
@@ -224,7 +224,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.15</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.17</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
