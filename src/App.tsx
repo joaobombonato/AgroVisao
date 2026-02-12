@@ -143,13 +143,6 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isOnline ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`} title={isOnline ? 'Online' : 'Offline'}>
                    <Check className="w-5 h-5" strokeWidth={3} />
                </div>
-               <button 
-                  onClick={() => window.location.reload()} 
-                  className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                  title="Atualizar"
-               >
-                  <RefreshCw className="w-5 h-5" />
-               </button>
                <button onClick={irParaNotificacoes} className="p-2 text-gray-400 hover:text-gray-600 relative" title="Notificações">
                   <Bell className="w-6 h-6" />
                   {pendentes > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />}

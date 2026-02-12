@@ -18,6 +18,17 @@ interface EditableFields {
   produtos: string;
 }
 
+const HOTSPOTS = {
+  emitente: { top: 6, left: 2, width: 38, height: 10 },
+  numeroNF: { top: 11.5, left: 40, width: 12, height: 5 },
+  chave: { top: 6, left: 53, width: 42, height: 7 },
+  cnpjEmitente: { top: 18.5, left: 62, width: 18, height: 2.8 },
+  dataEmissao: { top: 23, left: 77, width: 15, height: 5 },
+  vencimentos: { top: 30, left: 2, width: 50, height: 5 },
+  total: { top: 35.5, left: 78, width: 16, height: 4 },
+  produtos: { top: 48, left: 2, width: 96, height: 15 }
+};
+
 export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -116,11 +127,55 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     try {
       setIsProcessing(true);
       const { ocrService } = await import('../../services/ocrService');
-      const blob = await (await fetch(capturedImage)).blob();
-      const file = new File([blob], "temp.jpg", { type: "image/jpeg" });
-      const result = type === 'fast' ? await ocrService.recognize(file) : await ocrService.recognizeIntelligent(file);
-      setOcrResult(result);
-      toast.success(type === 'fast' ? "Leitura Rápida concluída!" : "Leitura Inteligente concluída!");
+      
+      if (type === 'ai') {
+        const blob = await (await fetch(capturedImage)).blob();
+        const file = new File([blob], "temp.jpg", { type: "image/jpeg" });
+        const result = await ocrService.recognizeIntelligent(file);
+        setOcrResult(result);
+      } else {
+        // Fast Zone-based OCR
+        const img = new Image();
+        img.src = capturedImage;
+        await new Promise((resolve) => { img.onload = resolve; });
+
+        const results: any = { fields: {} };
+        const cropPromises = Object.entries(HOTSPOTS).map(async ([field, zone]) => {
+          const cropCanvas = document.createElement('canvas');
+          const ctx = cropCanvas.getContext('2d');
+          if (!ctx) return;
+
+          const x = (zone.left / 100) * img.width;
+          const y = (zone.top / 100) * img.height;
+          const w = (zone.width / 100) * img.width;
+          const h = (zone.height / 100) * img.height;
+
+          cropCanvas.width = w;
+          cropCanvas.height = h;
+          ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+
+          const cropBlob = await new Promise<Blob | null>((resolve) => cropCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+          if (!cropBlob) return;
+
+          const cropFile = new File([cropBlob], `${field}.jpg`, { type: 'image/jpeg' });
+          const singleResult = await ocrService.recognize(cropFile);
+          
+          // Map specific fields back to results
+          if (field === 'emitente') results.fields.emitente = singleResult.rawText.trim();
+          if (field === 'numeroNF') results.fields.numeroNF = singleResult.rawText.replace(/\D/g, '');
+          if (field === 'chave') results.fields.chave = singleResult.fields.chave || singleResult.rawText.replace(/\D/g, '');
+          if (field === 'cnpjEmitente') results.fields.cnpjEmitente = singleResult.rawText.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/)?.[0] || singleResult.rawText.replace(/[^\d./-]/g, '');
+          if (field === 'dataEmissao') results.fields.dataEmissao = singleResult.rawText.match(/(\d{2}\/\d{2}\/\d{4})/)?.[0] || singleResult.rawText.trim();
+          if (field === 'total') results.fields.total = singleResult.fields.total || singleResult.rawText.match(/(\d+[,.]\d{2})/)?.[0]?.replace(',', '.') || "";
+          if (field === 'vencimentos') results.fields.vencimentos = [singleResult.rawText.trim()];
+          if (field === 'produtos') results.fields.produtos = [singleResult.rawText.trim()];
+        });
+
+        await Promise.all(cropPromises);
+        setOcrResult(results);
+      }
+      
+      toast.success(type === 'fast' ? "Leitura por Zonas concluída!" : "IA Avançada concluída!");
     } catch (error: any) {
       toast.error("Erro na leitura: " + (error.message || "Falha"));
     } finally {
@@ -183,7 +238,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         </div>
 
         {/* 5. Data Emissão (Pouca coisa pra cima e para a esquerda) */}
-        <div className="absolute top-[21%] right-[8%] w-[15%] h-[5%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
+        <div className="absolute top-[23%] right-[8%] w-[15%] h-[5%] border border-orange-400/60 rounded flex items-center justify-center bg-orange-400/5">
            <span className="text-[6px] text-orange-400 font-black uppercase">Data</span>
         </div>
 
@@ -198,12 +253,12 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         </div>
 
         {/* 8. Produtos (Pouca coisa pra cima e metade do comprimento) */}
-        <div className="absolute top-[48%] bottom-[2%] left-[2%] w-[48%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
+        <div className="absolute top-[48%] h-[15%] inset-x-[2%] border border-indigo-400/20 rounded-xl bg-indigo-500/5 overflow-hidden">
             <div className="w-full h-5 bg-indigo-500/10 flex items-center justify-center">
                <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest">Tabela de Produtos</span>
             </div>
-            <div className="w-full h-full opacity-10 grid grid-cols-2 divide-x divide-indigo-400/30">
-               {[...Array(2)].map((_, i) => <div key={i} className="border-t border-indigo-400/30" />)}
+            <div className="w-full h-full opacity-10 grid grid-cols-4 divide-x divide-indigo-400/30">
+               {[...Array(4)].map((_, i) => <div key={i} className="border-t border-indigo-400/30" />)}
             </div>
         </div>
 
@@ -224,7 +279,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.17</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.18</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

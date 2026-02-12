@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.17"; // Navigation Refinement & Final OCR Polish
+export const APP_VERSION = "v4.5.18"; // Surgical Calibration v6 - Zone Precision
 
 export const DADOS_INICIAIS = {
   chuvas: [],
