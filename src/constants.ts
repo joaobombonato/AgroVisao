@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.20"; // Full-Screen Camera Viewport
+export const APP_VERSION = "v4.5.21"; // OCR Shield & A4 UI Restore
 
 export const DADOS_INICIAIS = {
   chuvas: [],

@@ -160,15 +160,44 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           const cropFile = new File([cropBlob], `${field}.jpg`, { type: 'image/jpeg' });
           const singleResult = await ocrService.recognize(cropFile);
           
-          // Map specific fields back to results
-          if (field === 'emitente') results.fields.emitente = singleResult.rawText.trim();
-          if (field === 'numeroNF') results.fields.numeroNF = singleResult.rawText.replace(/\D/g, '');
-          if (field === 'chave') results.fields.chave = singleResult.fields.chave || singleResult.rawText.replace(/\D/g, '');
-          if (field === 'cnpjEmitente') results.fields.cnpjEmitente = singleResult.rawText.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/)?.[0] || singleResult.rawText.replace(/[^\d./-]/g, '');
-          if (field === 'dataEmissao') results.fields.dataEmissao = singleResult.rawText.match(/(\d{2}\/\d{2}\/\d{4})/)?.[0] || singleResult.rawText.trim();
-          if (field === 'total') results.fields.total = singleResult.fields.total || singleResult.rawText.match(/(\d+[,.]\d{2})/)?.[0]?.replace(',', '.') || "";
-          if (field === 'vencimentos') results.fields.vencimentos = [singleResult.rawText.trim()];
-          if (field === 'produtos') results.fields.produtos = [singleResult.rawText.trim()];
+          // Map specific fields back to results with strict validation
+          const cleanRaw = singleResult.rawText.trim();
+          
+          if (field === 'emitente') results.fields.emitente = cleanRaw;
+          
+          if (field === 'numeroNF') {
+            results.fields.numeroNF = cleanRaw.replace(/[^0-9.]/g, '');
+          }
+          
+          if (field === 'chave') {
+            results.fields.chave = (singleResult.fields.chave || cleanRaw).replace(/[^0-9 ]/g, '');
+          }
+          
+          if (field === 'cnpjEmitente') {
+            const match = cleanRaw.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+            results.fields.cnpjEmitente = match ? match[0] : cleanRaw.replace(/[^0-9./-]/g, '');
+          }
+          
+          if (field === 'dataEmissao') {
+            const match = cleanRaw.match(/(\d{2}\/\d{2}\/\d{4})/);
+            results.fields.dataEmissao = match ? match[0] : cleanRaw.replace(/[^0-9/]/g, '');
+          }
+          
+          if (field === 'total') {
+            const match = cleanRaw.match(/(\d+[,.]\d{2})/);
+            results.fields.total = match ? match[0].replace(',', '.') : cleanRaw.replace(/[^0-9.,]/g, '').replace(',', '.');
+          }
+          
+          if (field === 'vencimentos') {
+            results.fields.vencimentos = [cleanRaw.replace(/[^0-9.,/ ]/g, '')];
+          }
+          
+          if (field === 'produtos') results.fields.produtos = [cleanRaw];
+
+          // Noise Filter: If numeric field results in just weird symbols or is too short, clear it
+          if (['numeroNF', 'chave', 'cnpjEmitente', 'dataEmissao', 'total'].includes(field)) {
+            if (results.fields[field].length < 2) results.fields[field] = "";
+          }
         });
 
         await Promise.all(cropPromises);
@@ -205,9 +234,9 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
 
   // Overlay Calibrado (v4.5.16) - Calibração Cirúrgica v4
   const NFeOverlay = () => (
-    <div className="absolute inset-0 flex items-start justify-center pointer-events-none z-10 px-3 pt-2">
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6">
       <div 
-        className="relative w-full h-[86vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.85)]"
+        className="relative w-full aspect-[210/297] max-h-[82vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.85)]"
       >
         {/* Cantos destacados - Estilo Lente */}
         <div className="absolute -top-1 -left-1 w-12 h-12 border-l-4 border-t-4 border-indigo-500 rounded-tl-2xl" />
@@ -279,7 +308,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.20</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.21</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
