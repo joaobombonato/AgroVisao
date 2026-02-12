@@ -205,9 +205,9 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
 
   // Overlay Calibrado (v4.5.16) - Calibração Cirúrgica v4
   const NFeOverlay = () => (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10 px-6">
+    <div className="absolute inset-0 flex items-start justify-center pointer-events-none z-10 px-3 pt-2">
       <div 
-        className="relative w-full aspect-[210/297] max-h-[88vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.85)]"
+        className="relative w-full h-[86vh] border-2 border-dashed border-white/20 rounded-xl shadow-[0_0_150px_rgba(0,0,0,0.85)]"
       >
         {/* Cantos destacados - Estilo Lente */}
         <div className="absolute -top-1 -left-1 w-12 h-12 border-l-4 border-t-4 border-indigo-500 rounded-tl-2xl" />
@@ -279,7 +279,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.19</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.20</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

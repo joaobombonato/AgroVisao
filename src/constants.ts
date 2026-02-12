@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.19"; // Camera Viewport Extension
+export const APP_VERSION = "v4.5.20"; // Full-Screen Camera Viewport
 
 export const DADOS_INICIAIS = {
   chuvas: [],
