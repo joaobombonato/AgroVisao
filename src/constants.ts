@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.21"; // OCR Shield & A4 UI Restore
+export const APP_VERSION = "v4.5.22"; // Pan/Scale/Rotate OCR Adjust & Shield
 
 export const DADOS_INICIAIS = {
   chuvas: [],

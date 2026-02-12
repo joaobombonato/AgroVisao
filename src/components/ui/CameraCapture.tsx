@@ -1,6 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
-import { Camera, X, Check, FileText, Edit2, Zap, ScanLine } from 'lucide-react';
+import { Camera, X, Check, FileText, Edit2, Zap, ScanLine, RotateCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { NFeAdjustModal } from './NFeAdjustModal';
+import { ocrService } from '../../services/ocrService';
 
 interface CameraCaptureProps {
   onCapture: (file: File, ocrResult?: { text: string, fields: any }) => void;
@@ -37,6 +39,8 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState<any>(null);
   const [flashOn, setFlashOn] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [tempCapture, setTempCapture] = useState<string | null>(null);
   const [editableFields, setEditableFields] = useState<EditableFields>({
     emitente: "",
     cnpjEmitente: "",
@@ -117,9 +121,15 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-      setCapturedImage(dataUrl);
+      setTempCapture(dataUrl);
+      setShowAdjustModal(true);
       stopCamera();
     }
+  };
+
+  const handleAdjustedImage = (adjustedBase64: string) => {
+    setCapturedImage(adjustedBase64);
+    setShowAdjustModal(false);
   };
 
   const processOCR = async (type: 'fast' | 'ai') => {
@@ -204,7 +214,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
         setOcrResult(results);
       }
       
-      toast.success(type === 'fast' ? "Leitura por Zonas concluída!" : "IA Avançada concluída!");
+      toast.success(type === 'fast' ? "Leitura por Zonas concluída! (v4.5.22)" : "IA Avançada concluída!");
     } catch (error: any) {
       toast.error("Erro na leitura: " + (error.message || "Falha"));
     } finally {
@@ -308,7 +318,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
           </div>
           <div>
             <h3 className="font-black text-white text-base tracking-tighter uppercase italic">Scanner VisãoAgro</h3>
-            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.21</p>
+            <p className="text-[10px] text-indigo-400/60 font-black uppercase tracking-[2px]">Refinamento v4.5.22</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -437,6 +447,18 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
       </div>
       
       <canvas ref={canvasRef} className="hidden" />
+      {showAdjustModal && tempCapture && (
+        <NFeAdjustModal 
+          isOpen={true}
+          rawImage={tempCapture}
+          onClose={() => {
+            setShowAdjustModal(false);
+            setTempCapture(null);
+            startCamera();
+          }}
+          onApply={handleAdjustedImage}
+        />
+      )}
     </div>
   );
 };

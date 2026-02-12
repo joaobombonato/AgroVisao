@@ -50,6 +50,11 @@ const compressImage = async (file: File, maxWidth: number = 1024): Promise<strin
     });
 };
 
+const cleanNumericField = (text: string, allowedChars: string): string => {
+    const regex = new RegExp(`[^${allowedChars}]`, 'g');
+    return text.replace(regex, '');
+};
+
 export const ocrService = {
     recognize: async (imageFile: File): Promise<OCRResult> => {
         try {
@@ -57,37 +62,36 @@ export const ocrService = {
             const lines = text.split('\n').map(l => l.trim().toUpperCase());
             const fields: OCRResult['fields'] = { produtos: [], vencimentos: [] };
 
-            // 1. CHAVE DE ACESSO (CONSERTO DE CARACTERES COMUNS)
-            // Remove espaços e limpa caracteres que o Tesseract confunde (O -> 0, I -> 1, S -> 5, etc)
-            let cleanChave = text.toUpperCase().replace(/[^0-9OISBZA]/g, '');
-            // Substituições comuns em OCR de baixa qualidade
-            cleanChave = cleanChave
-                .replace(/O/g, '0')
-                .replace(/I/g, '1')
-                .replace(/S/g, '5')
-                .replace(/B/g, '8')
-                .replace(/Z/g, '2')
-                .replace(/A/g, '4')
-                .replace(/[^0-9]/g, ''); // Garante só números no final
+            // Helper to determine if a field is likely "garbage"
+            const isGarbage = (raw: string, cleaned: string) => {
+                if (!cleaned || cleaned.length < 2) return true;
+                // If more than 60% of original chars were removed, it's likely noise
+                if (cleaned.length / raw.replace(/\s/g, '').length < 0.4) return true;
+                return false;
+            };
+
+            // 1. CHAVE DE ACESSO
+            let rawChave = text.toUpperCase().replace(/[^0-9OISBZA]/g, '');
+            let cleanChave = rawChave
+                .replace(/O/g, '0').replace(/I/g, '1').replace(/S/g, '5')
+                .replace(/B/g, '8').replace(/Z/g, '2').replace(/A/g, '4')
+                .replace(/[^0-9]/g, '');
 
             const chaveMatch = cleanChave.match(/(\d{44})/);
-            if (chaveMatch) {
-                fields.chave = chaveMatch[1];
-            }
+            if (chaveMatch) fields.chave = chaveMatch[1];
+            else if (cleanChave.length > 10) fields.chave = cleanChave;
 
-            // 2. VALOR TOTAL (Busca contextual melhorada)
+            // 2. VALOR TOTAL
             const valorKeywords = ['VALOR TOTAL DA NOTA', 'VALOR TOTAL', 'TOTAL DA NOTA', 'TOTAL', 'LIQUIDO', 'PAGAR', 'VALOR TOTAL DA NF'];
             for (const kw of valorKeywords) {
                 const idx = lines.findIndex(l => l.includes(kw));
                 if (idx !== -1) {
                     for (let i = idx; i <= idx + 2 && i < lines.length; i++) {
-                        // Regex melhorado para capturar valores monetários brasileiros
                         const match = lines[i].match(/(?:R\$?\s?)?(\d{1,3}(?:\.\d{3})*,\d{2})/);
                         if (match) {
                             fields.total = match[1].replace(/\./g, '').replace(',', '.').trim();
                             break;
                         }
-                        // Fallback para padrão americano ou sem separador de milhar .00
                         const altMatch = lines[i].match(/(\d{1,6}\.\d{2})/);
                         if (altMatch) {
                             fields.total = altMatch[1].trim();
@@ -98,7 +102,7 @@ export const ocrService = {
                 if (fields.total) break;
             }
 
-            // 3. DATA EMISSÃO (Contextual)
+            // 3. DATA EMISSÃO
             const dataEmissaoKeywords = ['DATA EMISSÃO', 'DATA DE EMISSÃO', 'DATA DA EMISSÃO', 'EMISSAO'];
             for (const kw of dataEmissaoKeywords) {
                 const idx = lines.findIndex(l => l.includes(kw));
@@ -109,7 +113,6 @@ export const ocrService = {
             }
 
             // 4. VENCIMENTOS
-            const vencKeywords = ['VENCIMENTO', 'VENC', 'DUPLICATA'];
             text.match(/(\d{2}[/.-]\d{2}[/.-]\d{2,4})/g)?.forEach(d => {
                 if (d !== fields.dataEmissao && !fields.vencimentos?.includes(d)) {
                     fields.vencimentos?.push(d);
@@ -132,6 +135,13 @@ export const ocrService = {
                 const suffixes = ['LTDA', 'S/A', ' S.A', 'EPP', 'ME ', 'MEI', 'EMPRESA'];
                 fields.emitente = lines.slice(0, 20).find(l => suffixes.some(s => l.includes(s)));
             }
+
+            // Aplicar Filtros Estritos (Shield)
+            if (fields.numeroNF) fields.numeroNF = cleanNumericField(fields.numeroNF, '0-9.');
+            if (fields.cnpjEmitente) fields.cnpjEmitente = cleanNumericField(fields.cnpjEmitente, '0-9./-');
+            if (fields.dataEmissao) fields.dataEmissao = cleanNumericField(fields.dataEmissao, '0-9/');
+            if (fields.total) fields.total = cleanNumericField(fields.total, '0-9.');
+            if (fields.chave) fields.chave = cleanNumericField(fields.chave, '0-9 ');
 
             return { rawText: text, source: 'tesseract', fields };
         } catch (error: any) {
