@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.2"; // Boleto Compacto V2 + Logo Full
+export const APP_VERSION = "v4.7.3"; // Boleto V3: Barcode Real + Layout Otimizado
 
 export const DADOS_INICIAIS = {
   chuvas: [],
