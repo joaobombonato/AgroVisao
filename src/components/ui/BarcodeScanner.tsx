@@ -208,14 +208,22 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
   }, [handleDetection]);
 
   // ========== INICIALIZAÇÃO ==========
+  const mountedRef = useRef(false);
   useEffect(() => {
+    // Guard contra React StrictMode que chama useEffect 2x
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+
     if (hasBarcodeDetector) {
       startNativeScanner();
     } else {
       startFallbackScanner();
     }
 
-    return () => { cleanup(); };
+    return () => {
+      mountedRef.current = false;
+      cleanup();
+    };
   }, []);
 
   const handleClose = () => {

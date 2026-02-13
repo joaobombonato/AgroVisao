@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.6.2"; // Scanner Nativo BarcodeDetector + Fallback
+export const APP_VERSION = "v4.6.3"; // Fix duplicação de câmera + Guard StrictMode
 
 export const DADOS_INICIAIS = {
   chuvas: [],
