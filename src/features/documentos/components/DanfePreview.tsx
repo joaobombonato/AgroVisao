@@ -7,7 +7,7 @@
  */
 import { forwardRef, useState, useEffect, useCallback } from 'react';
 import { FileText, Shield, ExternalLink, Plus, Trash2, Package, Calendar, DollarSign, AlertCircle } from 'lucide-react';
-import type { NFeData } from '../../services/barcodeIntelligence';
+import type { NFeData } from '../services/barcodeIntelligence';
 
 interface DanfePreviewProps {
   data: NFeData;

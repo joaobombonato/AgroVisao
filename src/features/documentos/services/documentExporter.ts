@@ -37,3 +37,24 @@ export async function exportAndUpload(element: HTMLElement, docName: string): Pr
     return null;
   }
 }
+
+/**
+ * Baixa o elemento como imagem diretamente no dispositivo
+ */
+export async function downloadImage(element: HTMLElement, filename: string): Promise<boolean> {
+  try {
+    const file = await captureAsImage(element, filename);
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    return true;
+  } catch (err) {
+    console.error('[DocumentExporter] Erro ao baixar:', err);
+    return false;
+  }
+}

@@ -62,6 +62,10 @@ export interface BoletoData {
   vencimento: string;
   banco: string;
   bancoNome: string;
+  agencia?: string;
+  conta?: string;
+  agenciaCodigo?: string;
+  nossoNumero?: string;
 }
 
 export interface GenericData {
@@ -269,6 +273,61 @@ function calcVencimento(fatorStr: string): string {
 
 // ===================== BOLETO — PARSER PRINCIPAL =====================
 
+// ===================== PARSERS DE CAMPO LIVRE =====================
+
+/**
+ * Tenta extrair Agência, Conta e Nosso Número do Campo Livre (25 dígitos)
+ * Baseado nos padrões dos principais bancos.
+ */
+function parseCampoLivre(banco: string, campoLivre: string): Partial<BoletoData> {
+  const dados: Partial<BoletoData> = {};
+
+  try {
+    switch (banco) {
+      case '001': // Banco do Brasil
+        // Convênio de 6 posições: CCCCCC NNNNNNNNNNNNNNNNN
+        // Convênio de 7 posições: CCCCCCC NNNNNNNNNNNNNNNNN
+        // Convênio de 8 posições: CCCCCCCC NNNNNNNNNNNNNNN
+        // Difícil determinar sem saber qual é. Tentativa genérica:
+        dados.agenciaCodigo = 'Verificar no Boleto';
+        break;
+
+      case '237': // Bradesco
+        // Agência(4) Carteira(2) NossoNumero(11) Conta(7) 0
+        dados.agencia = campoLivre.substring(0, 4);
+        dados.conta = campoLivre.substring(17, 24);
+        dados.agenciaCodigo = `${dados.agencia} / ${dados.conta}`;
+        dados.nossoNumero = campoLivre.substring(6, 17);
+        break;
+
+      case '341': // Itaú
+        // Carteira(3) NossoNumero(8) Agência(4) Conta(5) DAC(1)
+        dados.agencia = campoLivre.substring(11, 15);
+        dados.conta = campoLivre.substring(15, 20);
+        dados.agenciaCodigo = `${dados.agencia} / ${dados.conta}-${campoLivre.substring(20, 21)}`;
+        dados.nossoNumero = campoLivre.substring(3, 11);
+        break;
+
+      case '756': // Sicoob
+        // Carteira(1) Agência(4) Modalidade(2) Cliente(7) NossoNumero(8) Parcela(3)
+        // Ex: 1 3214 01 3156206 0076158 300 1
+        dados.agencia = campoLivre.substring(1, 5);
+        const codigoCedente = campoLivre.substring(7, 14);
+        dados.conta = codigoCedente; // No Sicoob chamam de Código do Cliente
+        dados.agenciaCodigo = `${dados.agencia} / ${codigoCedente}`;
+        dados.nossoNumero = campoLivre.substring(14, 21); // Ajuste fino pode variar
+        break;
+      
+      default:
+        break;
+    }
+  } catch (e) {
+    console.warn('Erro ao fazer parse do campo livre', e);
+  }
+
+  return dados;
+}
+
 export async function parseBoleto(code: string): Promise<BoletoData> {
   const clean = code.replace(/\D/g, '');
   
@@ -302,6 +361,7 @@ export async function parseBoleto(code: string): Promise<BoletoData> {
   const bancoCode = barcode44.substring(0, 3);
   const fatorStr = barcode44.substring(5, 9);
   const valorRaw = barcode44.substring(9, 19);
+  const campoLivre = barcode44.substring(19, 44);
   
   // Valor em centavos → reais
   const valorNum = parseInt(valorRaw, 10) / 100;
@@ -315,6 +375,9 @@ export async function parseBoleto(code: string): Promise<BoletoData> {
   
   // Nome do banco
   const bancoNome = BANCOS[bancoCode] || `Banco ${bancoCode}`;
+
+  // Extrair campo livre (Agência, Conta)
+  const extras = parseCampoLivre(bancoCode, campoLivre);
   
   return {
     type: 'boleto_bancario',
@@ -326,6 +389,7 @@ export async function parseBoleto(code: string): Promise<BoletoData> {
     vencimento,
     banco: bancoCode,
     bancoNome,
+    ...extras
   };
 }
 

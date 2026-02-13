@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Camera, X, Check, FileText, Edit2, Zap, ScanLine, RotateCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { NFeAdjustModal } from './NFeAdjustModal';
-import { ocrService } from '../../services/ocrService';
+import { ocrService } from '../services/ocrService';
 
 interface CameraCaptureProps {
   onCapture: (file: File, ocrResult?: { text: string, fields: any }) => void;
@@ -136,7 +136,7 @@ export const CameraCapture = ({ onCapture, onClose }: CameraCaptureProps) => {
     if (!capturedImage) return;
     try {
       setIsProcessing(true);
-      const { ocrService } = await import('../../services/ocrService');
+      const { ocrService } = await import('../services/ocrService');
       
       if (type === 'ai') {
         const blob = await (await fetch(capturedImage)).blob();

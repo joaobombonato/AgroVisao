@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.6.3"; // Fix duplicação de câmera + Guard StrictMode
+export const APP_VERSION = "v4.7.0"; // Refatoração Documentos + UX + Múltiplos Anexos
 
 export const DADOS_INICIAIS = {
   chuvas: [],
