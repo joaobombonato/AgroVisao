@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ScanBarcode, Loader2, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, ScanBarcode, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface BarcodeScannerProps {
@@ -7,21 +7,24 @@ interface BarcodeScannerProps {
   onClose: () => void;
 }
 
-// Verifica se a BarcodeDetector API nativa está disponível
-const hasBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
-
+/**
+ * BarcodeScanner v5 — Polyfill zxing-wasm (WebAssembly)
+ * 
+ * Usa o pacote `barcode-detector` que implementa a BarcodeDetector API
+ * via zxing-wasm (C++ compilado para WebAssembly).
+ * Funciona em TODOS os browsers, incluindo Safari iOS.
+ * 3-4x mais rápido que ZXing.js puro (usado pelo html5-qrcode).
+ */
 export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<any>(null);
   const animationRef = useRef<number>(0);
-  const html5ScannerRef = useRef<any>(null);
+  const lastDetectTimeRef = useRef<number>(0);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [scanMode, setScanMode] = useState<'native' | 'fallback' | null>(null);
   const processingRef = useRef(false);
 
   // ========== FEEDBACK TÁTIL + SONORO ==========
@@ -52,7 +55,7 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
     processingRef.current = true;
     setProcessing(true);
 
-    console.log('[📱 Scanner] Código detectado:', rawValue);
+    console.log('[📱 Scanner v5] Código detectado:', rawValue);
     playFeedback();
 
     // Delay para feedback visual
@@ -64,161 +67,132 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
 
   // ========== CLEANUP ==========
   const cleanup = useCallback(() => {
-    // Cancela animação
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = 0;
     }
-    // Para stream de vídeo
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
-    // Para html5-qrcode fallback
-    if (html5ScannerRef.current) {
-      try {
-        if (html5ScannerRef.current.isScanning) {
-          html5ScannerRef.current.stop().then(() => {
-            html5ScannerRef.current?.clear();
-          }).catch(() => {});
-        }
-      } catch (_) {}
-      html5ScannerRef.current = null;
-    }
   }, []);
-
-  // ========== MODO NATIVO — BarcodeDetector API ==========
-  const startNativeScanner = useCallback(async () => {
-    try {
-      console.log('[Scanner] Usando BarcodeDetector API nativa 🚀');
-      setScanMode('native');
-
-      // Formatos suportados pelo BarcodeDetector
-      const supportedFormats = await (window as any).BarcodeDetector.getSupportedFormats();
-      console.log('[Scanner] Formatos nativos suportados:', supportedFormats);
-
-      // Cria detector com todos os formatos disponíveis para boletos + NF-e
-      const wantedFormats = ['itf', 'code_128', 'code_39', 'codabar', 'ean_13', 'ean_8', 'qr_code', 'code_93', 'data_matrix'];
-      const formats = wantedFormats.filter(f => supportedFormats.includes(f));
-
-      if (formats.length === 0) {
-        throw new Error('Nenhum formato de código de barras suportado');
-      }
-
-      detectorRef.current = new (window as any).BarcodeDetector({ formats });
-
-      // Inicia câmera com alta resolução
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920, min: 1280 },
-          height: { ideal: 1080, min: 720 },
-        },
-        audio: false,
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        setCameraReady(true);
-
-        // Loop de detecção
-        const detectLoop = async () => {
-          if (!videoRef.current || processingRef.current || !detectorRef.current) return;
-
-          try {
-            const barcodes = await detectorRef.current.detect(videoRef.current);
-            if (barcodes.length > 0) {
-              const code = barcodes[0];
-              console.log('[Scanner Nativo] Detectou:', code.format, code.rawValue);
-              handleDetection(code.rawValue);
-              return; // Para o loop
-            }
-          } catch (err) {
-            // Erros de frame — normais, ignora
-          }
-
-          animationRef.current = requestAnimationFrame(detectLoop);
-        };
-
-        // Começa a detectar
-        animationRef.current = requestAnimationFrame(detectLoop);
-      }
-    } catch (err) {
-      console.error('[Scanner Nativo] Erro:', err);
-      // Fallback para html5-qrcode
-      console.log('[Scanner] Tentando fallback html5-qrcode...');
-      startFallbackScanner();
-    }
-  }, [handleDetection]);
-
-  // ========== MODO FALLBACK — html5-qrcode ==========
-  const startFallbackScanner = useCallback(async () => {
-    try {
-      console.log('[Scanner] Usando html5-qrcode como fallback 📦');
-      setScanMode('fallback');
-
-      const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
-
-      const html5QrCode = new Html5Qrcode("reader-fallback", {
-        verbose: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODABAR,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_93,
-          Html5QrcodeSupportedFormats.QR_CODE,
-        ]
-      });
-      html5ScannerRef.current = html5QrCode;
-
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 15,
-          qrbox: (viewfinderWidth: number) => {
-            const width = Math.floor(viewfinderWidth * 0.95);
-            const height = Math.floor(width * 0.4);
-            return { width, height };
-          },
-          aspectRatio: 16/9,
-          disableFlip: false,
-          videoConstraints: {
-            height: { ideal: 1080, min: 720 },
-            width: { ideal: 1920, min: 1280 },
-            facingMode: "environment"
-          },
-        },
-        (decodedText: string) => {
-          handleDetection(decodedText);
-        },
-        () => {}
-      );
-
-      setCameraReady(true);
-    } catch (err) {
-      console.error("[Scanner Fallback] Erro:", err);
-      setError("Não foi possível acessar a câmera. Verifique as permissões.");
-    }
-  }, [handleDetection]);
 
   // ========== INICIALIZAÇÃO ==========
   const mountedRef = useRef(false);
+
   useEffect(() => {
-    // Guard contra React StrictMode que chama useEffect 2x
+    // Guard contra React StrictMode duplo
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-    if (hasBarcodeDetector) {
-      startNativeScanner();
-    } else {
-      startFallbackScanner();
-    }
+    const startScanner = async () => {
+      try {
+        // 1. Carrega o polyfill barcode-detector (usa zxing-wasm internamente)
+        console.log('[Scanner v5] Carregando barcode-detector polyfill (zxing-wasm)...');
+        const { BarcodeDetector } = await import('barcode-detector/pure');
+
+        // 2. Verifica formatos suportados
+        const supportedFormats = await BarcodeDetector.getSupportedFormats();
+        console.log('[Scanner v5] Formatos suportados:', supportedFormats);
+
+        // 3. Formatos desejados para boletos + NF-e + QR
+        const wantedFormats = [
+          'itf',          // Boletos brasileiros (ITF - Interleaved 2 of 5)
+          'code_128',     // Usado em alguns boletos/documentos
+          'code_39',      // Alternativo
+          'codabar',      // Alguns documentos
+          'ean_13',       // NF-e
+          'ean_8',
+          'qr_code',      // QR Code da DANFE
+          'code_93',
+          'data_matrix',
+        ] as const;
+        type BarcodeFormat = typeof supportedFormats[number];
+        const formats = wantedFormats.filter(f => 
+          (supportedFormats as readonly string[]).includes(f)
+        ) as unknown as BarcodeFormat[];
+
+        if (formats.length === 0) {
+          throw new Error('Nenhum formato de código de barras suportado pelo polyfill');
+        }
+
+        console.log('[Scanner v5] Usando formatos:', formats);
+        detectorRef.current = new BarcodeDetector({ formats: formats as any });
+
+        // 4. Inicia câmera com alta resolução
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920, min: 1280 },
+            height: { ideal: 1080, min: 720 },
+          },
+          audio: false,
+        });
+
+        streamRef.current = stream;
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          
+          // Aguardar o vídeo estar realmente pronto
+          await new Promise<void>((resolve) => {
+            const video = videoRef.current!;
+            if (video.readyState >= 2) {
+              resolve();
+            } else {
+              video.onloadeddata = () => resolve();
+            }
+          });
+          
+          await videoRef.current.play();
+          setCameraReady(true);
+          console.log('[Scanner v5] ✅ Câmera pronta! Resolução:', 
+            videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
+
+          // 5. Loop de detecção com throttle
+          const detectLoop = async () => {
+            if (!videoRef.current || processingRef.current || !detectorRef.current) return;
+
+            const now = Date.now();
+            // Throttle: detecta a cada ~200ms para não sobrecarregar o device
+            if (now - lastDetectTimeRef.current < 200) {
+              animationRef.current = requestAnimationFrame(detectLoop);
+              return;
+            }
+            lastDetectTimeRef.current = now;
+
+            try {
+              const barcodes = await detectorRef.current.detect(videoRef.current);
+              if (barcodes.length > 0) {
+                const code = barcodes[0];
+                console.log('[Scanner v5] ✅ Detectou:', code.format, '→', code.rawValue);
+                handleDetection(code.rawValue);
+                return; // Para o loop
+              }
+            } catch (err) {
+              // Erros de frame são normais, ignora
+            }
+
+            animationRef.current = requestAnimationFrame(detectLoop);
+          };
+
+          // Inicia detecção
+          animationRef.current = requestAnimationFrame(detectLoop);
+        }
+      } catch (err: any) {
+        console.error('[Scanner v5] ❌ Erro:', err);
+        
+        if (err.name === 'NotAllowedError') {
+          setError('Permissão de câmera negada. Permita o acesso nas configurações.');
+        } else if (err.name === 'NotFoundError') {
+          setError('Nenhuma câmera encontrada no dispositivo.');
+        } else {
+          setError(`Erro ao iniciar scanner: ${err.message || 'Desconhecido'}`);
+        }
+      }
+    };
+
+    startScanner();
 
     return () => {
       mountedRef.current = false;
@@ -242,13 +216,9 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
             Scanner de Código de Barras
           </h3>
           <div className="flex items-center gap-2">
-            {scanMode && (
-              <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${
-                scanMode === 'native' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-              }`}>
-                {scanMode === 'native' ? '⚡ NATIVO' : '📦 COMPAT'}
-              </span>
-            )}
+            <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+              ⚡ WASM
+            </span>
             <button onClick={handleClose} className="p-1.5 hover:bg-white/60 rounded-full transition-colors" disabled={processing}>
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -257,24 +227,13 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
 
         {/* Viewport da Câmera */}
         <div className="relative bg-black flex items-center justify-center overflow-hidden h-[420px]">
-          {/* Modo Nativo — vídeo direto */}
-          {scanMode === 'native' && (
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              playsInline
-              muted
-              autoPlay
-            />
-          )}
-
-          {/* Modo Fallback — container html5-qrcode */}
-          {scanMode === 'fallback' && (
-            <div id="reader-fallback" className="w-full h-full"></div>
-          )}
-
-          {/* Canvas oculto para processamento */}
-          <canvas ref={canvasRef} className="hidden" />
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
 
           {/* Loading */}
           {!cameraReady && !error && (
@@ -282,7 +241,7 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
               <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
               <p className="text-white text-sm font-medium">Iniciando câmera...</p>
               <p className="text-gray-400 text-xs">
-                {hasBarcodeDetector ? 'Modo nativo (melhor detecção)' : 'Modo compatibilidade'}
+                Motor WebAssembly (zxing-wasm)
               </p>
             </div>
           )}
@@ -311,8 +270,8 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
             </div>
           )}
 
-          {/* Visual Guide — Spotlight verde (apenas modo nativo) */}
-          {cameraReady && !processing && !error && scanMode === 'native' && (
+          {/* Visual Guide — Spotlight verde */}
+          {cameraReady && !processing && !error && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
               <div
                 className="absolute inset-0 bg-black/40"
