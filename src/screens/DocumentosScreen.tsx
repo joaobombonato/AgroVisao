@@ -6,7 +6,7 @@ import { U, getOperationalDateLimits } from '../utils';
 import { toast } from 'react-hot-toast';
 import { BarcodeScanner } from '../components/ui/BarcodeScanner';
 import { CameraCapture } from '../components/ui/CameraCapture';
-import { DanfePreview } from '../components/ui/DanfePreview';
+import { DanfePreview, type DanfeExtraFields } from '../components/ui/DanfePreview';
 import { BoletoPreview } from '../components/ui/BoletoPreview';
 import { processBarcode, type ParsedBarcode, type NFeData, type BoletoData } from '../services/barcodeIntelligence';
 import { exportAndUpload } from '../services/documentExporter';
@@ -149,6 +149,8 @@ export default function DocumentosScreen() {
 
   // Estado do Scanner
   const [showScanner, setShowScanner] = useState(false);
+  const [scanMode, setScanMode] = useState<'nfe' | 'boleto'>('nfe');
+  const [showScanSelector, setShowScanSelector] = useState(false);
 
   const handleScanSuccess = async (code: string) => {
       setShowScanner(false);
@@ -175,10 +177,10 @@ export default function DocumentosScreen() {
           setForm(prev => ({
             ...prev,
             tipo: 'Boleto',
-            nome: `Boleto ${boleto.banco} - ${boleto.valorFormatado}`,
-            codigo: boleto.codigoOriginal,
+            nome: `Boleto ${boleto.bancoNome} - ${boleto.valorFormatado}`,
+            codigo: boleto.codigoBarras,
             valor: boleto.valor !== '0.00' ? boleto.valor : '',
-            obs: `${boleto.banco} | Venc: ${boleto.vencimento}`,
+            obs: `${boleto.bancoNome} | Venc: ${boleto.vencimento} | Linha: ${boleto.linhaDigitavel}`,
             destinatario: 'Financeiro'
           }));
           toast.success(`💳 Boleto detectado! ${boleto.valorFormatado} - Venc: ${boleto.vencimento}`, { duration: 4000 });
@@ -193,6 +195,33 @@ export default function DocumentosScreen() {
       } finally {
         setProcessingBarcode(false);
       }
+  };
+
+  // Callback: quando o usuário complementa dados no DanfePreview
+  const handleDanfeDataChange = (updatedData: NFeData & DanfeExtraFields) => {
+    const nomeEmitente = updatedData.fantasia || updatedData.emitente || 'Emitente';
+    const vencimentosStr = updatedData.vencimentos?.length > 0 
+      ? updatedData.vencimentos.map(v => new Date(v + 'T12:00:00').toLocaleDateString('pt-BR')).join(', ')
+      : '';
+    const produtosStr = updatedData.produtos?.length > 0
+      ? updatedData.produtos.join(', ')
+      : '';
+    
+    setForm(prev => ({
+      ...prev,
+      tipo: 'Nota Fiscal',
+      nome: `NF ${updatedData.numero} - ${nomeEmitente}`,
+      codigo: updatedData.chave,
+      valor: updatedData.valorTotal || prev.valor,
+      obs: [
+        `CNPJ: ${updatedData.cnpjFormatado}`,
+        updatedData.municipio ? `Local: ${updatedData.municipio}` : '',
+        updatedData.diaEmissao ? `Emissão: ${updatedData.diaEmissao}/${updatedData.anoMes}` : `Competência: ${updatedData.anoMes}`,
+        vencimentosStr ? `Venc: ${vencimentosStr}` : '',
+        produtosStr ? `Produtos: ${produtosStr}` : '',
+      ].filter(Boolean).join(' | '),
+      destinatario: 'Financeiro'
+    }));
   };
 
   // Exportar documento visual como imagem e vincular à OS
@@ -316,13 +345,43 @@ export default function DocumentosScreen() {
       
        {/* PAINEL DE AÇÕES RÁPIDAS - Scanner é o principal */}
        <div className="grid grid-cols-3 gap-2">
-          {/* BOTÃO PRINCIPAL: Scanner Inteligente */}
-          <button type="button" onClick={() => setShowScanner(true)} className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all relative overflow-hidden">
-              <div className="absolute top-1 right-1 bg-blue-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">SMART</div>
-              <ScanBarcode className="w-7 h-7 text-blue-600 mb-1" />
-              <span className="text-[10px] font-bold text-blue-700 text-center">Ler Cód. Barras</span>
-              <span className="text-[8px] text-blue-400 mt-0.5">NF-e • Boleto</span>
-          </button>
+          {/* BOTÃO PRINCIPAL: Scanner com Seletor */}
+          <div className="relative">
+            <button type="button" onClick={() => setShowScanSelector(!showScanSelector)} className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all relative overflow-hidden">
+                <div className="absolute top-1 right-1 bg-blue-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">SMART</div>
+                <ScanBarcode className="w-7 h-7 text-blue-600 mb-1" />
+                <span className="text-[10px] font-bold text-blue-700 text-center">Ler Cód. Barras</span>
+                <span className="text-[8px] text-blue-400 mt-0.5">NF-e • Boleto</span>
+            </button>
+            
+            {/* Seletor NF-e / Boleto */}
+            {showScanSelector && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-blue-200 rounded-xl shadow-xl z-50 overflow-hidden animate-in slide-in-from-top-2">
+                <button
+                  type="button"
+                  onClick={() => { setScanMode('nfe'); setShowScanSelector(false); setShowScanner(true); }}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-indigo-50 transition-colors border-b border-gray-100"
+                >
+                  <span className="text-xl">🧾</span>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-gray-800">NF-e / DANFE</p>
+                    <p className="text-[9px] text-gray-400">Nota Fiscal Eletrônica</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setScanMode('boleto'); setShowScanSelector(false); setShowScanner(true); }}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-amber-50 transition-colors"
+                >
+                  <span className="text-xl">💳</span>
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-gray-800">Boleto Bancário</p>
+                    <p className="text-[9px] text-gray-400">Código ITF (Interleaved 2 of 5)</p>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
           
           {/* Foto do Documento (Secundário) */}
           <button type="button" onClick={() => setShowCamera(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
@@ -347,7 +406,8 @@ export default function DocumentosScreen() {
       {showScanner && (
         <BarcodeScanner 
             onScanSuccess={handleScanSuccess} 
-            onClose={() => setShowScanner(false)} 
+            onClose={() => setShowScanner(false)}
+            scanMode={scanMode}
         />
       )}
 
@@ -374,7 +434,7 @@ export default function DocumentosScreen() {
           
           {/* Renderiza Preview */}
           {documentPreview.type === 'nfe' && (
-            <DanfePreview ref={previewRef} data={documentPreview as NFeData} />
+            <DanfePreview ref={previewRef} data={documentPreview as NFeData} onDataChange={handleDanfeDataChange} />
           )}
           {(documentPreview.type === 'boleto_bancario' || documentPreview.type === 'boleto_convenio') && (
             <BoletoPreview ref={previewRef} data={documentPreview as BoletoData} />

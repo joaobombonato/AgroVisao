@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 interface BarcodeScannerProps {
   onScanSuccess: (decodedText: string) => void;
   onClose: () => void;
+  scanMode?: 'nfe' | 'boleto';
 }
 
 /**
@@ -15,7 +16,7 @@ interface BarcodeScannerProps {
  * Funciona em TODOS os browsers, incluindo Safari iOS.
  * 3-4x mais rápido que ZXing.js puro (usado pelo html5-qrcode).
  */
-export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) => {
+export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: BarcodeScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<any>(null);
@@ -52,18 +53,36 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
   // ========== RESULTADO DETECTADO ==========
   const handleDetection = useCallback((rawValue: string) => {
     if (processingRef.current) return;
+    
+    const digits = rawValue.replace(/\D/g, '');
+    
+    // Validação por modo
+    if (scanMode === 'boleto') {
+      // Boleto ITF deve ter exatamente 44 dígitos
+      if (digits.length !== 44) {
+        console.log(`[Scanner v5] Descartado: ${digits.length} dígitos (esperado 44 para boleto)`);
+        return;
+      }
+    } else {
+      // NF-e deve ter 44 dígitos e começar com UF válida
+      if (digits.length !== 44) {
+        console.log(`[Scanner v5] Descartado: ${digits.length} dígitos (esperado 44)`);
+        return;
+      }
+    }
+    
     processingRef.current = true;
     setProcessing(true);
 
-    console.log('[📱 Scanner v5] Código detectado:', rawValue);
+    console.log('[📱 Scanner v5] Código detectado:', rawValue, `(modo: ${scanMode})`);
     playFeedback();
 
     // Delay para feedback visual
     setTimeout(() => {
       cleanup();
-      onScanSuccess(rawValue);
+      onScanSuccess(digits);
     }, 500);
-  }, [onScanSuccess, playFeedback]);
+  }, [onScanSuccess, playFeedback, scanMode]);
 
   // ========== CLEANUP ==========
   const cleanup = useCallback(() => {
@@ -95,18 +114,17 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
         const supportedFormats = await BarcodeDetector.getSupportedFormats();
         console.log('[Scanner v5] Formatos suportados:', supportedFormats);
 
-        // 3. Formatos desejados para boletos + NF-e + QR
-        const wantedFormats = [
-          'itf',          // Boletos brasileiros (ITF - Interleaved 2 of 5)
-          'code_128',     // Usado em alguns boletos/documentos
+        // 3. Formatos por modo de scan
+        const boletoFormats = ['itf'] as const;
+        const nfeFormats = [
+          'code_128',     // Usado em alguns documentos
           'code_39',      // Alternativo
-          'codabar',      // Alguns documentos
           'ean_13',       // NF-e
           'ean_8',
           'qr_code',      // QR Code da DANFE
-          'code_93',
           'data_matrix',
         ] as const;
+        const wantedFormats = scanMode === 'boleto' ? boletoFormats : nfeFormats;
         type BarcodeFormat = typeof supportedFormats[number];
         const formats = wantedFormats.filter(f => 
           (supportedFormats as readonly string[]).includes(f)
@@ -213,11 +231,14 @@ export const BarcodeScanner = ({ onScanSuccess, onClose }: BarcodeScannerProps) 
         <div className="p-4 border-b flex justify-between items-center bg-gradient-to-r from-indigo-50 via-purple-50 to-blue-50">
           <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
             <ScanBarcode className="w-5 h-5 text-indigo-600" />
-            Scanner de Código de Barras
+            {scanMode === 'boleto' ? 'Leitura de Boleto' : 'Leitura de NF-e'}
           </h3>
           <div className="flex items-center gap-2">
             <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
               ⚡ WASM
+            </span>
+            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${scanMode === 'boleto' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
+              {scanMode === 'boleto' ? '💳 ITF' : '🧾 NF-e'}
             </span>
             <button onClick={handleClose} className="p-1.5 hover:bg-white/60 rounded-full transition-colors" disabled={processing}>
               <X className="w-5 h-5 text-gray-500" />
