@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.5.22"; // Pan/Scale/Rotate OCR Adjust & Shield
+export const APP_VERSION = "v4.6.0"; // Barcode Intelligence + DANFE/Boleto Visual
 
 export const DADOS_INICIAIS = {
   chuvas: [],

@@ -1,11 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye, ScanBarcode } from 'lucide-react';
+import { FolderOpen, Paperclip, Camera, FileText, Send, ArrowRight, Reply, Search, Check, X, ChevronDown, Barcode, Eye, ScanBarcode, Download, Loader2 } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../context/AppContext';
 import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
 import { U, getOperationalDateLimits } from '../utils';
 import { toast } from 'react-hot-toast';
 import { BarcodeScanner } from '../components/ui/BarcodeScanner';
 import { CameraCapture } from '../components/ui/CameraCapture';
+import { DanfePreview } from '../components/ui/DanfePreview';
+import { BoletoPreview } from '../components/ui/BoletoPreview';
+import { processBarcode, type ParsedBarcode, type NFeData, type BoletoData } from '../services/barcodeIntelligence';
+import { exportAndUpload } from '../services/documentExporter';
 
 // ==========================================
 // Componente: SELECT PESQUISÁVEL (Roxo)
@@ -46,6 +50,12 @@ export default function DocumentosScreen() {
 
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState('');
+
+  // Estado do Preview de Documento Gerado (DANFE / Boleto)
+  const [documentPreview, setDocumentPreview] = useState<ParsedBarcode | null>(null);
+  const [processingBarcode, setProcessingBarcode] = useState(false);
+  const [exportingDoc, setExportingDoc] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   // Manipulação de Arquivo (Upload Real)
   const handleFileSelect = async (e: any) => {
@@ -140,24 +150,68 @@ export default function DocumentosScreen() {
   // Estado do Scanner
   const [showScanner, setShowScanner] = useState(false);
 
-  const handleScanSuccess = (code: string) => {
-      setForm({ ...form, codigo: code });
-      toast.success("Código lido com sucesso!", { icon: '📷' });
+  const handleScanSuccess = async (code: string) => {
       setShowScanner(false);
+      setProcessingBarcode(true);
+      
+      try {
+        const result = await processBarcode(code);
+        setDocumentPreview(result);
+        
+        if (result.type === 'nfe') {
+          const nfe = result as NFeData;
+          const nomeEmitente = nfe.fantasia || nfe.emitente || 'Emitente';
+          setForm(prev => ({
+            ...prev,
+            tipo: 'Nota Fiscal',
+            nome: `NF ${nfe.numero} - ${nomeEmitente}`,
+            codigo: nfe.chave,
+            obs: `NF-e Série ${nfe.serie} | CNPJ: ${nfe.cnpjFormatado} | ${nfe.ufSigla} | ${nfe.anoMes}`,
+            destinatario: 'Financeiro'
+          }));
+          toast.success(`🧾 NF-e ${nfe.numero} detectada! ${nfe.emitente ? `Emitente: ${nomeEmitente}` : ''}`, { duration: 4000 });
+        } else if (result.type === 'boleto_bancario' || result.type === 'boleto_convenio') {
+          const boleto = result as BoletoData;
+          setForm(prev => ({
+            ...prev,
+            tipo: 'Boleto',
+            nome: `Boleto ${boleto.banco} - ${boleto.valorFormatado}`,
+            codigo: boleto.codigoOriginal,
+            valor: boleto.valor !== '0.00' ? boleto.valor : '',
+            obs: `${boleto.banco} | Venc: ${boleto.vencimento}`,
+            destinatario: 'Financeiro'
+          }));
+          toast.success(`💳 Boleto detectado! ${boleto.valorFormatado} - Venc: ${boleto.vencimento}`, { duration: 4000 });
+        } else {
+          setForm(prev => ({ ...prev, codigo: code }));
+          toast.success('Código lido com sucesso!', { icon: '📷' });
+        }
+      } catch (err) {
+        console.error('[Scan] Erro ao processar:', err);
+        setForm(prev => ({ ...prev, codigo: code }));
+        toast.success('Código lido (processamento parcial).', { icon: '⚠️' });
+      } finally {
+        setProcessingBarcode(false);
+      }
   };
 
-  // Gerador de NF Rápido
-  const handleGerarNF = () => {
-      const codigoAleatorio = Math.floor(Math.random() * 1000000000000).toString();
-      setForm(prev => ({
-          ...prev,
-          tipo: 'Nota Fiscal',
-          nome: `NF Compra Diesel - Auto`,
-          codigo: codigoAleatorio,
-          obs: 'NF Gerada automaticamente pelo leitor de código de barras.',
-          destinatario: 'Financeiro'
-      }));
-      toast.success("Dados da NF preenchidos via Código de Barras!");
+  // Exportar documento visual como imagem e vincular à OS
+  const handleExportDocument = async () => {
+      if (!previewRef.current || !documentPreview) return;
+      setExportingDoc(true);
+      try {
+        const docName = documentPreview.type === 'nfe' ? 'DANFE' : 'Boleto';
+        const url = await exportAndUpload(previewRef.current, docName);
+        if (url) {
+          setFileUrl(url);
+          setFileSelected(`${docName}_${Date.now()}.jpg`);
+          toast.success(`${docName} salvo como imagem! 📄`, { duration: 3000 });
+        }
+      } catch (err) {
+        toast.error('Erro ao exportar documento.');
+      } finally {
+        setExportingDoc(false);
+      }
   };
 
   // Modo Resposta
@@ -216,7 +270,7 @@ export default function DocumentosScreen() {
         osDescricao: descOS 
     });
     
-    // 2. Persistência OS
+    // 2. Persistência OS (com foto anexada + dados OCR)
     genericSave('os', {
         id: U.id('OS-DOC-'),
         modulo: 'Documentos',
@@ -224,9 +278,13 @@ export default function DocumentosScreen() {
         detalhes: { 
            "Documento": form.nome,
            "Tipo": form.tipo,
-            "Fluxo": fluxo,
-           "Obs": form.obs || '-'
+           "Fluxo": fluxo,
+           "Obs": form.obs || '-',
+           ...(form.valor && { "Valor": `R$ ${form.valor}` }),
+           ...(form.codigo && { "Chave/Código": form.codigo }),
         },
+        arquivo_url: fileUrl || null,
+        nome_arquivo: fileSelected || null,
         status: 'Pendente',
         data_abertura: new Date().toISOString()
     });
@@ -256,37 +314,86 @@ export default function DocumentosScreen() {
     <div className="space-y-4 p-4 pb-24">
       <PageHeader setTela={setTela} title="Documentos & NF" icon={FolderOpen} colorClass="bg-purple-600" />
       
-       {/* PAINEL DE AÇÕES RÁPIDAS */}
+       {/* PAINEL DE AÇÕES RÁPIDAS - Scanner é o principal */}
        <div className="grid grid-cols-3 gap-2">
-           <button type="button" onClick={() => setShowCamera(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
-               <Camera className="w-6 h-6 text-purple-600 mb-1" />
-               <span className="text-[10px] font-bold text-gray-600 text-center">Foto do Doc</span>
-           </button>
-           
-           {/* Modal de Câmera (Foto) */}
-           {showCamera && (
-               <CameraCapture onCapture={handlePhotoSuccess} onClose={() => setShowCamera(false)} />
-           )}
-
-          <button type="button" onClick={() => setShowScanner(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
-              <ScanBarcode className="w-6 h-6 text-blue-600 mb-1" />
-              <span className="text-[10px] font-bold text-gray-600 text-center">Ler Cód. Barras</span>
+          {/* BOTÃO PRINCIPAL: Scanner Inteligente */}
+          <button type="button" onClick={() => setShowScanner(true)} className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all relative overflow-hidden">
+              <div className="absolute top-1 right-1 bg-blue-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">SMART</div>
+              <ScanBarcode className="w-7 h-7 text-blue-600 mb-1" />
+              <span className="text-[10px] font-bold text-blue-700 text-center">Ler Cód. Barras</span>
+              <span className="text-[8px] text-blue-400 mt-0.5">NF-e • Boleto</span>
           </button>
           
-          {/* Modal do Scanner */}
-          {showScanner && (
-            <BarcodeScanner 
-                onScanSuccess={handleScanSuccess} 
-                onClose={() => setShowScanner(false)} 
-            />
-          )}
+          {/* Foto do Documento (Secundário) */}
+          <button type="button" onClick={() => setShowCamera(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
+               <Camera className="w-6 h-6 text-purple-600 mb-1" />
+               <span className="text-[10px] font-bold text-gray-600 text-center">Foto do Doc</span>
+               <span className="text-[8px] text-gray-400 mt-0.5">Comprovante</span>
+          </button>
 
+          {/* Anexar Arquivo */}
           <button type="button" onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
-              <Paperclip className="w-6 h-6 text-gray-600 mb-1" />
+              <Paperclip className="w-6 h-6 text-gray-500 mb-1" />
               <span className="text-[10px] font-bold text-gray-600 text-center">Anexar Arquivo</span>
+              <span className="text-[8px] text-gray-400 mt-0.5">PDF, Img</span>
               <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
           </button>
       </div>
+
+      {/* Modais */}
+      {showCamera && (
+          <CameraCapture onCapture={handlePhotoSuccess} onClose={() => setShowCamera(false)} />
+      )}
+      {showScanner && (
+        <BarcodeScanner 
+            onScanSuccess={handleScanSuccess} 
+            onClose={() => setShowScanner(false)} 
+        />
+      )}
+
+      {/* PREVIEW DO DOCUMENTO GERADO */}
+      {processingBarcode && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <p className="text-sm font-bold text-blue-700">Processando código de barras...</p>
+          <p className="text-xs text-blue-400">Identificando tipo, extraindo dados e consultando CNPJ</p>
+        </div>
+      )}
+
+      {documentPreview && !processingBarcode && (
+        <div className="bg-gradient-to-b from-gray-50 to-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-sm text-gray-700 flex items-center gap-2">
+              {documentPreview.type === 'nfe' ? '🧾' : '💳'}
+              {documentPreview.type === 'nfe' ? 'DANFE Gerada' : 'Boleto Identificado'}
+            </h3>
+            <button onClick={() => setDocumentPreview(null)} className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors">
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          </div>
+          
+          {/* Renderiza Preview */}
+          {documentPreview.type === 'nfe' && (
+            <DanfePreview ref={previewRef} data={documentPreview as NFeData} />
+          )}
+          {(documentPreview.type === 'boleto_bancario' || documentPreview.type === 'boleto_convenio') && (
+            <BoletoPreview ref={previewRef} data={documentPreview as BoletoData} />
+          )}
+          
+          {/* Botão Exportar */}
+          <button
+            onClick={handleExportDocument}
+            disabled={exportingDoc}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all disabled:opacity-50"
+          >
+            {exportingDoc ? (
+              <><Loader2 className="w-5 h-5 animate-spin" /> Gerando imagem...</>
+            ) : (
+              <><Download className="w-5 h-5" /> Salvar Documento como Imagem</>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* FORMULÁRIO */}
       <div className={`bg-white rounded-lg border-2 p-4 shadow-md transition-all ${isResponseMode ? 'border-yellow-400 ring-2 ring-yellow-100' : 'border-purple-200'}`}>

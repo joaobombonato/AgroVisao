@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Check, X as XClose } from 'lucide-react';
+import { X, Check, X as XClose, Image as ImageIcon } from 'lucide-react';
 import { U } from '../../utils';
 
 export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
@@ -32,6 +32,25 @@ export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
                                         return (<div key={key} className="bg-gray-50 p-2 rounded"><p className="text-[10px] text-gray-500 uppercase">{key}</p><p className="text-sm font-medium truncate" title={value as string}>{String(value)}</p></div>)
                                     })}
                                 </div>
+                            </div>
+                        )}
+                        {/* Foto Anexada */}
+                        {os.arquivo_url && (
+                            <div className="border-t pt-3 mt-3">
+                                <p className="text-sm font-bold mb-2 flex items-center gap-2">
+                                    <ImageIcon className="w-4 h-4 text-purple-500" />
+                                    Foto Anexada
+                                </p>
+                                <a href={os.arquivo_url} target="_blank" rel="noopener noreferrer" className="block">
+                                    <img 
+                                        src={os.arquivo_url} 
+                                        alt={os.nome_arquivo || 'Foto do documento'} 
+                                        className="w-full max-h-48 object-contain bg-gray-100 rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity"
+                                    />
+                                </a>
+                                {os.nome_arquivo && (
+                                    <p className="text-[10px] text-gray-400 mt-1 text-center">{os.nome_arquivo}</p>
+                                )}
                             </div>
                         )}
                     </div>
