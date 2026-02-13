@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.6.0"; // Barcode Intelligence + DANFE/Boleto Visual
+export const APP_VERSION = "v4.6.1"; // Scanner Pro: 1080p + BarcodeDetector + Feedback
 
 export const DADOS_INICIAIS = {
   chuvas: [],
