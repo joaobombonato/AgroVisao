@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.6.1"; // Scanner Pro: 1080p + BarcodeDetector + Feedback
+export const APP_VERSION = "v4.6.2"; // Scanner Nativo BarcodeDetector + Fallback
 
 export const DADOS_INICIAIS = {
   chuvas: [],
