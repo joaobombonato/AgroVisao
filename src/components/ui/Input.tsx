@@ -115,7 +115,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
   };
 
   return (
-    <div className="space-y-1 min-w-0">
+    <div className="space-y-1 min-w-0 overflow-hidden">
       {label && <p className="text-xs font-medium text-gray-600">{label} {props.required && <span className="text-red-500">*</span>}</p>}
       <input 
         {...props} 

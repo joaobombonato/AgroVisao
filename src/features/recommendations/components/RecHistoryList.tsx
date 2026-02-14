@@ -60,7 +60,7 @@ export default function RecHistoryList() {
         <div className="bg-white rounded-lg border-2 overflow-x-auto shadow-sm">
             <div className="p-3 border-b bg-gray-50 rounded-t-lg">
                 <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Recomendações</h2>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                     <Input 
                         type="date" 
                         value={filterData} 

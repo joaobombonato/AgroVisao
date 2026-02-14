@@ -14,7 +14,7 @@ const IS_DEV = import.meta.env.DEV;
 
 const COPERNICUS_TOKEN_URL = IS_DEV 
   ? '/copernicus-auth' 
-  : 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
+  : '/api/copernicus-auth';
 
 const SENTINEL_HUB_URL = IS_DEV 
   ? '/copernicus-api' 

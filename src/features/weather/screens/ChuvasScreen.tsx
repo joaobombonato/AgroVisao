@@ -173,7 +173,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
           <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
             <div className="p-3 border-b bg-gray-50">
                 <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Chuvas</h2>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                     <Input 
                         type="date" 
                         value={filterData} 
