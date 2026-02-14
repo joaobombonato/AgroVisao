@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.10"; // Fixes V2: Satellite Auth, Mobile Stack, Input Overflow
+export const APP_VERSION = "v4.7.11"; // History Date Fix & API Structure Check
 
 export const DADOS_INICIAIS = {
   chuvas: [],
