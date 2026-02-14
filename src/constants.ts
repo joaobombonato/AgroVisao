@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.9"; // Doc fixes: categories, auto-fill, history UI, mobile layout
+export const APP_VERSION = "v4.7.10"; // Fixes V2: Satellite Auth, Mobile Stack, Input Overflow
 
 export const DADOS_INICIAIS = {
   chuvas: [],
