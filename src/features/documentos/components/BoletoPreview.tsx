@@ -120,10 +120,16 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                      alt={data.bancoNome} 
                      className="max-h-[24px] max-w-[50px] object-contain"
                      onError={(e) => {
-                        // Fallback 1: Guibranco PNG
+                        // Fallback: Matheus Cuba -> Guibranco -> Hide
                         const target = e.target as HTMLImageElement;
                         const cleanCode = data.banco.replace(/[^0-9]/g, '').padStart(3, '0');
+                        
+                        // O src original é Tgentil. Se falhar:
                         if (target.src.includes('Tgentil')) {
+                            // Tentativa 2: Matheus Cuba (PNG)
+                            target.src = `https://raw.githubusercontent.com/matheuscuba/icones-bancos-brasileiros/master/logos/${cleanCode}.png`;
+                        } else if (target.src.includes('matheuscuba')) {
+                            // Tentativa 3: Guibranco
                             target.src = `https://raw.githubusercontent.com/guibranco/BancosBrasileiros/main/logos/${cleanCode}.png`;
                         } else {
                             target.style.display = 'none';
@@ -233,7 +239,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor.replace('.', ',')}</div>
+                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor.includes(',') ? valor : valor.replace('.', ',')}</div>
                 </div>
             </div>
         </div>
