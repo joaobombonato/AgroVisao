@@ -115,7 +115,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
   };
 
   return (
-    <div className="space-y-1 min-w-0 overflow-hidden">
+    <div className="space-y-1 min-w-0">
       {label && <p className="text-xs font-medium text-gray-600">{label} {props.required && <span className="text-red-500">*</span>}</p>}
       <input 
         {...props} 
@@ -123,7 +123,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
         className={`w-full max-w-full transition-colors ${
           readOnly 
             ? 'bg-gray-100 text-gray-600 font-semibold border-gray-300 cursor-not-allowed' 
-            : (!props.className ? 'border-gray-200 focus:border-blue-500 bg-white' : '')
+            : 'bg-white ' + (!props.className ? 'border-gray-200 focus:border-blue-500' : '')
         } ${props.className || 'px-3 py-2 border-2 rounded-lg'}`} 
         readOnly={readOnly} 
         max={props.type === "date" ? "9999-12-31" : props.max}

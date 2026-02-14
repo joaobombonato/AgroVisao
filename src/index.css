@@ -17,6 +17,16 @@
     display: none; /* Hides "Scanner Ready" text sometimes */
 }
 
+/* IOS Date Input Fix */
+input[type="date"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 2.5rem; /* Ajuste para touch target */
+}
+
 /* Se precisar de algum estilo global extra, coloque aqui */
 body {
   background-color: #f9fafb; /* gray-50 */
