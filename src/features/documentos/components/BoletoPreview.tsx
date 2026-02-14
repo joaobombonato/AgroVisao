@@ -1,15 +1,16 @@
 /**
- * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V7 Final)
+ * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V8)
  * 
- * Ajustes V7:
- * - Logo: CDN jsDelivr (Matheus Cuba) como fonte primária, Tgentil SVG fallback.
- * - Banco: Apenas 3 dígitos (sem sufixo -X).
- * - Layout: Altura de instruções ajustada (140px) para alinhar com coluna direita.
- * - Moeda: Formato brasileiro (vírgula para centavos).
+ * V8:
+ * - Logo removida (CDNs não funcionam), apenas nome do banco em texto.
+ * - Espaçamento corrigido (bottom-1 em vez de bottom-0.5 para evitar corte).
+ * - Campo Beneficiário com busca automática de CNPJ via BrasilAPI.
+ * - Moeda: formato brasileiro com vírgula.
  */
-import { forwardRef, useEffect, useState } from 'react';
-import { Copy, Check } from 'lucide-react';
+import { forwardRef, useEffect, useState, useCallback } from 'react';
+import { Copy, Check, Search, Loader2 } from 'lucide-react';
 import type { BoletoData } from '../services/barcodeIntelligence';
+import { lookupCNPJ } from '../services/barcodeIntelligence';
 import Barcode from 'react-barcode';
 import { useAppContext } from '../../../context/AppContext';
 
@@ -39,6 +40,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
   const [valor, setValor] = useState(data.valor !== '0.00' ? data.valor : '');
   const [agenciaCodigo, setAgenciaCodigo] = useState(data.agenciaCodigo || '');
   const [nossoNumero, setNossoNumero] = useState(data.nossoNumero || '');
+  
+  // CNPJ lookup
+  const [cnpjInput, setCnpjInput] = useState('');
+  const [cnpjLoading, setCnpjLoading] = useState(false);
 
   // Auto-Fill Pagador
   useEffect(() => {
@@ -66,11 +71,35 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
     }
   };
 
-  const formatCurrency = (val: string) => {
-    const num = parseFloat(val.replace(',', '.'));
-    if (isNaN(num)) return val;
-    return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  };
+  // Busca CNPJ na BrasilAPI
+  const handleCnpjLookup = useCallback(async () => {
+    const clean = cnpjInput.replace(/\D/g, '');
+    if (clean.length !== 14) return;
+    
+    setCnpjLoading(true);
+    try {
+      const result = await lookupCNPJ(clean);
+      if (result) {
+        const nome = result.fantasia || result.razaoSocial;
+        const cnpjFormatado = clean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+        setBeneficiario(`${nome} | ${cnpjFormatado}`);
+      } else {
+        setBeneficiario(cnpjInput); // Não encontrou, usa o texto digitado
+      }
+    } catch {
+      setBeneficiario(cnpjInput);
+    } finally {
+      setCnpjLoading(false);
+    }
+  }, [cnpjInput]);
+
+  // Auto-trigger lookup quando CNPJ atinge 14 dígitos
+  useEffect(() => {
+    const clean = cnpjInput.replace(/\D/g, '');
+    if (clean.length === 14) {
+      handleCnpjLookup();
+    }
+  }, [cnpjInput, handleCnpjLookup]);
   
   // Formata Linha Digitável em 2 linhas
   const formatLinhaDigitavel = (linha: string) => {
@@ -88,29 +117,21 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
       return linha;
   };
 
-  // Provider de Logo de Banco — CDN jsDelivr (rápido e confiável)
-  const getBankLogoUrl = (code: string) => {
-      const cleanCode = code.replace(/[^0-9]/g, '').padStart(3, '0');
-      // Fonte primária: CDN jsDelivr (Matheus Cuba)
-      return `https://cdn.jsdelivr.net/gh/matheuscuba/icones-bancos-brasileiros@1.1/logos/${cleanCode}.png`;
-  };
-
   // Helper para formatar valor com vírgula brasileira
   const formatValorBR = (v: string) => {
-    if (v.includes(',')) return v; // Já está formatado
+    if (v.includes(',')) return v;
     return v.replace('.', ',');
   };
 
   // Estilos
   const cellLabel = "text-[6px] text-gray-500 uppercase font-bold leading-none mb-0.5 block";
-  const absoluteInput = "absolute inset-x-1 bottom-0.5 text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight h-[14px]";
-  const cellContainer = "relative border-b border-gray-300 p-1 h-[36px] overflow-hidden"; // 36px padrão
+  const absoluteInput = "absolute inset-x-1 bottom-1 text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight h-[14px]";
+  const cellContainer = "relative border-b border-gray-300 p-1 h-[36px] overflow-hidden";
   const manualHighlight = "bg-yellow-50";
   
   return (
     <div
       ref={ref}
-      // Adicionado padding-top/bottom para evitar corte na exportação
       className="bg-white p-4 max-w-[800px] mx-auto group"
     >
         <div 
@@ -120,29 +141,11 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
         
         {/* ========== CABEÇALHO ========== */}
         <div className="flex items-stretch border-b-2 border-gray-800 bg-white min-h-[44px]">
-            <div className="flex items-center justify-center px-2 border-r-2 border-gray-800 min-w-[60px]">
-                <img 
-                     src={getBankLogoUrl(data.banco)} 
-                     alt={data.bancoNome} 
-                     className="max-h-[24px] max-w-[50px] object-contain"
-                     onError={(e) => {
-                        // Fallback: Tgentil SVG -> Guibranco PNG -> Apenas texto
-                        const target = e.target as HTMLImageElement;
-                        const cleanCode = data.banco.replace(/[^0-9]/g, '').padStart(3, '0');
-                        
-                        if (target.src.includes('jsdelivr')) {
-                            // Tentativa 2: Tgentil SVG
-                            target.src = `https://raw.githubusercontent.com/Tgentil/Bancos-em-SVG/master/bancos/${cleanCode}.svg`;
-                        } else if (target.src.includes('Tgentil')) {
-                            // Tentativa 3: Guibranco PNG
-                            target.src = `https://raw.githubusercontent.com/guibranco/BancosBrasileiros/main/logos/${cleanCode}.png`;
-                        } else {
-                            target.style.display = 'none';
-                        }
-                     }}
-                />
-                <span className="text-xs font-black text-gray-900 leading-none ml-1 whitespace-nowrap">{data.bancoNome.split(' ')[0]}</span>
+            {/* Nome do Banco (sem logo) */}
+            <div className="flex items-center justify-center px-3 border-r-2 border-gray-800 min-w-[80px]">
+                <span className="text-sm font-black text-gray-900 leading-none whitespace-nowrap">{data.bancoNome.split(' ')[0]}</span>
             </div>
+            {/* Número do Banco (3 dígitos, sem -X) */}
             <div className="flex items-center justify-center px-2 border-r-2 border-gray-800 min-w-[50px]">
                 <span className="text-sm font-black text-gray-900">{data.banco}</span>
             </div>
@@ -166,18 +169,33 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                     </span>
                 </div>
 
-                {/* Beneficiário */}
-                <div className={`${cellContainer} ${manualHighlight}`}>
+                {/* Beneficiário — com busca por CNPJ */}
+                <div className={`${cellContainer} ${manualHighlight} h-auto min-h-[36px]`}>
                     <label className={cellLabel}>Beneficiário</label>
-                    <input 
-                        type="text" 
-                        value={beneficiario}
-                        onChange={e => setBeneficiario(e.target.value)}
-                        placeholder="Nome do Beneficiário | CPF/CNPJ"
-                        className={absoluteInput}
-                        data-html2canvas-ignore="true" 
-                    />
-                     <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100">
+                    {/* Se já tem beneficiário preenchido, mostra ele */}
+                    {beneficiario ? (
+                      <div className="text-[9px] font-bold text-gray-900 mt-0.5 leading-tight">{beneficiario}</div>
+                    ) : (
+                      /* Senão mostra input de CNPJ */
+                      <div className="flex items-center gap-1 mt-0.5" data-html2canvas-ignore="true">
+                        <input 
+                          type="text" 
+                          value={cnpjInput}
+                          onChange={e => setCnpjInput(e.target.value)}
+                          placeholder="Digite o CNPJ do Beneficiário"
+                          className="text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight flex-1"
+                        />
+                        {cnpjLoading ? (
+                          <Loader2 className="w-3 h-3 text-indigo-500 animate-spin" />
+                        ) : (
+                          <button onClick={handleCnpjLookup} className="text-indigo-500 hover:text-indigo-700">
+                            <Search className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {/* Texto visível na exportação */}
+                    <div className="pointer-events-none opacity-0 group-[.printing]:opacity-100">
                         <span className="text-[10px] font-bold text-gray-900">{beneficiario}</span>
                     </div>
                 </div>
@@ -204,7 +222,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
                     <label className={cellLabel}>Vencimento</label>
                     <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
                         <span className="text-[10px] font-black text-red-700">{vencimento}</span>
                     </div>
                 </div>
@@ -212,7 +230,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={cellContainer}>
                     <label className={cellLabel}>Agência / Código Beneficiário</label>
                     <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
                         <span className="text-[10px] font-bold text-gray-900">{agenciaCodigo}</span>
                     </div>
                 </div>
@@ -224,7 +242,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Documento */}
                 <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
                     <label className={cellLabel}>(=) Valor Documento</label>
-                    <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
+                    <div className="absolute inset-x-1 bottom-1 flex justify-end items-center font-black text-gray-900 gap-1">
                          <span className="text-[10px]">R$</span>
                          <input 
                             type="text" 
@@ -243,7 +261,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {formatValorBR(valor)}</div>
+                    <div className="text-right text-[11px] font-black mr-1 mb-1">R$ {formatValorBR(valor)}</div>
                 </div>
             </div>
         </div>
