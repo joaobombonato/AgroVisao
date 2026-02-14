@@ -130,7 +130,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                         }
                      }}
                 />
-                <span className="text-xs font-black text-gray-900 leading-none truncate max-w-[80px] ml-1">{data.bancoNome.split(' ')[0]}</span>
+                <span className="text-xs font-black text-gray-900 leading-none ml-1 whitespace-nowrap">{data.bancoNome.split(' ')[0]}</span>
             </div>
             <div className="flex items-center justify-center px-2 border-r-2 border-gray-800 min-w-[50px]">
                 <span className="text-sm font-black text-gray-900">{data.banco}-X</span>
@@ -191,14 +191,20 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
             {/* DIREITA - border-l para garantir divisória visual correta se o flex funcionar bem */}
             <div className="flex-1 min-w-[110px] bg-gray-50/20 border-l border-gray-300 -ml-[1px]">
                 {/* Vencimento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
+                <div className={`${cellContainer} ${manualHighlight} bg-red-50/30 group`}>
                     <label className={cellLabel}>Vencimento</label>
-                    <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} />
+                    <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} data-html2canvas-ignore="true" />
+                    <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                        <span className="text-[10px] font-black text-red-700">{vencimento}</span>
+                    </div>
                 </div>
                 {/* Agência */}
-                <div className={cellContainer}>
+                <div className={`${cellContainer} group`}>
                     <label className={cellLabel}>Agência / Código Beneficiário</label>
-                    <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} />
+                    <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} data-html2canvas-ignore="true" />
+                    <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                        <span className="text-[10px] font-bold text-gray-900">{agenciaCodigo}</span>
+                    </div>
                 </div>
                 {/* Nosso Número */}
                 <div className={cellContainer}>
@@ -206,16 +212,18 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                      <div className="absolute inset-x-1 bottom-1 text-right text-[10px] font-bold text-gray-800">{nossoNumero}</div>
                 </div>
                 {/* Valor Documento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
+                <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30 group`}>
                     <label className={cellLabel}>(=) Valor Documento</label>
                     <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
                          <span className="text-[10px]">R$</span>
                          <input 
                             type="text" 
-                            value={valor.replace('.', ',')} // Força visualização com virgula se vier do state com ponto
+                            value={valor.replace('.', ',')} 
                             onChange={e => setValor(e.target.value)} 
                             className="text-[11px] bg-transparent border-none p-0 text-right font-black w-20 outline-none" 
+                            data-html2canvas-ignore="true"
                         />
+                         <span className="text-[11px] font-black text-gray-900 hidden group-[.printing]:inline">{valor.replace('.', ',')}</span>
                     </div>
                 </div>
                  {/* Descontos */}
@@ -225,10 +233,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                    <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
-                        <span className="text-[10px]">R$</span>
-                        <span className="text-[11px]">{formatCurrency(valor).replace('R$', '').trim()}</span>
-                    </div>
+                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor}</div>
                 </div>
             </div>
         </div>
@@ -259,7 +264,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 O user citou "75691.32140..." que É a linha digitável.
                 Vou exibir a Linha Digitável novamente aqui embaixo então, pois é o que ele pediu como exemplo.
             */}
-             <p className="text-[9px] font-bold text-gray-700 tracking-widest font-mono text-center w-full select-all">
+             <p className="text-[10px] font-bold text-gray-700 tracking-widest font-mono text-center w-full select-all">
                 {data.linhaDigitavel}
             </p>
 

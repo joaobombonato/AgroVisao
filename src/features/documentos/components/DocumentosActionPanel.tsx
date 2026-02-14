@@ -22,11 +22,11 @@ export const DocumentosActionPanel = ({
     <div className="grid grid-cols-3 gap-2">
       {/* BOTÃO PRINCIPAL: Scanner com Seletor */}
       <div className="relative">
-        <button type="button" onClick={() => setShowScanSelector(!showScanSelector)} className="w-full flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-50 to-blue-100 border-2 border-blue-300 rounded-xl shadow-md hover:from-blue-100 hover:to-blue-200 active:scale-95 transition-all relative overflow-hidden">
-            <div className="absolute top-1 right-1 bg-blue-500 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">SMART</div>
-            <ScanBarcode className="w-7 h-7 text-blue-600 mb-1" />
-            <span className="text-[10px] font-bold text-blue-700 text-center">Ler Cód. Barras</span>
-            <span className="text-[8px] text-blue-400 mt-0.5">NF-e • Boleto</span>
+        <button type="button" onClick={() => setShowScanSelector(!showScanSelector)} className="w-full flex flex-col items-center justify-center p-4 bg-white border-2 border-purple-100 rounded-xl shadow-md hover:bg-purple-50 active:scale-95 transition-all relative overflow-hidden">
+            <div className="absolute top-1 right-1 bg-purple-600 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-full">SMART</div>
+            <ScanBarcode className="w-7 h-7 text-purple-600 mb-1" />
+            <span className="text-[10px] font-bold text-gray-600 text-center">Ler Cód. Barras</span>
+            <span className="text-[8px] text-gray-400 mt-0.5">NF-e • Boleto</span>
         </button>
         
         {/* Seletor NF-e / Boleto */}
