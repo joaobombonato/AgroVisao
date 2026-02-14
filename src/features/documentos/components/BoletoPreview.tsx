@@ -1,11 +1,11 @@
 /**
- * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V6 Final)
+ * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V7 Final)
  * 
- * Ajustes V6:
- * - Correção de erro de sintaxe (função dentro do JSX).
- * - Logo: Tgentil (SVG) -> Guibranco (PNG) -> Bankline (Fallback).
- * - Layout: Mantém ajustes do usuário (instruções, textos, padding).
- * - R$: Junto ao valor.
+ * Ajustes V7:
+ * - Logo: CDN jsDelivr (Matheus Cuba) como fonte primária, Tgentil SVG fallback.
+ * - Banco: Apenas 3 dígitos (sem sufixo -X).
+ * - Layout: Altura de instruções ajustada (140px) para alinhar com coluna direita.
+ * - Moeda: Formato brasileiro (vírgula para centavos).
  */
 import { forwardRef, useEffect, useState } from 'react';
 import { Copy, Check } from 'lucide-react';
@@ -88,11 +88,17 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
       return linha;
   };
 
-  // Provider de Logo de Banco
+  // Provider de Logo de Banco — CDN jsDelivr (rápido e confiável)
   const getBankLogoUrl = (code: string) => {
       const cleanCode = code.replace(/[^0-9]/g, '').padStart(3, '0');
-      // Tentativa 1: SVG do Tgentil (Geralmente muito bom)
-      return `https://raw.githubusercontent.com/Tgentil/Bancos-em-SVG/master/bancos/${cleanCode}.svg`;
+      // Fonte primária: CDN jsDelivr (Matheus Cuba)
+      return `https://cdn.jsdelivr.net/gh/matheuscuba/icones-bancos-brasileiros@1.1/logos/${cleanCode}.png`;
+  };
+
+  // Helper para formatar valor com vírgula brasileira
+  const formatValorBR = (v: string) => {
+    if (v.includes(',')) return v; // Já está formatado
+    return v.replace('.', ',');
   };
 
   // Estilos
@@ -105,7 +111,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
     <div
       ref={ref}
       // Adicionado padding-top/bottom para evitar corte na exportação
-      className="bg-white p-4 max-w-[800px] mx-auto"
+      className="bg-white p-4 max-w-[800px] mx-auto group"
     >
         <div 
             className="border-[1.5px] border-gray-900 rounded-sm overflow-hidden shadow-sm"
@@ -120,16 +126,15 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                      alt={data.bancoNome} 
                      className="max-h-[24px] max-w-[50px] object-contain"
                      onError={(e) => {
-                        // Fallback: Matheus Cuba -> Guibranco -> Hide
+                        // Fallback: Tgentil SVG -> Guibranco PNG -> Apenas texto
                         const target = e.target as HTMLImageElement;
                         const cleanCode = data.banco.replace(/[^0-9]/g, '').padStart(3, '0');
                         
-                        // O src original é Tgentil. Se falhar:
-                        if (target.src.includes('Tgentil')) {
-                            // Tentativa 2: Matheus Cuba (PNG)
-                            target.src = `https://raw.githubusercontent.com/matheuscuba/icones-bancos-brasileiros/master/logos/${cleanCode}.png`;
-                        } else if (target.src.includes('matheuscuba')) {
-                            // Tentativa 3: Guibranco
+                        if (target.src.includes('jsdelivr')) {
+                            // Tentativa 2: Tgentil SVG
+                            target.src = `https://raw.githubusercontent.com/Tgentil/Bancos-em-SVG/master/bancos/${cleanCode}.svg`;
+                        } else if (target.src.includes('Tgentil')) {
+                            // Tentativa 3: Guibranco PNG
                             target.src = `https://raw.githubusercontent.com/guibranco/BancosBrasileiros/main/logos/${cleanCode}.png`;
                         } else {
                             target.style.display = 'none';
@@ -139,7 +144,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <span className="text-xs font-black text-gray-900 leading-none ml-1 whitespace-nowrap">{data.bancoNome.split(' ')[0]}</span>
             </div>
             <div className="flex items-center justify-center px-2 border-r-2 border-gray-800 min-w-[50px]">
-                <span className="text-sm font-black text-gray-900">{data.banco}-X</span>
+                <span className="text-sm font-black text-gray-900">{data.banco}</span>
             </div>
             <div className="flex-1 flex items-center justify-end px-2 bg-gray-50 py-1">
                 <span className="text-[10px] font-black text-gray-800 text-right tracking-[0.5px] font-mono">
@@ -162,7 +167,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 </div>
 
                 {/* Beneficiário */}
-                <div className={`${cellContainer} ${manualHighlight} group`}>
+                <div className={`${cellContainer} ${manualHighlight}`}>
                     <label className={cellLabel}>Beneficiário</label>
                     <input 
                         type="text" 
@@ -178,15 +183,14 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 </div>
 
                 {/* Instruções */}
-                {/* Instruções */}
-                <div className="relative border-b border-gray-300 h-[144px] p-2 overflow-hidden flex flex-col">
+                <div className="relative border-b border-gray-300 h-[140px] p-2 overflow-hidden flex flex-col">
                      <label className={cellLabel}>Instruções</label>
                      
                      <div className="relative z-10 text-[8px] text-gray-800 font-medium leading-tight mt-1 max-w-[80%]">
                         <p>Boleto processado eletronicamente pelo VisãoAgro. (favor confirmar as informações antes de efetuar o pagamento)</p>
                      </div>
 
-                    {/* Marca D'água - Movida um pouco para esquerda para não sobrepor */}
+                    {/* Marca D'água */}
                      <div className="absolute right-8 bottom-4 opacity-40 pointer-events-none w-[140px]">
                         <img src="/logo-full.png" alt="Watermark" className="w-full object-contain grayscale" />
                      </div>
@@ -194,10 +198,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
 
             </div>
 
-            {/* DIREITA - border-l para garantir divisória visual correta se o flex funcionar bem */}
+            {/* DIREITA */}
             <div className="flex-1 min-w-[110px] bg-gray-50/20 border-l border-gray-300 -ml-[1px]">
                 {/* Vencimento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-red-50/30 group`}>
+                <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
                     <label className={cellLabel}>Vencimento</label>
                     <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} data-html2canvas-ignore="true" />
                     <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
@@ -205,7 +209,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                     </div>
                 </div>
                 {/* Agência */}
-                <div className={`${cellContainer} group`}>
+                <div className={cellContainer}>
                     <label className={cellLabel}>Agência / Código Beneficiário</label>
                     <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} data-html2canvas-ignore="true" />
                     <div className="absolute inset-x-1 bottom-0.5 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
@@ -218,18 +222,18 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                      <div className="absolute inset-x-1 bottom-1 text-right text-[10px] font-bold text-gray-800">{nossoNumero}</div>
                 </div>
                 {/* Valor Documento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30 group`}>
+                <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
                     <label className={cellLabel}>(=) Valor Documento</label>
                     <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
                          <span className="text-[10px]">R$</span>
                          <input 
                             type="text" 
-                            value={valor.replace('.', ',')} 
+                            value={formatValorBR(valor)} 
                             onChange={e => setValor(e.target.value)} 
                             className="text-[11px] bg-transparent border-none p-0 text-right font-black w-20 outline-none" 
                             data-html2canvas-ignore="true"
                         />
-                         <span className="text-[11px] font-black text-gray-900 hidden group-[.printing]:inline">{valor.replace('.', ',')}</span>
+                         <span className="text-[11px] font-black text-gray-900 hidden group-[.printing]:inline">{formatValorBR(valor)}</span>
                     </div>
                 </div>
                  {/* Descontos */}
@@ -239,7 +243,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor.includes(',') ? valor : valor.replace('.', ',')}</div>
+                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {formatValorBR(valor)}</div>
                 </div>
             </div>
         </div>
@@ -263,13 +267,6 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 Use o código de barras abaixo para pagamentos:
             </p>
             
-            {/* Numeração Formatada (pontos a cada 5/10 digitos?) 
-                Padrão visual: XXXXX.XXXXX XXXXX.XXXXX XXXXX.XXXXX X XXXXXXXXXXXXXX (Linha digitavel)
-                Mas o user pediu "igual o real com pontos e espaço" para o CODIGO DE BARRAS NUMERICO (44 digitos).
-                Geralmente o código de barras numérico (44) não tem pontos. A Linha Digitável (47) tem.
-                O user citou "75691.32140..." que É a linha digitável.
-                Vou exibir a Linha Digitável novamente aqui embaixo então, pois é o que ele pediu como exemplo.
-            */}
              <p className="text-[10px] font-bold text-gray-700 tracking-widest font-mono text-center w-full select-all">
                 {data.linhaDigitavel}
             </p>
@@ -279,7 +276,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                  <Barcode 
                     value={data.codigoBarras} 
                     format="ITF" 
-                    width={1.6} // Tentar manter ou reduzir levemente se estourar
+                    width={1.6}
                     height={50} 
                     displayValue={false} 
                     margin={0}
