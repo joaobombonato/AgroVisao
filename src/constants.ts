@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.6"; // Boleto V6: Logo Fix + Layout User
+export const APP_VERSION = "v4.7.7"; // Boleto V7: Visual Refinado + Moeda BR
 
 export const DADOS_INICIAIS = {
   chuvas: [],

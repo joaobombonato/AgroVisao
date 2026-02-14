@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Loader2, X, Download, Paperclip } from 'lucide-react';
+import { Loader2, X, Download, Paperclip, ScrollText, Wallet } from 'lucide-react';
 import { DanfePreview, type DanfeExtraFields } from './DanfePreview';
 import { BoletoPreview, type BoletoExtraFields } from './BoletoPreview';
 import type { ParsedBarcode, NFeData, BoletoData } from '../services/barcodeIntelligence';
@@ -41,7 +41,7 @@ export const GeneratedDocumentPreview = forwardRef<HTMLDivElement, GeneratedDocu
     <div className="bg-gradient-to-b from-gray-50 to-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-sm text-gray-700 flex items-center gap-2">
-          {documentPreview.type === 'nfe' ? '🧾' : '💳'}
+          {documentPreview.type === 'nfe' ? <ScrollText className="w-5 h-5 text-indigo-600"/> : <Wallet className="w-5 h-5 text-indigo-600"/>}
           {documentPreview.type === 'nfe' ? 'DANFE Gerada' : 'Boleto Identificado'}
         </h3>
         <button onClick={onClose} className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors">

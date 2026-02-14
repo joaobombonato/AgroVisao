@@ -37,7 +37,6 @@ export const DocumentosActionPanel = ({
               onClick={() => { setScanMode('nfe'); setShowScanSelector(false); setShowScanner(true); }}
               className="w-full flex items-center gap-3 p-3 hover:bg-indigo-50 transition-colors border-b border-gray-100"
             >
-              <span className="text-xl">🧾</span>
               <div className="text-left">
                 <p className="text-xs font-bold text-gray-800">NF-e / DANFE</p>
                 <p className="text-[9px] text-gray-400">Nota Fiscal Eletrônica</p>
@@ -48,10 +47,8 @@ export const DocumentosActionPanel = ({
               onClick={() => { setScanMode('boleto'); setShowScanSelector(false); setShowScanner(true); }}
               className="w-full flex items-center gap-3 p-3 hover:bg-amber-50 transition-colors"
             >
-              <span className="text-xl">💳</span>
               <div className="text-left">
                 <p className="text-xs font-bold text-gray-800">Boleto Bancário</p>
-                <p className="text-[9px] text-gray-400">Código ITF (Interleaved 2 of 5)</p>
               </div>
             </button>
           </div>
@@ -61,15 +58,15 @@ export const DocumentosActionPanel = ({
       {/* Foto do Documento (Secundário) */}
       <button type="button" onClick={() => setShowCamera(true)} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
            <Camera className="w-6 h-6 text-purple-600 mb-1" />
-           <span className="text-[10px] font-bold text-gray-600 text-center">Foto do Doc</span>
-           <span className="text-[8px] text-gray-400 mt-0.5">Comprovante</span>
+           <span className="text-[10px] font-bold text-gray-600 text-center">Foto de Docs</span>
+           <span className="text-[8px] text-gray-400 mt-0.5">Comprovantes</span>
       </button>
 
       {/* Anexar Arquivo */}
       <button type="button" onClick={onAttachClick} className="flex flex-col items-center justify-center p-3 bg-white border-2 border-purple-100 rounded-xl shadow-sm hover:bg-purple-50 active:scale-95 transition-all">
           <Paperclip className="w-6 h-6 text-gray-500 mb-1" />
-          <span className="text-[10px] font-bold text-gray-600 text-center">Anexar Arquivo</span>
-          <span className="text-[8px] text-gray-400 mt-0.5">PDF, Img</span>
+          <span className="text-[10px] font-bold text-gray-600 text-center">Anexar Arquivos</span>
+          <span className="text-[8px] text-gray-400 mt-0.5">PDF • Imagens</span>
       </button>
     </div>
   );

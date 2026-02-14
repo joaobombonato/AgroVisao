@@ -297,7 +297,7 @@ export default function DocumentosScreen() {
               <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Send className="w-3 h-3"/> Fluxo de Tramitação</p>
               <div className="flex items-center gap-2">
                   <div className="flex-1">
-                      <Input label="De" value={form.remetente} readOnly={true} className="bg-gray-200 text-gray-700 cursor-not-allowed border-gray-300 pointer-events-none" />
+                      <Input label="De" value={form.remetente} readOnly={true} className="bg-gray-200 text-gray-700 cursor-not-allowed border-gray-300 pointer-events-none text-[10px]" />
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-5" />
                   <div className="flex-1">

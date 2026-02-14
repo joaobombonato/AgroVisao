@@ -172,25 +172,24 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 </div>
 
                 {/* Instruções */}
+                {/* Instruções */}
                 <div className="relative border-b border-gray-300 h-[144px] p-2 overflow-hidden flex flex-col">
                      <label className={cellLabel}>Instruções</label>
                      
-                     <div className="relative z-10 text-[10px] text-gray-800 font-medium leading-relaxed mt-1 space-y-1">
+                     <div className="relative z-10 text-[8px] text-gray-800 font-medium leading-tight mt-1 max-w-[80%]">
                         <p>Boleto processado eletronicamente pelo VisãoAgro. (favor confirmar as informações antes de efetuar o pagamento)</p>
-                        <p>SR. CAIXA, NÃO RECEBER APÓS O VENCIMENTO.</p>
-                        <p>Referente a: {data.bancoNome} - Título: {data.nossoNumero || 'N/A'}</p>
                      </div>
 
-                    {/* Marca D'água - Canto Inferior Direito (Ajuste do Usuário: Opacity 40, w-160) */}
-                     <div className="absolute right-0 bottom-0 p-2 opacity-40 pointer-events-none w-[160px]">
+                    {/* Marca D'água - Movida um pouco para esquerda para não sobrepor */}
+                     <div className="absolute right-8 bottom-4 opacity-40 pointer-events-none w-[140px]">
                         <img src="/logo-full.png" alt="Watermark" className="w-full object-contain grayscale" />
                      </div>
                 </div>
 
             </div>
 
-            {/* DIREITA */}
-            <div className="flex-1 min-w-[110px] bg-gray-50/20">
+            {/* DIREITA - border-l para garantir divisória visual correta se o flex funcionar bem */}
+            <div className="flex-1 min-w-[110px] bg-gray-50/20 border-l border-gray-300 -ml-[1px]">
                 {/* Vencimento */}
                 <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
                     <label className={cellLabel}>Vencimento</label>
@@ -209,13 +208,13 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Documento */}
                 <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
                     <label className={cellLabel}>(=) Valor Documento</label>
-                    <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-baseline font-black text-gray-900">
+                    <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
                          <span className="text-[10px]">R$</span>
                          <input 
                             type="text" 
-                            value={valor} 
+                            value={valor.replace('.', ',')} // Força visualização com virgula se vier do state com ponto
                             onChange={e => setValor(e.target.value)} 
-                            className="text-[11px] bg-transparent border-none p-0 text-right font-black w-24 outline-none" 
+                            className="text-[11px] bg-transparent border-none p-0 text-right font-black w-20 outline-none" 
                         />
                     </div>
                 </div>
@@ -226,7 +225,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                    <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor}</div>
+                    <div className="absolute inset-x-1 bottom-0.5 flex justify-end items-center font-black text-gray-900 gap-1">
+                        <span className="text-[10px]">R$</span>
+                        <span className="text-[11px]">{formatCurrency(valor).replace('R$', '').trim()}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -245,23 +247,29 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
         </div>
 
         {/* Código de Barras */}
-        <div className="p-4 bg-white flex flex-col items-start gap-1">
-            <p className="text-[8px] font-bold text-gray-900 ml-1">
+        <div className="p-2 bg-white flex flex-col items-center gap-1">
+            <p className="text-[8px] font-bold text-gray-900 text-center w-full">
                 Use o código de barras abaixo para pagamentos:
             </p>
             
-            {/* Numeração */}
-             <p className="text-[9px] font-bold text-gray-700 tracking-widest font-mono ml-1 mb-1 select-all">
-                {data.codigoBarras}
+            {/* Numeração Formatada (pontos a cada 5/10 digitos?) 
+                Padrão visual: XXXXX.XXXXX XXXXX.XXXXX XXXXX.XXXXX X XXXXXXXXXXXXXX (Linha digitavel)
+                Mas o user pediu "igual o real com pontos e espaço" para o CODIGO DE BARRAS NUMERICO (44 digitos).
+                Geralmente o código de barras numérico (44) não tem pontos. A Linha Digitável (47) tem.
+                O user citou "75691.32140..." que É a linha digitável.
+                Vou exibir a Linha Digitável novamente aqui embaixo então, pois é o que ele pediu como exemplo.
+            */}
+             <p className="text-[9px] font-bold text-gray-700 tracking-widest font-mono text-center w-full select-all">
+                {data.linhaDigitavel}
             </p>
 
             {/* Barcode */}
-            <div className="w-full flex justify-start overflow-hidden pl-1">
+            <div className="w-full flex justify-center overflow-hidden">
                  <Barcode 
                     value={data.codigoBarras} 
                     format="ITF" 
-                    width={1.6} 
-                    height={55} 
+                    width={1.6} // Tentar manter ou reduzir levemente se estourar
+                    height={50} 
                     displayValue={false} 
                     margin={0}
                     background="transparent"
@@ -270,10 +278,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
             </div>
             
              {/* Botão Copiar */}
-            <div data-html2canvas-ignore="true" className="w-full mt-2">
+            <div data-html2canvas-ignore="true" className="w-full mt-1 flex justify-center">
                 <button onClick={handleCopy} className="flex items-center gap-2 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
                     {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                    {copied ? "Linha Digitável Copiada!" : "Copiar Linha Digitável"}
+                    {copied ? "Copiado!" : "Copiar Código"}
                 </button>
             </div>
         </div>

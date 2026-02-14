@@ -2,16 +2,18 @@ import { useState, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { U } from '../../../utils';
 import { exportAndUpload, downloadImage } from '../services/documentExporter';
+import { useAppContext } from '../../../context/AppContext';
 
 export interface FileAttachment {
   id: string;
   type: 'upload' | 'camera' | 'generated';
-  url: string; // URL pública ou Blob URL local se não enviado ainda? No código original já faz upload imediato.
+  url: string; 
   name: string;
   file?: File;
 }
 
 export function useAttachments() {
+  const { fazendaSelecionada } = useAppContext();
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [exportingDoc, setExportingDoc] = useState(false);
@@ -71,20 +73,27 @@ export function useAttachments() {
     }
   };
 
+  const getExportFileName = (docType: string) => {
+      const typeLabel = docType === 'nfe' ? 'DANFE' : 'Boleto';
+      const dateFile = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+      const farmName = fazendaSelecionada?.nome || 'Fazenda';
+      return `AgroVisão ${typeLabel} ${dateFile} - ${farmName}.png`;
+  };
+
   const handleExportDocument = async (previewElement: HTMLElement | null, docType: 'nfe' | 'boleto' | string) => {
     if (!previewElement) return;
     setExportingDoc(true);
     try {
-      const docName = docType === 'nfe' ? 'DANFE' : 'Boleto';
-      const url = await exportAndUpload(previewElement, docName);
+      const fileName = getExportFileName(docType);
+      const url = await exportAndUpload(previewElement, fileName); // fileName já tem .png
       if (url) {
         setAttachments(prev => [...prev, {
             id: U.id('ATT-'),
             type: 'generated',
             url,
-            name: `${docName}_${Date.now()}.jpg`
+            name: fileName
         }]);
-        toast.success(`${docName} salvo como imagem e anexado! 📄`, { duration: 3000 });
+        toast.success(`${fileName} salvo e anexado!`, { duration: 3000 });
       }
     } catch (err) {
       toast.error('Erro ao exportar documento.');
@@ -95,8 +104,8 @@ export function useAttachments() {
 
   const handleDownload = async (previewElement: HTMLElement | null, docType: 'nfe' | 'boleto' | string) => {
     if (!previewElement) return;
-    const docName = docType === 'nfe' ? 'DANFE' : 'Boleto';
-    await downloadImage(previewElement, docName);
+    const fileName = getExportFileName(docType);
+    await downloadImage(previewElement, fileName);
     toast.success('Download iniciado!', { icon: '⬇️' });
   };
 

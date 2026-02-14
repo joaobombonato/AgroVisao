@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, ScanBarcode, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, ScanBarcode, Loader2, CheckCircle2, AlertCircle, ScrollText, Wallet } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 interface BarcodeScannerProps {
@@ -237,8 +237,8 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
             <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
               ⚡ WASM
             </span>
-            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${scanMode === 'boleto' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
-              {scanMode === 'boleto' ? '💳 ITF' : '🧾 NF-e'}
+            <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${scanMode === 'boleto' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'} flex items-center gap-1`}>
+              {scanMode === 'boleto' ? <><Wallet className="w-3 h-3"/> ITF</> : <><ScrollText className="w-3 h-3"/> NF-e</>}
             </span>
             <button onClick={handleClose} className="p-1.5 hover:bg-white/60 rounded-full transition-colors" disabled={processing}>
               <X className="w-5 h-5 text-gray-500" />

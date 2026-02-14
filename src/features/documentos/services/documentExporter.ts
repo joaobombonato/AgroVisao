@@ -23,22 +23,26 @@ export async function captureAsImage(element: HTMLElement, filename: string = 'd
 
   try {
     const canvas = await html2canvas(element, {
-      scale: 2.5, // Resolução ainda maior para Mobile
+      scale: 2, // Reduzido de 2.5 para 2 (qualidade suficiente e menos distorção)
       useCORS: true,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: '#FFFFFF', // Fundo branco garantido
       logging: false,
       onclone: (clonedDoc) => {
           // Garante que o clone também tenha a classe e valores
           const clonedElement = clonedDoc.querySelector(`[data-html2canvas-ignore="true"]`);
-          if(clonedElement) clonedElement.remove(); // Remove botões explicitamente ignorados se falhar o data-attr
+          if(clonedElement) clonedElement.remove(); // Remove botões explicitamente ignorados
       }
     });
     
+    // PNG para qualidade lossless (solicitado: 'exatamente o que vemos')
     const blob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.95);
+      canvas.toBlob((b) => resolve(b!), 'image/png');
     });
     
-    return new File([blob], `${filename}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    // Se o filename já tiver extensão, usa. Senão adiciona.
+    const finalName = filename.toLowerCase().endsWith('.png') ? filename : `${filename}.png`;
+    
+    return new File([blob], finalName, { type: 'image/png' });
   } finally {
     // Restaura estado original
     element.className = originalClass;
