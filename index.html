@@ -2,7 +2,7 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>AgroVisão</title>
 
     <link rel="icon" type="image/png" href="/icon.png" />
@@ -13,5 +13,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Bloqueia pinch-to-zoom em todo o app, exceto em elementos com classe .allow-zoom
+      document.addEventListener('gesturestart', function(e) {
+        if (!e.target.closest('.allow-zoom')) e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('gesturechange', function(e) {
+        if (!e.target.closest('.allow-zoom')) e.preventDefault();
+      }, { passive: false });
+      document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1 && !e.target.closest('.allow-zoom')) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+    </script>
   </body>
 </html>

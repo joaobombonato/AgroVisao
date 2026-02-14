@@ -277,14 +277,14 @@ export default function EnergiaScreen() {
       <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
         <div className="p-3 border-b bg-gray-50">
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Energia</h2>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <Input 
                     type="date" 
                     value={filterData} 
                     onChange={(e: any) => setFilterData(e.target.value)} 
-                    className="text-xs border rounded p-2" 
+                    className="text-xs border rounded p-2 min-w-[140px]" 
                 />
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-[120px]">
                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                     <input type="text" placeholder="Local ou ID..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />
                 </div>

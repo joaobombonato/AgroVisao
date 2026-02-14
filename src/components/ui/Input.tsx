@@ -115,12 +115,12 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 min-w-0">
       {label && <p className="text-xs font-medium text-gray-600">{label} {props.required && <span className="text-red-500">*</span>}</p>}
       <input 
         {...props} 
         onChange={handleChange}
-        className={`w-full transition-colors ${
+        className={`w-full max-w-full transition-colors ${
           readOnly 
             ? 'bg-gray-100 text-gray-600 font-semibold border-gray-300 cursor-not-allowed' 
             : (!props.className ? 'border-gray-200 focus:border-blue-500 bg-white' : '')

@@ -91,9 +91,9 @@ export async function fetchMultiSourceWeather(lat: number, lng: number): Promise
 // Export sources info for the attribution table
 export const WEATHER_SOURCES = [
   { name: 'Open-Meteo', icon: '🌐', logo: '/assets/weather-logos/OpenMeteo.png', origin: 'Alemanha/UE', type: 'Gratuita', url: 'open-meteo.com', days: 16 },
-  { name: 'WeatherAPI', icon: '🌍', logo: '/assets/weather-logos/WeatherAPI.png', origin: 'Reino Unido', type: 'API Key', url: 'weatherapi.com', days: 14 },
   { name: 'YR.no', icon: '🇳🇴', logo: '/assets/weather-logos/YR.png', origin: 'Noruega', type: 'Gratuita', url: 'yr.no', days: 10 },
   { name: 'MeteoBlue', icon: '🔵', logo: '/assets/weather-logos/MeteoBlue.png', origin: 'Suíça', type: 'API Key', url: 'meteoblue.com', days: 7 },
   { name: 'Tomorrow.io', icon: '⏰', logo: '/assets/weather-logos/Tomorrow.png', origin: 'EUA', type: 'API Key', url: 'tomorrow.io', days: 6 },
-  { name: 'OpenWeather', icon: '🌤️', logo: '/assets/weather-logos/OpenWeatherMap.png', origin: 'EUA', type: 'API Key', url: 'openweathermap.org', days: 6 }
+  { name: 'OpenWeather', icon: '🌤️', logo: '/assets/weather-logos/OpenWeatherMap.png', origin: 'EUA', type: 'API Key', url: 'openweathermap.org', days: 6 },
+  { name: 'WeatherAPI', icon: '🌍', logo: '/assets/weather-logos/WeatherAPI.png', origin: 'Reino Unido', type: 'API Key', url: 'weatherapi.com', days: 3 }
 ];

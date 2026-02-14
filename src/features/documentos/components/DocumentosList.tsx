@@ -19,10 +19,7 @@ export const DocumentosList = ({ data, onExcluir, onVisualizar, onResponder }: D
   };
 
   return (
-    <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
-      <div className="p-3 border-b bg-gray-50">
-          <h2 className="font-bold text-sm uppercase text-gray-600">Central de Documentos</h2>
-      </div>
+    <>
       <TableWithShowMore data={data}>
           {(items:any[], Row:any) => (
               <>
@@ -85,6 +82,6 @@ export const DocumentosList = ({ data, onExcluir, onVisualizar, onResponder }: D
               </>
           )}
       </TableWithShowMore>
-    </div>
+    </>
   );
 };

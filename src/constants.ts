@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.8"; // Boleto V8: CNPJ Lookup, Barcode Fix, Pull-to-Refresh Fix
+export const APP_VERSION = "v4.7.9"; // Doc fixes: categories, auto-fill, history UI, mobile layout
 
 export const DADOS_INICIAIS = {
   chuvas: [],

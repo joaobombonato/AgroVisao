@@ -29,8 +29,7 @@ export function useBarcodeScanning(setForm: React.Dispatch<React.SetStateAction<
             tipo: 'Nota Fiscal',
             nome: `NF ${nfe.numero} - ${nomeEmitente}`,
             codigo: nfe.chave,
-            obs: `NF-e Série ${nfe.serie} | CNPJ: ${nfe.cnpjFormatado} | ${nfe.ufSigla} | ${nfe.anoMes}`,
-            destinatario: 'Financeiro'
+            obs: `NF-e Série ${nfe.serie} | CNPJ: ${nfe.cnpjFormatado} | ${nfe.ufSigla} | ${nfe.anoMes}`
           }));
           toast.success(`🧾 NF-e ${nfe.numero} detectada! ${nfe.emitente ? `Emitente: ${nomeEmitente}` : ''}`, { duration: 4000 });
         } else if (result.type === 'boleto_bancario' || result.type === 'boleto_convenio') {
@@ -38,11 +37,10 @@ export function useBarcodeScanning(setForm: React.Dispatch<React.SetStateAction<
           setForm((prev: any) => ({
             ...prev,
             tipo: 'Boleto',
-            nome: `Boleto ${boleto.bancoNome} - ${boleto.valorFormatado}`,
+            nome: `Boleto ${boleto.bancoNome} - ${boleto.vencimento} - ${boleto.valorFormatado}`,
             codigo: boleto.codigoBarras,
             valor: boleto.valor !== '0.00' ? boleto.valor : '',
-            obs: `${boleto.bancoNome} | Venc: ${boleto.vencimento} | Linha: ${boleto.linhaDigitavel}`,
-            destinatario: 'Financeiro'
+            obs: `${boleto.bancoNome} | Venc: ${boleto.vencimento} | Linha: ${boleto.linhaDigitavel}`
           }));
           toast.success(`💳 Boleto detectado! ${boleto.valorFormatado} - Venc: ${boleto.vencimento}`, { duration: 4000 });
         } else {
@@ -79,14 +77,27 @@ export function useBarcodeScanning(setForm: React.Dispatch<React.SetStateAction<
         updatedData.diaEmissao ? `Emissão: ${updatedData.diaEmissao}/${updatedData.anoMes}` : `Competência: ${updatedData.anoMes}`,
         vencimentosStr ? `Venc: ${vencimentosStr}` : '',
         produtosStr ? `Produtos: ${produtosStr}` : '',
-      ].filter(Boolean).join(' | '),
-      destinatario: 'Financeiro'
+      ].filter(Boolean).join(' | ')
     }));
   }, [setForm]);
 
   const handleBoletoDataChange = useCallback((updatedData: BoletoData & BoletoExtraFields) => {
+      // Formata valor para exibição
+      const valorNum = updatedData.valor && updatedData.valor !== '0.00' ? parseFloat(updatedData.valor) : 0;
+      const valorFmt = valorNum > 0 
+        ? valorNum.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+        : '';
+      
+      // Nome: Beneficiário - Vencimento - Valor
+      const nomeParts = [
+        updatedData.beneficiario || `Boleto ${updatedData.bancoNome}`,
+        updatedData.vencimento && updatedData.vencimento !== 'Não informado' ? updatedData.vencimento : '',
+        valorFmt
+      ].filter(Boolean);
+      
       setForm((prev: any) => ({
           ...prev,
+          nome: nomeParts.join(' - '),
           valor: updatedData.valor && updatedData.valor !== '0.00' ? updatedData.valor : prev.valor,
           obs: [
               updatedData.beneficiario ? `Beneficiário: ${updatedData.beneficiario}` : '',

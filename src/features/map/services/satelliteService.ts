@@ -8,9 +8,17 @@
 const COPERNICUS_CLIENT_ID = 'sh-11c9ea5e-2705-46e4-8d84-1d2193e18d60';
 const COPERNICUS_CLIENT_SECRET = 'tD32wvcf3ZHU45rNFxeCxrZ4vCipvR1R';
 
-// Usar Proxies locais do Vite para evitar problemas de CORS e limites de Proxies externos
-const COPERNICUS_TOKEN_URL = '/copernicus-auth';
-const SENTINEL_HUB_URL = '/copernicus-api';
+// Em DEV (localhost): Usa proxies do Vite para evitar CORS
+// Em PROD (App/Vercel): Tenta usar URLs diretas (requer que a API suporte CORS ou proxy externo)
+const IS_DEV = import.meta.env.DEV;
+
+const COPERNICUS_TOKEN_URL = IS_DEV 
+  ? '/copernicus-auth' 
+  : 'https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token';
+
+const SENTINEL_HUB_URL = IS_DEV 
+  ? '/copernicus-api' 
+  : 'https://sh.dataspace.copernicus.eu/api/v1';
 
 let accessToken: string | null = null;
 let tokenExpiry: number = 0;

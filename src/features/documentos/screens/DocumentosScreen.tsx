@@ -204,20 +204,8 @@ export default function DocumentosScreen() {
   // ===============================================
   const categoriasDocs = useMemo(() => {
     const dbTypes = ativos.tiposDocumento || [];
-    const normalized = dbTypes.map((t: any) => typeof t === 'string' ? t : (t.nome || t.label));
-    // Adiciona opções para múltiplos documentos se não existirem
-    const extras = ['Pacote de Documentos', 'Processo / Misto', 'Outros'];
-    return Array.from(new Set([...normalized, ...extras]));
+    return dbTypes.map((t: any) => typeof t === 'string' ? t : (t.nome || t.label));
   }, [ativos.tiposDocumento]);
-
-  const hasMultipleDocs = attachments.length > 1;
-
-  // Sugere mudança de tipo se houver muitos anexos e o tipo atual for simples
-  React.useEffect(() => {
-      if (hasMultipleDocs && ['Nota Fiscal', 'Boleto'].includes(form.tipo)) {
-          // Opcional: toast("Sugestão: Altere a categoria para 'Pacote de Documentos' se desejar.");
-      }
-  }, [hasMultipleDocs, form.tipo]);
 
   // ===============================================
   // RENDER
@@ -262,23 +250,14 @@ export default function DocumentosScreen() {
         </h2>
         
         <form onSubmit={enviar} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-3">
              <Input label="Data" type="date" value={form.data} onChange={(e:any) => setForm({ ...form, data: e.target.value })} required readOnly={true} />
-             
-             {/* CAMPO CÓDIGO INTELIGENTE */}
-             <div className="flex flex-col">
-                 <Input 
-                    label={hasMultipleDocs ? "Cód. Principal / Ref (Opcional)" : "Código / Barras"} 
-                    placeholder={hasMultipleDocs ? "Ex: Chave da NF-e âncora..." : "Auto ou Digite"} 
-                    value={form.codigo} 
-                    onChange={(e:any) => setForm({ ...form, codigo: e.target.value })} 
-                 />
-                 {hasMultipleDocs && (
-                     <span className="text-[9px] text-gray-400 mt-0.5 ml-1">
-                         * Use o código do documento principal para referência.
-                     </span>
-                 )}
-             </div>
+             <Input 
+                label="Código / Barras" 
+                placeholder="Auto ou Digite" 
+                value={form.codigo} 
+                onChange={(e:any) => setForm({ ...form, codigo: e.target.value })} 
+             />
           </div>
 
           <SearchableSelect 
@@ -340,12 +319,15 @@ export default function DocumentosScreen() {
 
       {/* 5. Lista de Documentos */}
       <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
-        <div className="p-3 border-b bg-gray-50 flex gap-2">
-             <Input type="date" value={filterDate} onChange={(e: any) => setFilterDate(e.target.value)} className="text-xs border rounded p-2" />
-             <div className="relative flex-1">
-                 <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
-                 <input type="text" placeholder="Buscar..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />
-             </div>
+        <div className="p-3 border-b bg-gray-50">
+            <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Documentos</h2>
+            <div className="flex flex-wrap gap-2">
+                 <Input type="date" value={filterDate} onChange={(e: any) => setFilterDate(e.target.value)} className="text-xs border rounded p-2 min-w-[140px]" />
+                 <div className="relative flex-1 min-w-[120px]">
+                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
+                     <input type="text" placeholder="Buscar..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />
+                 </div>
+            </div>
         </div>
         <DocumentosList 
             data={docsFiltrados}

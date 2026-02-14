@@ -137,9 +137,8 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
 
   // Estilos
   const cellLabel = "text-[6px] text-gray-500 uppercase font-bold leading-none mb-0.5 block";
-  const absoluteInput = "absolute inset-x-1 bottom-1 text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight h-[14px]";
+  const absoluteInput = "absolute inset-x-1 bottom-1 text-[9px] text-gray-900 font-bold bg-white border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight h-[14px] z-10";
   const cellContainer = "relative border-b border-gray-300 p-1 h-[36px] overflow-hidden";
-  const manualHighlight = "bg-yellow-50";
 
   const benefDisplay = getBeneficiarioDisplay();
   
@@ -184,7 +183,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 </div>
 
                 {/* Beneficiário — com busca por CNPJ */}
-                <div className={`${cellContainer} ${manualHighlight} h-auto min-h-[36px]`}>
+                <div className={`${cellContainer} h-auto min-h-[36px]`}>
                     <label className={cellLabel}>Beneficiário</label>
                     {beneficiario ? (
                       <div className="text-[8px] font-bold text-gray-900 mt-0.5 leading-tight">
@@ -229,10 +228,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
             {/* DIREITA */}
             <div className="flex-1 min-w-[110px] bg-gray-50/20 border-l border-gray-300 -ml-[1px]">
                 {/* Vencimento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
+                <div className={cellContainer}>
                     <label className={cellLabel}>Vencimento</label>
                     <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right z-0">
                         <span className="text-[10px] font-black text-red-700">{vencimento}</span>
                     </div>
                 </div>
@@ -240,7 +239,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={cellContainer}>
                     <label className={cellLabel}>Agência / Código Beneficiário</label>
                     <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right z-0">
                         <span className="text-[10px] font-bold text-gray-900">{agenciaCodigo}</span>
                     </div>
                 </div>
@@ -250,18 +249,22 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                      <div className="absolute inset-x-1 bottom-1 text-right text-[10px] font-bold text-gray-800">{nossoNumero}</div>
                 </div>
                 {/* Valor Documento */}
-                <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
+                <div className={cellContainer}>
                     <label className={cellLabel}>( = ) Valor Documento</label>
-                    <div className="absolute inset-x-1 bottom-1 flex justify-end items-center font-black text-gray-900 gap-1">
+                    {/* Input editável (hidden on export) */}
+                    <div className="absolute inset-x-1 bottom-1 flex justify-end items-center font-black text-gray-900 gap-1 z-10 bg-white" data-html2canvas-ignore="true">
                          <span className="text-[10px]">R$</span>
                          <input 
                             type="text" 
                             value={formatValorBR(valor)} 
                             onChange={e => setValor(e.target.value)} 
-                            className="text-[11px] bg-transparent border-none p-0 text-right font-black w-20 outline-none" 
-                            data-html2canvas-ignore="true"
+                            className="text-[11px] bg-white border-none p-0 text-right font-black w-20 outline-none" 
                         />
-                         <span className="text-[11px] font-black text-gray-900 pointer-events-none">{formatValorBR(valor)}</span>
+                    </div>
+                    {/* Display para exportação */}
+                    <div className="absolute inset-x-1 bottom-1 flex justify-end items-center font-black text-gray-900 gap-1 z-0 pointer-events-none">
+                         <span className="text-[10px]">R$</span>
+                         <span className="text-[11px] font-black text-gray-900">{formatValorBR(valor)}</span>
                     </div>
                 </div>
                  {/* Descontos */}
@@ -269,7 +272,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                     <label className={cellLabel}>( - ) Desconto / Abatimento</label>
                 </div>
                 {/* Valor Cobrado */}
-                <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
+                <div className={`${cellContainer} flex flex-col justify-end`}>
                     <label className={cellLabel}>( = ) Valor Cobrado</label>
                     <div className="text-right text-[11px] font-black mr-1 mb-1">R$ {formatValorBR(valor)}</div>
                 </div>
