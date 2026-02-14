@@ -233,7 +233,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
                     <label className={cellLabel}>(=) Valor Cobrado</label>
-                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor}</div>
+                        <div className="text-right text-[11px] font-black mr-1 mb-0.5">R$ {valor.replace('.', ',')}</div>
                 </div>
             </div>
         </div>

@@ -48,7 +48,8 @@ export const DocumentosActionPanel = ({
               className="w-full flex items-center gap-3 p-3 hover:bg-amber-50 transition-colors"
             >
               <div className="text-left">
-                <p className="text-xs font-bold text-gray-800">Boleto Bancário</p>
+                <p className="text-xs font-bold text-gray-800">Boleto</p>
+                <p className="text-[9px] text-gray-400">Boletos Bancários</p>
               </div>
             </button>
           </div>
