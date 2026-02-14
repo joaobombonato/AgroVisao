@@ -28,7 +28,7 @@ export default function RefeicoesScreen() {
   });
   
   const [showObs, setShowObs] = useState(false);
-  const [filterData, setFilterData] = useState('');
+  const [filterData, setFilterData] = useState(U.todayIso());
   const [filterText, setFilterText] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(U.currentMonthIso());
 

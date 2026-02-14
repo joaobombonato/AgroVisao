@@ -36,7 +36,7 @@ export default function DocumentosScreen() {
       parentId: '' 
   });
 
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(U.todayIso());
   const [filterText, setFilterText] = useState('');
   const [isResponseMode, setIsResponseMode] = useState(false);
   const [showCamera, setShowCamera] = useState(false);

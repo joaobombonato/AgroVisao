@@ -28,7 +28,7 @@ export default function EnergiaScreen() {
       centroCusto: ''
   });
   
-  const [filterData, setFilterData] = useState('');
+  const [filterData, setFilterData] = useState(U.todayIso());
   const [filterText, setFilterText] = useState('');
 
   // Cálculos Automáticos

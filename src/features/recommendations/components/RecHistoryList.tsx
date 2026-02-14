@@ -7,7 +7,7 @@ import { toast } from 'react-hot-toast';
 
 export default function RecHistoryList() {
     const { dados, dispatch } = useAppContext();
-    const [filterData, setFilterData] = useState('');
+    const [filterData, setFilterData] = useState(U.todayIso());
     const [filterText, setFilterText] = useState('');
 
     const listFilter = useMemo(() => (dados.recomendacoes || []).filter((i: any) => {

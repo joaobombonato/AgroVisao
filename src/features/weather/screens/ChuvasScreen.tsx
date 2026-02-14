@@ -23,7 +23,7 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
       milimetros: '' 
   });
   
-  const [filterData, setFilterData] = useState('');
+  const [filterData, setFilterData] = useState(U.todayIso());
   const [filterText, setFilterText] = useState('');
   const [activeTab, setActiveTab] = useState<'registro' | 'previsao'>(initialTab);
 
