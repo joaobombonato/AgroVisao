@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.7"; // Boleto V7: Visual Refinado + Moeda BR
+export const APP_VERSION = "v4.7.8"; // Boleto V8: CNPJ Lookup, Barcode Fix, Pull-to-Refresh Fix
 
 export const DADOS_INICIAIS = {
   chuvas: [],

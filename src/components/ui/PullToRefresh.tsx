@@ -13,33 +13,48 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
   const containerRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const holdTimer = useRef<any>(null);
+  const isAtTop = useRef(false);
   
-  const THRESHOLD = 120; // Increased threshold
+  const THRESHOLD = 120;
   const MAX_PULL = 160; 
-  const HOLD_TIME = 800; // ms to hold before trigger
+  const HOLD_TIME = 800;
 
   const handleTouchStart = (e: TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
+    // Verifica se a PÁGINA inteira está no topo (não apenas o container)
+    const scrollTop = window.scrollY || document.documentElement.scrollTop;
+    const containerScrollTop = containerRef.current?.scrollTop ?? 0;
+    
+    if (scrollTop === 0 && containerScrollTop === 0) {
       startY.current = e.touches[0].pageY;
+      isAtTop.current = true;
       setPullDist(0);
       setHoldProgress(0);
     } else {
       startY.current = -1;
+      isAtTop.current = false;
     }
   };
 
   const handleTouchMove = (e: TouchEvent) => {
-    if (startY.current === -1 || refreshing) return;
+    if (startY.current === -1 || refreshing || !isAtTop.current) return;
 
     const currentY = e.touches[0].pageY;
     const diff = currentY - startY.current;
 
+    // Apenas ativa pull se estiver puxando para BAIXO e scroll está no topo
     if (diff > 0) {
+      // Verifica novamente se ainda está no topo
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const containerScrollTop = containerRef.current?.scrollTop ?? 0;
+      if (scrollTop > 0 || containerScrollTop > 0) {
+        isAtTop.current = false;
+        return;
+      }
+
       const pull = Math.min(MAX_PULL, diff * 0.4);
       setPullDist(pull);
       
       if (pull >= THRESHOLD && !holdTimer.current) {
-        // Start hold timer
         const startTime = Date.now();
         holdTimer.current = setInterval(() => {
           const elapsed = Date.now() - startTime;
@@ -55,6 +70,11 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
       }
 
       if (pull > 5 && e.cancelable) e.preventDefault();
+    } else {
+      // Se puxou para cima, desativa
+      isAtTop.current = false;
+      clearHold();
+      setPullDist(0);
     }
   };
 
@@ -77,12 +97,13 @@ export const PullToRefresh: React.FC<PullToRefreshProps> = ({ onRefresh, childre
     clearHold();
     setPullDist(0);
     startY.current = -1;
+    isAtTop.current = false;
   };
 
   useEffect(() => {
     const el = containerRef.current;
     if (el) {
-      el.addEventListener('touchstart', handleTouchStart, { passive: false });
+      el.addEventListener('touchstart', handleTouchStart, { passive: true });
       el.addEventListener('touchmove', handleTouchMove, { passive: false });
       el.addEventListener('touchend', handleTouchEnd);
       return () => {

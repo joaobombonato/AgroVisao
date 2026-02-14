@@ -1,11 +1,12 @@
 /**
- * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V8)
+ * BoletoPreview.tsx — Preview Visual de Boleto Bancário (V8.1)
  * 
- * V8:
- * - Logo removida (CDNs não funcionam), apenas nome do banco em texto.
- * - Espaçamento corrigido (bottom-1 em vez de bottom-0.5 para evitar corte).
- * - Campo Beneficiário com busca automática de CNPJ via BrasilAPI.
- * - Moeda: formato brasileiro com vírgula.
+ * V8.1:
+ * - Beneficiário: campo CNPJ com auto-lookup, sem duplicação na exportação.
+ * - Formato: "RAZÃO SOCIAL - CNPJ: XX.XXX.XXX/XXXX-XX"
+ * - Barcode: ITF com width=2 para melhor legibilidade por scanners.
+ * - Espaçamento: bottom-1 em todos os campos para evitar corte.
+ * - Logo: Removida (apenas nome do banco em texto).
  */
 import { forwardRef, useEffect, useState, useCallback } from 'react';
 import { Copy, Check, Search, Loader2 } from 'lucide-react';
@@ -82,9 +83,10 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
       if (result) {
         const nome = result.fantasia || result.razaoSocial;
         const cnpjFormatado = clean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
-        setBeneficiario(`${nome} | ${cnpjFormatado}`);
+        setBeneficiario(`${nome}`);
+        setCnpjInput(cnpjFormatado); // Salva CNPJ formatado
       } else {
-        setBeneficiario(cnpjInput); // Não encontrou, usa o texto digitado
+        setBeneficiario(cnpjInput);
       }
     } catch {
       setBeneficiario(cnpjInput);
@@ -123,16 +125,28 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
     return v.replace('.', ',');
   };
 
+  // Monta texto do beneficiário para exibição (razão social + CNPJ)
+  const getBeneficiarioDisplay = () => {
+    const cnpjClean = cnpjInput.replace(/\D/g, '');
+    if (beneficiario && cnpjClean.length === 14) {
+      const cnpjFmt = cnpjClean.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+      return `${beneficiario} - CNPJ: ${cnpjFmt}`;
+    }
+    return beneficiario;
+  };
+
   // Estilos
   const cellLabel = "text-[6px] text-gray-500 uppercase font-bold leading-none mb-0.5 block";
   const absoluteInput = "absolute inset-x-1 bottom-1 text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight h-[14px]";
   const cellContainer = "relative border-b border-gray-300 p-1 h-[36px] overflow-hidden";
   const manualHighlight = "bg-yellow-50";
+
+  const benefDisplay = getBeneficiarioDisplay();
   
   return (
     <div
       ref={ref}
-      className="bg-white p-4 max-w-[800px] mx-auto group"
+      className="bg-white p-4 max-w-[800px] mx-auto"
     >
         <div 
             className="border-[1.5px] border-gray-900 rounded-sm overflow-hidden shadow-sm"
@@ -145,7 +159,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
             <div className="flex items-center justify-center px-3 border-r-2 border-gray-800 min-w-[80px]">
                 <span className="text-sm font-black text-gray-900 leading-none whitespace-nowrap">{data.bancoNome.split(' ')[0]}</span>
             </div>
-            {/* Número do Banco (3 dígitos, sem -X) */}
+            {/* Número do Banco (3 dígitos) */}
             <div className="flex items-center justify-center px-2 border-r-2 border-gray-800 min-w-[50px]">
                 <span className="text-sm font-black text-gray-900">{data.banco}</span>
             </div>
@@ -172,11 +186,11 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {/* Beneficiário — com busca por CNPJ */}
                 <div className={`${cellContainer} ${manualHighlight} h-auto min-h-[36px]`}>
                     <label className={cellLabel}>Beneficiário</label>
-                    {/* Se já tem beneficiário preenchido, mostra ele */}
                     {beneficiario ? (
-                      <div className="text-[9px] font-bold text-gray-900 mt-0.5 leading-tight">{beneficiario}</div>
+                      <div className="text-[8px] font-bold text-gray-900 mt-0.5 leading-tight">
+                        {benefDisplay}
+                      </div>
                     ) : (
-                      /* Senão mostra input de CNPJ */
                       <div className="flex items-center gap-1 mt-0.5" data-html2canvas-ignore="true">
                         <input 
                           type="text" 
@@ -194,10 +208,6 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                         )}
                       </div>
                     )}
-                    {/* Texto visível na exportação */}
-                    <div className="pointer-events-none opacity-0 group-[.printing]:opacity-100">
-                        <span className="text-[10px] font-bold text-gray-900">{beneficiario}</span>
-                    </div>
                 </div>
 
                 {/* Instruções */}
@@ -222,7 +232,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={`${cellContainer} ${manualHighlight} bg-red-50/30`}>
                     <label className={cellLabel}>Vencimento</label>
                     <input type="text" value={vencimento} onChange={e => setVencimento(e.target.value)} className={`${absoluteInput} text-right text-red-700 font-black`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-1 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right">
                         <span className="text-[10px] font-black text-red-700">{vencimento}</span>
                     </div>
                 </div>
@@ -230,7 +240,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={cellContainer}>
                     <label className={cellLabel}>Agência / Código Beneficiário</label>
                     <input type="text" value={agenciaCodigo} onChange={e => setAgenciaCodigo(e.target.value)} className={`${absoluteInput} text-right`} data-html2canvas-ignore="true" />
-                    <div className="absolute inset-x-1 bottom-1 pointer-events-none opacity-0 group-[.printing]:opacity-100 text-right">
+                    <div className="absolute inset-x-1 bottom-1 pointer-events-none text-right">
                         <span className="text-[10px] font-bold text-gray-900">{agenciaCodigo}</span>
                     </div>
                 </div>
@@ -241,7 +251,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 </div>
                 {/* Valor Documento */}
                 <div className={`${cellContainer} ${manualHighlight} bg-indigo-50/30`}>
-                    <label className={cellLabel}>(=) Valor Documento</label>
+                    <label className={cellLabel}>( = ) Valor Documento</label>
                     <div className="absolute inset-x-1 bottom-1 flex justify-end items-center font-black text-gray-900 gap-1">
                          <span className="text-[10px]">R$</span>
                          <input 
@@ -251,16 +261,16 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                             className="text-[11px] bg-transparent border-none p-0 text-right font-black w-20 outline-none" 
                             data-html2canvas-ignore="true"
                         />
-                         <span className="text-[11px] font-black text-gray-900 hidden group-[.printing]:inline">{formatValorBR(valor)}</span>
+                         <span className="text-[11px] font-black text-gray-900 pointer-events-none">{formatValorBR(valor)}</span>
                     </div>
                 </div>
                  {/* Descontos */}
                  <div className={cellContainer}>
-                    <label className={cellLabel}>(-) Desconto / Abatimento</label>
+                    <label className={cellLabel}>( - ) Desconto / Abatimento</label>
                 </div>
                 {/* Valor Cobrado */}
                 <div className={`${cellContainer} bg-gray-100 flex flex-col justify-end`}>
-                    <label className={cellLabel}>(=) Valor Cobrado</label>
+                    <label className={cellLabel}>( = ) Valor Cobrado</label>
                     <div className="text-right text-[11px] font-black mr-1 mb-1">R$ {formatValorBR(valor)}</div>
                 </div>
             </div>
@@ -289,13 +299,13 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 {data.linhaDigitavel}
             </p>
 
-            {/* Barcode */}
+            {/* Barcode - ITF (Interleaved 2 of 5), padrão FEBRABAN */}
             <div className="w-full flex justify-center overflow-hidden">
                  <Barcode 
                     value={data.codigoBarras} 
                     format="ITF" 
-                    width={1.6}
-                    height={50} 
+                    width={2}
+                    height={55} 
                     displayValue={false} 
                     margin={0}
                     background="transparent"
