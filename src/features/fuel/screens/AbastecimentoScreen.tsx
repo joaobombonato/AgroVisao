@@ -98,7 +98,10 @@ export default function AbastecimentoScreen() {
           <SearchableSelect 
             label="Máquina / Veículo" 
             placeholder="Buscar o Maquinas... Ex: Trator" 
-            options={ativos?.maquinas || []} 
+            options={(ativos?.maquinas || []).map((m: any) => ({
+              ...m,
+              label: `${m.codigo || m.id || ''} - ${m.tipo || ''} ${m.marca || ''} ${m.modelo || ''} - ${m.potencia || ''} ${m.unidade_potencia || ''}`.replace(/\s+/g, ' ').trim() || m.nome // Fallback para nome se falhar
+            }))}
             value={form.maquina} 
             onChange={handleMaquinaChange} 
             required

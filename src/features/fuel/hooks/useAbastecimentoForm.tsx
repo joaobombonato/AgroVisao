@@ -215,8 +215,8 @@ export function useAbastecimentoForm() {
       ...form,
       data_operacao: form.data,
       data: undefined,
-      qtd: litrosCalculados,
-      media: mediaConsumo,
+      qtd: U.parseDecimal(litrosCalculados), // Fix: Garantir número para evitar erro de sync
+      media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo), // Fix: Garantir número
       custo: custoEstimado,
       safra_id: ativos.parametros?.safraAtiva || null,
       id: U.id('AB-')
