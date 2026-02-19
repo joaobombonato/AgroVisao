@@ -82,16 +82,16 @@ export function AbastecimentoHistorico() {
                   </td>
                   <td className="px-2 py-2 text-center text-gray-700 text-xs">
                     <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">{item.maquina}</div>
-                    <div className="text-[9px] text-gray-400">Km: {item.horimetro}</div>
+                    <div className="text-[9px] text-gray-400">Km: {item.horimetro_atual || item.horimetro}</div>
                   </td>
                   <td className="px-2 py-2 text-center">
-                    <div className="font-bold text-red-600 text-xs">{item.quantidade}</div>
+                    <div className="font-bold text-red-600 text-xs">{item.quantidade || item.qtd}</div>
                   </td>
                   <td className="px-2 py-2 text-center text-xs font-bold text-gray-700">
                     {item.media || '-'}
                   </td>
                   <td className="px-2 py-2 text-center text-xs text-gray-700">
-                    {(item as any).bombaFinal || '-'}
+                    {(item as any).bomba_final || (item as any).bombaFinal || '-'}
                   </td>
                   <td className="px-2 py-2 text-center">
                     <div className="flex justify-center">

@@ -217,16 +217,21 @@ export function useAbastecimentoForm() {
       data_operacao: form.data,
       data: undefined,
       qtd: U.parseDecimal(litrosCalculados),
+      quantidade: U.parseDecimal(litrosCalculados), // Campo legado para compatibilidade
       media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo),
       custo: custoEstimado || 0,
       safra_id: ativos.parametros?.safraAtiva || null,
-      // Campos mapeados para snake_case (banco de dados)
+      
+      // Campos mapeados para snake_case (banco de dados atualizado)
       bomba_inicial: U.parseDecimal(form.bombaInicial),
       bomba_final: U.parseDecimal(form.bombaFinal),
       horimetro_anterior: U.parseDecimal(form.horimetroAnterior),
       horimetro_atual: U.parseDecimal(form.horimetroAtual),
-      centro_custo: form.centroCusto,
-      // Remover campos camelCase que não existem no banco
+      horimetro: U.parseDecimal(form.horimetroAtual), // Campo legado
+      
+      centro_custo: form.centroCusto, // Agora existe no banco!
+      
+      // Remover campos camelCase temporários que não devem ir pro banco
       bombaInicial: undefined,
       bombaFinal: undefined,
       horimetroAnterior: undefined,
@@ -276,10 +281,8 @@ export function useAbastecimentoForm() {
       descricao: descOS,
       detalhes: detalhesOS,
       status: 'Concluída',
-      data_abertura: new Date().toISOString(),
-      // Garantir campos obrigatórios caso existam na tabela
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      data_abertura: new Date().toISOString()
+      // created_at / updated_at: REMOVIDOS (O Supabase gerencia automaticamente)
     };
 
     genericSave('os', novaOS, {

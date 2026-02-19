@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.22"; // Refined Search & UX Polishing
+export const APP_VERSION = "v4.7.23"; // Final Sync Fix & DB Standard
 
 export const DADOS_INICIAIS = {
   chuvas: [],
