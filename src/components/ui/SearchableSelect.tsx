@@ -57,6 +57,17 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
         setSearch('');
     };
 
+    // Encontrar a opção selecionada para mostrar o label correto
+    const selectedOption = (Array.isArray(options) ? options : []).find((opt: any) => {
+        if (typeof opt === 'string') return opt === value;
+        // Compara com o valor atual (pode ser o ID ou o Label)
+        return opt.value === value || opt.nome === value || opt.label === value || opt.id === value;
+    });
+
+    const displayValue = selectedOption 
+        ? (typeof selectedOption === 'string' ? selectedOption : (selectedOption.label || selectedOption.nome || selectedOption.value || selectedOption.id))
+        : (value || placeholder || 'Selecione...');
+
     return (
         <div className="space-y-1 relative" ref={wrapperRef}>
             <p className="text-xs font-medium text-gray-600">{label} {required && <span className="text-red-500">*</span>}</p>
@@ -65,7 +76,7 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className={`text-sm ${!value ? 'text-gray-400' : 'text-gray-800'}`}>
-                    {value || placeholder || 'Selecione...'}
+                    {displayValue}
                 </span>
                 <ChevronDown className="w-4 h-4 text-gray-400"/>
             </div>
