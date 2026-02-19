@@ -280,7 +280,7 @@ export default function RefeicoesScreen() {
         <div className="p-3 border-b bg-gray-50">
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Refeições</h2>
             <div className="flex flex-col sm:flex-row gap-2">
-                <input type="date" value={filterData} onChange={e => setFilterData(e.target.value)} className="text-xs border rounded p-2 min-w-[140px]" />
+                <Input type="date" value={filterData} onChange={(e: any) => setFilterData(e.target.value)} className="text-xs border rounded p-2 min-w-[140px]" />
                 <div className="relative flex-1 min-w-[120px]">
                     <Search className="absolute left-2 top-2 w-4 h-4 text-gray-400"/>
                     <input type="text" placeholder="Filtrar..." value={filterText} onChange={e => setFilterText(e.target.value)} className="w-full pl-8 text-xs border rounded p-2" />

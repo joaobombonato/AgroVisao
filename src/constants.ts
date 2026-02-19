@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.11"; // History Date Fix & API Structure Check
+export const APP_VERSION = "v4.7.12"; // UI Fix Refeicoes History
 
 export const DADOS_INICIAIS = {
   chuvas: [],
