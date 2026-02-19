@@ -213,31 +213,22 @@ export function useAbastecimentoForm() {
     }
 
     const novo = {
-      ...form,
       data_operacao: form.data,
-      data: undefined,
+      maquina: form.maquina,
+      combustivel: form.combustivel,
       qtd: U.parseDecimal(litrosCalculados),
-      quantidade: U.parseDecimal(litrosCalculados), // Campo legado para compatibilidade
       media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo),
       custo: custoEstimado || 0,
       safra_id: ativos.parametros?.safraAtiva || null,
+      obs: form.obs,
+      centro_custo: form.centroCusto,
       
-      // Campos mapeados para snake_case (banco de dados atualizado)
+      // Campos mapeados para snake_case (banco de dados)
       bomba_inicial: U.parseDecimal(form.bombaInicial),
       bomba_final: U.parseDecimal(form.bombaFinal),
       horimetro_anterior: U.parseDecimal(form.horimetroAnterior),
       horimetro_atual: U.parseDecimal(form.horimetroAtual),
-      horimetro: U.parseDecimal(form.horimetroAtual), // Campo legado
       
-      centro_custo: form.centroCusto, // Agora existe no banco!
-      
-      // Remover campos camelCase temporários que não devem ir pro banco
-      bombaInicial: undefined,
-      bombaFinal: undefined,
-      horimetroAnterior: undefined,
-      horimetroAtual: undefined,
-      centroCusto: undefined,
-      tanqueCheio: undefined
       // id: REMOVIDO PARA GERAR UUID AUTOMÁTICO
     };
 
