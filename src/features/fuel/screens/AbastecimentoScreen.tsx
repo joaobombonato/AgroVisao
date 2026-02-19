@@ -98,10 +98,22 @@ export default function AbastecimentoScreen() {
           <SearchableSelect 
             label="Máquina / Veículo" 
             placeholder="Buscar o Maquinas... Ex: Trator" 
-            options={(ativos?.maquinas || []).map((m: any) => ({
-              ...m,
-              label: `${m.codigo || m.id || ''} - ${m.tipo || ''} ${m.marca || ''} ${m.modelo || ''} - ${m.potencia || ''} ${m.unidade_potencia || ''}`.replace(/\s+/g, ' ').trim() || m.nome // Fallback para nome se falhar
-            }))}
+            options={(ativos?.maquinas || []).map((m: any) => {
+              // Tentativa de construir um label rico, mas com falback seguro
+              const idVisual = m.codigo || m.nome || m.id; // Tenta Codigo, depois Nome (que geralmente é M01), depois ID
+              const detalhes = [m.marca, m.modelo, m.potencia ? `${m.potencia} ${m.unidade_potencia || 'CV'}` : null]
+                .filter(Boolean)
+                .join(' ');
+              
+              const labelCompleto = detalhes 
+                ? `${idVisual} - ${m.tipo || ''} ${detalhes}` 
+                : `${idVisual} - ${m.tipo || 'Máquina'}`;
+
+              return {
+                ...m,
+                label: labelCompleto.replace(/\s+/g, ' ').trim()
+              };
+            })}
             value={form.maquina} 
             onChange={handleMaquinaChange} 
             required

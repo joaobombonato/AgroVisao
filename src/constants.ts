@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.17"; // Fix Dropdown & Sync Logic
+export const APP_VERSION = "v4.7.18"; // Fix Label Formatting
 
 export const DADOS_INICIAIS = {
   chuvas: [],
