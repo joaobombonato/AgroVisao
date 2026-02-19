@@ -216,11 +216,11 @@ export function useAbastecimentoForm() {
       ...form,
       data_operacao: form.data,
       data: undefined,
-      qtd: U.parseDecimal(litrosCalculados), // Fix: Garantir número para evitar erro de sync
-      media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo), // Fix: Garantir número
-      custo: custoEstimado,
-      safra_id: ativos.parametros?.safraAtiva || null,
-      id: U.id('AB-')
+      qtd: U.parseDecimal(litrosCalculados),
+      media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo),
+      custo: custoEstimado || 0, // Fix: Evitar NaN ou null se preço base não estiver carregado
+      safra_id: ativos.parametros?.safraAtiva || null
+      // id: REMOVIDO PARA GERAR UUID AUTOMÁTICO (Evita erro fatal de sync)
     };
 
     // Detalhes da OS
@@ -228,7 +228,7 @@ export function useAbastecimentoForm() {
     const detalhesOS: any = {
       "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
       "Consumo": `${mediaConsumo} L/h (Média)`,
-      "Custo": `R$ ${U.formatValue(custoEstimado)}`,
+      "Custo": `R$ ${U.formatValue(custoEstimado || 0)}`,
       "Obs": form.obs || '-'
     };
 
@@ -258,7 +258,7 @@ export function useAbastecimentoForm() {
 
     // Criar OS de registro
     const novaOS = {
-      id: U.id('OS-'),
+      // id: REMOVIDO (UUID Automático)
       modulo: 'Abastecimento',
       descricao: descOS,
       detalhes: detalhesOS,
@@ -268,7 +268,7 @@ export function useAbastecimentoForm() {
 
     genericSave('os', novaOS, {
       type: ACTIONS.ADD_RECORD,
-      modulo: 'os',
+      modulo: 'os', // Nome da tabela no reducer/sync
       record: novaOS
     });
 
@@ -290,7 +290,7 @@ export function useAbastecimentoForm() {
         };
 
         const alertaOS = {
-          id: U.id('OS-ALERT-'),
+          // id: REMOVIDO (UUID)
           modulo: 'Estoque',
           descricao: alertaDesc,
           detalhes: alertaDetalhes,

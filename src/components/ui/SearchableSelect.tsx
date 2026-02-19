@@ -29,8 +29,24 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
     }, [wrapperRef]);
 
     const filteredOptions = (Array.isArray(options) ? options : []).filter((opt: any) => {
-        const text = typeof opt === 'string' ? opt : (opt.nome || opt.label || '');
-        return text.toLowerCase().includes(search.toLowerCase());
+        const searchText = search.toLowerCase();
+        
+        if (typeof opt === 'string') {
+            return opt.toLowerCase().includes(searchText);
+        }
+        
+        // Busca em múltiplos campos para garantir que "Trator" ou "Modelo" sejam encontrados
+        const label = (opt.label || '').toLowerCase();
+        const nome = (opt.nome || '').toLowerCase();
+        const descricao = (opt.descricao || '').toLowerCase();
+        const fabricante = (opt.fabricante || '').toLowerCase();
+        const value = (opt.value || '').toLowerCase();
+
+        return label.includes(searchText) || 
+               nome.includes(searchText) || 
+               descricao.includes(searchText) || 
+               fabricante.includes(searchText) ||
+               value.includes(searchText);
     });
 
     const handleSelect = (opt: any) => {
