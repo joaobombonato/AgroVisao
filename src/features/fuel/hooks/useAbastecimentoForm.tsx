@@ -59,7 +59,8 @@ export function useAbastecimentoForm() {
 
   // Handler ao mudar máquina
   const handleMaquinaChange = (e: any) => {
-    const maq = e.target.value;
+    // Fix: Se vier do SearchableSelect com label customizada, pegar o nome original do objeto data
+    const maq = e.target.data ? (e.target.data.nome || e.target.value) : e.target.value;
     const ultimo = buscarUltimaLeitura('abastecimentos', 'maquina', maq);
     
     const ccVinculado = (ativos.centros_custos || []).find((cc: any) =>

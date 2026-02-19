@@ -34,7 +34,7 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
     });
 
     const handleSelect = (opt: any) => {
-        const val = typeof opt === 'string' ? opt : (opt.nome || opt.label);
+        const val = typeof opt === 'string' ? opt : (opt.label || opt.nome);
         // Passa o valor string E o objeto completo (data)
         onChange({ target: { value: val, data: opt } });
         setIsOpen(false);
@@ -71,7 +71,7 @@ export function SearchableSelect({ label, value, onChange, options = [], placeho
                     </div>
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt: any, idx: number) => {
-                            const text = typeof opt === 'string' ? opt : (opt.nome || opt.label);
+                            const text = typeof opt === 'string' ? opt : (opt.label || opt.nome);
                             const isSelected = value === text;
                             return (
                                 <div 
