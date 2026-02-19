@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.12"; // UI Fix Refeicoes History
+export const APP_VERSION = "v4.7.13"; // Boleto Validations
 
 export const DADOS_INICIAIS = {
   chuvas: [],
