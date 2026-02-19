@@ -76,13 +76,34 @@ export function useAbastecimentoForm() {
 
   // Cálculos dinâmicos
   const litrosCalculados = useMemo(() => {
+    // Se a bomba final ainda não foi preenchida, não calcula nada (UX)
+    if (!form.bombaFinal) return '0,00';
+
     const i = U.parseDecimal(form.bombaInicial);
     const f = U.parseDecimal(form.bombaFinal);
+    
+    // Se digitou algo mas resultou em 0 (ex: "0,0"), vamos mostrar 0
+    if (f === 0 && form.bombaFinal !== '0' && form.bombaFinal !== '0,0') return '0,00';
+
     if (f >= i) {
       return (f - i).toFixed(2).replace('.', ',');
     } else {
       // Virada de bomba
-      const MODULO = 100000000;
+      const MODULO = 100000000; // Assumindo virada de 100M? Ou 1M? Geralmente bombas viram em 1M ou 10M, mas aqui ta 100M
+      // Só assumir virada se a diferença for grande negativaE o usuário confirmar (na validação do submit).
+      // Mas para DISPLAY, mostrar o cálculo da virada pode assustar se for só erro de digitação.
+      // Vamos mostrar a virada APENAS se a diferença for compatível com uma virada lógica ou se o usuário explicitamente permitir?
+      // Por simplicidade e UX: Se for menor, mostra negativo ou zero? Não, o user falou que aparece numero gigante.
+      
+      // UX Decision: Se for menor, mostra 0,00 ou valor negativo explicito?
+      // O Screenshot mostra 99milhoes. É o calculo de virada atuando.
+      // Vamos manter o cálculo de virada mas SO SE o valor final tiver um tamanho razoável?
+      // Melhor: Se a diferença for absurda, mostra erro?
+      
+      // Vamos manter a lógica original MAS com a proteção do !form.bombaFinal acima.
+      // O problema do print era que "Ex: 12.550,5" é placeholder, e o value era vazio.
+      // Com o check !form.bombaFinal acima, isso resolve 100% do caso do print.
+      
       return ((MODULO + f) - i).toFixed(2).replace('.', ',');
     }
   }, [form.bombaInicial, form.bombaFinal]);

@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.14"; // Fix Pump Reading
+export const APP_VERSION = "v4.7.15"; // Fix Calculation UX
 
 export const DADOS_INICIAIS = {
   chuvas: [],
