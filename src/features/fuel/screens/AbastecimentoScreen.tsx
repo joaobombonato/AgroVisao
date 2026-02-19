@@ -99,15 +99,17 @@ export default function AbastecimentoScreen() {
             label="Máquina / Veículo" 
             placeholder="Buscar o Maquinas... Ex: Trator" 
             options={(ativos?.maquinas || []).map((m: any) => {
-              // Tentativa de construir um label rico, mas com falback seguro
-              const idVisual = m.codigo || m.nome || m.id; // Tenta Codigo, depois Nome (que geralmente é M01), depois ID
-              const detalhes = [m.marca, m.modelo, m.potencia ? `${m.potencia} ${m.unidade_potencia || 'CV'}` : null]
-                .filter(Boolean)
-                .join(' ');
+              // Mapeamento baseado no assetsDefinitions.ts:
+              // nome = M01 (Código de Identificação)
+              // fabricante = Trator John Deere (Máquina e Fabricante)
+              // descricao = 7230J - 230 CV (Modelo / Potência)
+              
+              const codigo = m.nome || m.id;
+              const detalhes = [m.fabricante, m.descricao].filter(Boolean).join(' - ');
               
               const labelCompleto = detalhes 
-                ? `${idVisual} - ${m.tipo || ''} ${detalhes}` 
-                : `${idVisual} - ${m.tipo || 'Máquina'}`;
+                ? `${codigo} - ${detalhes}` 
+                : `${codigo}`;
 
               return {
                 ...m,

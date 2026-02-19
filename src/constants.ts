@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.18"; // Fix Label Formatting
+export const APP_VERSION = "v4.7.19"; // Fix Field Mapping
 
 export const DADOS_INICIAIS = {
   chuvas: [],
