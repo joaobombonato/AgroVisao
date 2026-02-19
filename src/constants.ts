@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.23"; // Final Sync Fix & DB Standard
+export const APP_VERSION = "v4.7.24"; // Complete DB Standardization & Sync Fix
 
 export const DADOS_INICIAIS = {
   chuvas: [],
