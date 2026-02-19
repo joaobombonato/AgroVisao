@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.20"; // Fix Sync Fatal & Search
+export const APP_VERSION = "v4.7.21"; // Fix Sync Payload (Snake Case)
 
 export const DADOS_INICIAIS = {
   chuvas: [],
