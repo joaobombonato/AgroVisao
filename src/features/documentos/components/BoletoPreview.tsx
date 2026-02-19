@@ -28,9 +28,10 @@ interface BoletoPreviewProps {
   data: BoletoData;
   onDataChange?: (updatedData: BoletoData & BoletoExtraFields) => void;
   isExporting?: boolean;
+  onValidationChange?: (isValid: boolean) => void;
 }
 
-export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ data, onDataChange, isExporting = false }, ref) => {
+export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ data, onDataChange, isExporting = false, onValidationChange }, ref) => {
   const { fazendaSelecionada } = useAppContext();
   const [copied, setCopied] = useState(false);
 
@@ -53,6 +54,13 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
        if (nome) setPagador(nome);
     }
   }, [fazendaSelecionada]);
+
+  // Validação: Beneficiário Obrigatório
+  useEffect(() => {
+    if (onValidationChange) {
+        onValidationChange(!!beneficiario || !!cnpjInput);
+    }
+  }, [beneficiario, cnpjInput, onValidationChange]);
 
   // Sync changes
   useEffect(() => {
@@ -186,7 +194,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                 <div className={`${cellContainer} h-auto min-h-[36px]`}>
                     <label className={cellLabel}>Beneficiário</label>
                     {beneficiario ? (
-                      <div className="text-[8px] font-bold text-gray-900 mt-0.5 leading-tight">
+                      <div className="text-[8px] font-bold text-red-600 mt-0.5 leading-tight">
                         {benefDisplay}
                       </div>
                     ) : (
@@ -196,12 +204,12 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                           value={cnpjInput}
                           onChange={e => setCnpjInput(e.target.value)}
                           placeholder="Digite o CNPJ do Beneficiário"
-                          className="text-[9px] text-gray-900 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-300 outline-none leading-tight flex-1"
+                          className="text-[9px] text-red-600 font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-red-300 outline-none leading-tight flex-1"
                         />
                         {cnpjLoading ? (
-                          <Loader2 className="w-3 h-3 text-indigo-500 animate-spin" />
+                          <Loader2 className="w-3 h-3 text-red-500 animate-spin" />
                         ) : (
-                          <button onClick={handleCnpjLookup} className="text-indigo-500 hover:text-indigo-700">
+                          <button onClick={handleCnpjLookup} className="text-red-500 hover:text-red-700">
                             <Search className="w-3 h-3" />
                           </button>
                         )}
@@ -258,7 +266,7 @@ export const BoletoPreview = forwardRef<HTMLDivElement, BoletoPreviewProps>(({ d
                             type="text" 
                             value={formatValorBR(valor)} 
                             onChange={e => setValor(e.target.value)} 
-                            className="text-[11px] bg-white border-none p-0 text-right font-black w-20 outline-none" 
+                            className="text-[11px] bg-white border-none p-0 text-right font-black w-20 outline-none text-red-700" 
                         />
                     </div>
                     {/* Display para exportação */}

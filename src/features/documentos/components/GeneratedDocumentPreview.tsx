@@ -1,5 +1,5 @@
-import { forwardRef } from 'react';
-import { Loader2, X, Download, Paperclip, ScrollText, Wallet } from 'lucide-react';
+import { forwardRef, useState } from 'react';
+import { Loader2, X, Download, Paperclip, ScrollText, Wallet, AlertCircle } from 'lucide-react';
 import { DanfePreview, type DanfeExtraFields } from './DanfePreview';
 import { BoletoPreview, type BoletoExtraFields } from './BoletoPreview';
 import type { ParsedBarcode, NFeData, BoletoData } from '../services/barcodeIntelligence';
@@ -25,6 +25,8 @@ export const GeneratedDocumentPreview = forwardRef<HTMLDivElement, GeneratedDocu
   onExport,
   exporting
 }, ref) => {
+  const [isValid, setIsValid] = useState(true);
+
   if (processingBarcode) {
     return (
       <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 flex flex-col items-center gap-3">
@@ -49,6 +51,14 @@ export const GeneratedDocumentPreview = forwardRef<HTMLDivElement, GeneratedDocu
         </button>
       </div>
       
+      {/* Validação Aviso */}
+      {!isValid && (
+         <div className="bg-red-50 border border-red-200 rounded-lg p-2 flex items-center gap-2 text-xs text-red-700 font-bold animate-in fade-in slide-in-from-top-1">
+             <AlertCircle className="w-4 h-4 text-red-600" />
+             Preencha o Beneficiário para continuar.
+         </div>
+      )}
+
       {/* Renderiza Preview */}
       {documentPreview.type === 'nfe' && (
         <DanfePreview ref={ref} data={documentPreview as NFeData} onDataChange={onDanfeDataChange} />
@@ -58,6 +68,7 @@ export const GeneratedDocumentPreview = forwardRef<HTMLDivElement, GeneratedDocu
             ref={ref} 
             data={documentPreview as BoletoData} 
             onDataChange={onBoletoDataChange}
+            onValidationChange={setIsValid}
         />
       )}
       
@@ -65,15 +76,24 @@ export const GeneratedDocumentPreview = forwardRef<HTMLDivElement, GeneratedDocu
       <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onDownload}
-            className="bg-gray-100 text-gray-700 py-3 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 hover:bg-gray-200 active:scale-[0.98] transition-all border border-gray-300"
+            disabled={!isValid}
+            className={`py-3 rounded-xl font-bold shadow-sm flex items-center justify-center gap-2 transition-all border ${
+                !isValid 
+                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:scale-[0.98] border-gray-300'
+            }`}
           >
             <Download className="w-5 h-5" /> Salvar (Baixar)
           </button>
 
           <button
             onClick={onExport}
-            disabled={exporting}
-            className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98] transition-all disabled:opacity-50"
+            disabled={exporting || !isValid}
+            className={`py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all ${
+                exporting || !isValid
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 active:scale-[0.98]'
+            }`}
           >
             {exporting ? (
               <><Loader2 className="w-5 h-5 animate-spin" /> Gerando...</>
