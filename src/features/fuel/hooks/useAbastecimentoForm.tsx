@@ -51,9 +51,11 @@ export function useAbastecimentoForm() {
   useEffect(() => {
     if (typeof buscarUltimaLeitura === 'function') {
       const ultimaBomba = buscarUltimaLeitura('abastecimentos', 'bombaFinal', '*');
-      setForm(prev => ({ ...prev, bombaInicial: ultimaBomba ? ultimaBomba.bombaFinal : '0' }));
+      // Fix: Se não houver histórico, usar o parâmetro "Bomba Inicial" configurado
+      const paramBombaInicial = ativos?.parametros?.estoque?.bombaInicial || '0';
+      setForm(prev => ({ ...prev, bombaInicial: ultimaBomba ? ultimaBomba.bombaFinal : paramBombaInicial }));
     }
-  }, [dados?.abastecimentos, buscarUltimaLeitura]);
+  }, [dados?.abastecimentos, buscarUltimaLeitura, ativos?.parametros]);
 
   // Handler ao mudar máquina
   const handleMaquinaChange = (e: any) => {
