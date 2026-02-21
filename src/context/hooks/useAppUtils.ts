@@ -25,8 +25,33 @@ export function useAppUtils({ state }: UseAppUtilsParams) {
   // Busca última leitura de um módulo
   const buscarUltimaLeitura = useCallback((modulo: string, filtroChave: string, filtroValor: string) => {
     const lista = state.dados[modulo] || [];
-    const listaFiltrada = lista.filter((item: any) => filtroValor === '*' || item[filtroChave] === filtroValor).sort((a: any, b: any) => b.id - a.id);
-    if (listaFiltrada[0]) return listaFiltrada[0];
+    
+    // Suporte a mapeamento CamelCase -> SnakeCase para busca
+    const chaveSnake = filtroChave.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+    
+    const listaFiltrada = lista.filter((item: any) => {
+      if (filtroValor === '*') return true;
+      return item[filtroChave] === filtroValor || item[chaveSnake] === filtroValor;
+    });
+
+    // Ordenação mais robusta (IDs numéricos decrescentes ou ordem de inserção inversa)
+    // Como agora usamos UUIDs em alguns casos, vamos tentar ordernar por created_at ou id string
+    const ordenado = [...listaFiltrada].sort((a: any, b: any) => {
+       const valA = a.created_at || a.id || '';
+       const valB = b.created_at || b.id || '';
+       return String(valB).localeCompare(String(valA));
+    });
+
+    const resultado = ordenado[0];
+    if (resultado) {
+      // Normaliza o retorno para garantir que campos camelCase existam (compatibilidade com hooks)
+      return {
+        ...resultado,
+        bombaFinal: resultado.bomba_final || resultado.bombaFinal,
+        horimetroAtual: resultado.horimetro_atual || resultado.horimetroAtual
+      };
+    }
+
     if ((modulo === 'abastecimentos' || modulo === 'manutencoes') && filtroChave === 'maquina') {
       const maq = (state.dbAssets.maquinas || []).find((m: any) => m.nome === filtroValor);
       if (maq && maq.horimetro_inicial) return { horimetroAtual: maq.horimetro_inicial, bombaFinal: '0' };

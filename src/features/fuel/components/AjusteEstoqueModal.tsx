@@ -37,6 +37,7 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
             bombaFinal: 0,
             horimetroAtual: 0,
             qtd: ajusteForm.qtd,
+            litros: U.parseDecimal(ajusteForm.qtd), // Campo obrigatório no banco (SaaS)
             media: 0,
             custo: 0,
             id: U.id('AJUSTE-'),

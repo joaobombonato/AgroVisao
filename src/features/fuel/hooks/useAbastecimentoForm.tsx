@@ -217,6 +217,7 @@ export function useAbastecimentoForm() {
       maquina: form.maquina,
       combustivel: form.combustivel,
       qtd: U.parseDecimal(litrosCalculados),
+      litros: U.parseDecimal(litrosCalculados), // Campo obrigatório no banco (SaaS)
       media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo),
       custo: custoEstimado || 0,
       safra_id: ativos.parametros?.safraAtiva || null,
@@ -228,6 +229,7 @@ export function useAbastecimentoForm() {
       bomba_final: U.parseDecimal(form.bombaFinal),
       horimetro_anterior: U.parseDecimal(form.horimetroAnterior),
       horimetro_atual: U.parseDecimal(form.horimetroAtual),
+      estoque_final: estoqueAtual - U.parseDecimal(litrosCalculados), // Salva o saldo projetado
       
       // id: REMOVIDO PARA GERAR UUID AUTOMÁTICO
     };
@@ -271,8 +273,8 @@ export function useAbastecimentoForm() {
       modulo: 'Abastecimento',
       descricao: descOS,
       detalhes: detalhesOS,
-      status: 'Concluída',
-      data_abertura: new Date().toISOString()
+      status: 'Pendente',
+      data_abertura: form.data
       // created_at / updated_at: REMOVIDOS (O Supabase gerencia automaticamente)
     };
 

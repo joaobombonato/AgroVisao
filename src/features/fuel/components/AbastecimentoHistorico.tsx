@@ -30,12 +30,35 @@ export function AbastecimentoHistorico() {
     }); 
   };
 
-  const listFilter = useMemo(() => (dados.abastecimentos || []).filter((i:any) => {
-    const txt = filterText.toLowerCase();
-    const matchText = i.maquina.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt);
-    const matchData = !filterData || (i.data_operacao || i.data) === filterData;
-    return matchText && matchData;
-  }).reverse(), [dados.abastecimentos, filterData, filterText]);
+  const listFilter = useMemo(() => {
+    const lista = (dados.abastecimentos || []).filter((i: any) => {
+      const txt = filterText.toLowerCase();
+      const matchText = i.maquina.toLowerCase().includes(txt) || i.id.toLowerCase().includes(txt);
+      const matchData = !filterData || (i.data_operacao || i.data) === filterData;
+      return matchText && matchData;
+    });
+
+    // Deduplicação por ID/Conteúdo e Ordenação por Bomba (Real)
+    return [...lista]
+      .sort((a, b) => {
+        const da = a.data_operacao || a.data || '';
+        const db = b.data_operacao || b.data || '';
+        if (db !== da) return db.localeCompare(da);
+
+        // Tie-breaker pela Bomba
+        const ba = U.parseDecimal(a.bomba_final || a.bombaFinal || 0);
+        const bb = U.parseDecimal(b.bomba_final || b.bombaFinal || 0);
+        if (bb !== ba) return bb - ba;
+
+        return String(b.id || '').localeCompare(String(a.id || ''));
+      })
+      .filter((v, i, arr) => 
+        arr.findIndex(t => 
+           t.id === v.id || 
+           (t.maquina === v.maquina && (t.bomba_final || t.bombaFinal) === (v.bomba_final || v.bombaFinal))
+        ) === i
+      );
+  }, [dados.abastecimentos, filterData, filterText]);
 
   return (
     <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
@@ -70,7 +93,7 @@ export function AbastecimentoHistorico() {
                 <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Máquina</th>
                 <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Lts</th>
                 <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Méd</th>
-                <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Final</th>
+                <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Bomba Final</th>
                 <th className="px-2 py-2 text-center text-xs font-bold text-gray-500">Ações</th>
               </tr>
             </thead>
@@ -82,16 +105,27 @@ export function AbastecimentoHistorico() {
                   </td>
                   <td className="px-2 py-2 text-center text-gray-700 text-xs">
                     <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">{item.maquina}</div>
-                    <div className="text-[9px] text-gray-400">Km: {item.horimetro_atual || item.horimetro}</div>
+                    <div className="text-[9px] text-gray-400">
+                      {(() => {
+                        const maq = (dados?.maquinas || []).find((m: any) => m.nome === item.maquina);
+                        const tipo = (maq?.tipo || '').toLowerCase();
+                        const isKm = tipo.includes('caminhão') || tipo.includes('veículo') || tipo.includes('carro') || tipo.includes('moto');
+                        return isKm ? 'Km' : 'Hrs';
+                      })()}: {item.horimetro_atual || item.horimetro}
+                    </div>
                   </td>
                   <td className="px-2 py-2 text-center">
-                    <div className="font-bold text-red-600 text-xs">{item.quantidade || item.qtd}</div>
+                    <div className="font-bold text-red-600 text-xs">{item.litros || item.quantidade || item.qtd}</div>
                   </td>
                   <td className="px-2 py-2 text-center text-xs font-bold text-gray-700">
-                    {item.media || '-'}
+                    {U.formatMedia(item.media || 0)}
                   </td>
                   <td className="px-2 py-2 text-center text-xs text-gray-700">
-                    {(item as any).bomba_final || (item as any).bombaFinal || '-'}
+                    {(() => {
+                        const val = (item as any).bomba_final || (item as any).bombaFinal || 0;
+                        const n = U.parseDecimal(val);
+                        return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); // Sem decimais para bomba no histórico
+                    })()}
                   </td>
                   <td className="px-2 py-2 text-center">
                     <div className="flex justify-center">

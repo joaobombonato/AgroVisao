@@ -317,6 +317,47 @@ export default function DocumentosScreen() {
         </form>
       </div>
 
+      {/* LANÇAMENTOS RECENTES (Últimos 5) */}
+      <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+        <h2 className="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center gap-1">
+          <Check className="w-3 h-3 text-purple-500"/> Últimos 5 Documentos
+        </h2>
+        {(() => {
+          const recentes = [...(dados?.documentos || [])]
+            .sort((a, b) => {
+              const da = a.data || '';
+              const db = b.data || '';
+              if (db !== da) return db.localeCompare(da);
+              return String(b.id || '').localeCompare(String(a.id || ''));
+            })
+            .filter((v, i, arr) => {
+               return arr.findIndex(t => 
+                  t.id === v.id || 
+                  (t.nome === v.nome && t.tipo === v.tipo && t.data === v.data)
+               ) === i;
+            })
+            .slice(0, 5);
+
+          if (recentes.length === 0) return <p className="text-xs text-gray-400 italic">Nenhum registro recente.</p>;
+          return (
+            <div className="space-y-2">
+              {recentes.map((r: any) => (
+                <div key={r.id} className="text-xs flex justify-between items-center py-2 border-b last:border-0 border-gray-100">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800">{r.nome}</span>
+                    <span className="text-[10px] text-gray-400">{U.formatDate(r.data)}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-bold text-purple-600">{r.tipo}</span>
+                    <span className="text-[10px] text-gray-400">{r.remetente}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       {/* 5. Lista de Documentos */}
       <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
         <div className="p-3 border-b bg-gray-50">

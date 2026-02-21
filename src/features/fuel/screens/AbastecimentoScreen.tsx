@@ -16,7 +16,7 @@ import { useAbastecimentoForm } from '../hooks/useAbastecimentoForm';
 // TELA PRINCIPAL: ABASTECIMENTO
 // ==========================================
 export default function AbastecimentoScreen() {
-  const { state, setTela, ativos } = useAppContext();
+  const { state, setTela, ativos, dados } = useAppContext();
   const { userRole, permissions } = state;
   const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
   
@@ -241,6 +241,64 @@ export default function AbastecimentoScreen() {
             <Check className="w-5 h-5"/> Confirmar Abastecimento
           </button>
         </form>
+      </div>
+
+      {/* LANÇAMENTOS RECENTES (Últimos 5) */}
+      <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+        <h2 className="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center gap-1">
+          <Check className="w-3 h-3 text-green-500"/> Últimos 5 Abastecimentos
+        </h2>
+        {(() => {
+          const recentes = [...(dados?.abastecimentos || [])]
+            .sort((a, b) => {
+              // 1. Tentar Ordem Absoluta por Leitura da Bomba (Independente da data digitada)
+              const ba = U.parseDecimal(a.bomba_final || a.bombaFinal || 0);
+              const bb = U.parseDecimal(b.bomba_final || b.bombaFinal || 0);
+              if (ba > 0 && bb > 0 && bb !== ba) return bb - ba;
+
+              // 2. Fallback para Data se bomba for 0 ou igual
+              const da = a.data_operacao || a.data || '';
+              const db = b.data_operacao || b.data || '';
+              if (db !== da) return db.localeCompare(da);
+              
+              return String(b.id || '').localeCompare(String(a.id || ''));
+            })
+            .filter((v, i, arr) => {
+               const idV = v.id;
+               const pumpV = U.parseDecimal(v.bomba_final || v.bombaFinal || 0);
+               return arr.findIndex(t => 
+                  t.id === idV || 
+                  (t.maquina === v.maquina && U.parseDecimal(t.bomba_final || t.bombaFinal || 0) === pumpV && pumpV > 0)
+               ) === i;
+            })
+            .slice(0, 5);
+
+          if (recentes.length === 0) return <p className="text-xs text-gray-400 italic">Nenhum registro recente.</p>;
+          return (
+            <div className="space-y-2">
+              {recentes.map((r: any) => (
+                <div key={r.id} className="text-xs flex justify-between items-center py-2 border-b last:border-0 border-gray-100">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800">{r.maquina}</span>
+                    <span className="text-[10px] text-gray-400">{U.formatDate(r.data_operacao || r.data)}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-bold text-red-600">{r.litros || r.quantidade || r.qtd} L</span>
+                    <span className="text-[10px] text-gray-500 font-medium">Méd: {U.formatMedia(r.media)}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {(() => {
+                        const m = (ativos?.maquinas || []).find((maq: any) => maq.nome === r.maquina);
+                        const t = (m?.tipo || '').toLowerCase();
+                        const isKm = t.includes('caminhão') || t.includes('veículo') || t.includes('carro') || t.includes('moto');
+                        return isKm ? 'Km' : 'Hrs';
+                      })()}: {r.horimetro_atual || r.horimetro}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* HISTÓRICO (COMPONENTE) */}
