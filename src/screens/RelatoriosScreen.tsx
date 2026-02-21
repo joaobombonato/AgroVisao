@@ -51,7 +51,8 @@ export default function RelatoriosScreen() {
     try {
       const { dados, ativos } = state;
       const fNome = fazendaSelecionada?.nome || state.fazendaNome || 'Fazenda';
-      const logo = ativos?.parametros?.logoBase64 || '';
+      // Busca logo do banco (coluna direta) ou do config (fallback legado)
+      const logo = fazendaSelecionada?.logo_base64 || fazendaSelecionada?.config?.logo_base64 || '';
       
       const periodStr = `Período: ${U.formatDate(dateStart)} até ${U.formatDate(dateEnd)}`;
       
