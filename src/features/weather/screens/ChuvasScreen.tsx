@@ -170,6 +170,47 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
             </div>
           )}
 
+          {/* LANÇAMENTOS RECENTES (Últimos 5) */}
+          <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+            <h2 className="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center gap-1">
+              <Check className="w-3 h-3 text-cyan-500"/> Últimas 5 Chuvas
+            </h2>
+            {(() => {
+              const recentes = [...(dados?.chuvas || [])]
+                .sort((a, b) => {
+                  const da = a.data || '';
+                  const db = b.data || '';
+                  if (db !== da) return db.localeCompare(da);
+                  return String(b.id || '').localeCompare(String(a.id || ''));
+                })
+                .filter((v, i, arr) => {
+                   return arr.findIndex(t => 
+                      t.id === v.id || 
+                      (t.fazenda === v.fazenda && t.quantidade === v.quantidade && t.data === v.data)
+                   ) === i;
+                })
+                .slice(0, 5);
+
+              if (recentes.length === 0) return <p className="text-xs text-gray-400 italic">Nenhum registro recente.</p>;
+              return (
+                <div className="space-y-2">
+                  {recentes.map((r: any) => (
+                    <div key={r.id} className="text-xs flex justify-between items-center py-2 border-b last:border-0 border-gray-100">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-gray-800">{r.posto || 'Geral'}</span>
+                        <span className="text-[10px] text-gray-400">{U.formatDate(r.data)}</span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="font-bold text-cyan-600">{r.milimetros} mm</span>
+                        <span className="text-[10px] text-gray-400">ID: {r.id.split('-').pop()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
           <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
             <div className="p-3 border-b bg-gray-50">
                 <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Chuvas</h2>

@@ -1,4 +1,5 @@
 import { differenceInMonths, isAfter, isFuture, parseISO, startOfDay, subMonths } from 'date-fns';
+import { APP_VERSION } from './constants';
 
 export const U = {
   todayIso: () => new Date().toISOString().split('T')[0],
@@ -6,19 +7,67 @@ export const U = {
   parseDecimal: (v: any) => {
     if (v === null || v === undefined || v === '') return 0;
     if (typeof v === 'number') return v;
-    // Remove pontos de milhar e troca vírgula por ponto
-    const s = String(v).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-    const n = parseFloat(s);
-    return Number.isFinite(n) ? n : 0;
+    let s = String(v).trim();
+    
+    // Heurística Progressiva:
+    // 1. Se tem múltiplos separadores (pontos ou vírgulas), remove todos exceto o último se houver vírgula.
+    // 2. No contexto deste App: 
+    //    - "1.464,00" -> Milhar e Decimal PT-BR
+    //    - "173.622"  -> Se termina em 3 dígitos e NÃO tem vírgula, tratamos como MILHAR (contexto agro/bomba)
+    //    - "14.64"    -> Se termina em 2 dígitos e NÃO tem vírgula, tratamos como DECIMAL (JS/Americano)
+    
+    const hasComma = s.includes(',');
+    const dots = (s.match(/\./g) || []).length;
+    
+    if (hasComma) {
+      // Padrão PT-BR clássico: 1.500,50 -> 1500.50
+      return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+    }
+
+    if (dots > 0) {
+      const parts = s.split('.');
+      const lastPart = parts[parts.length - 1];
+      
+      // Se tiver mais de um ponto (ex: 1.200.300), é milhar
+      if (dots > 1) return parseFloat(s.replace(/\./g, '')) || 0;
+      
+      // Se tiver um único ponto:
+      // Se a última parte tiver exatamente 3 dígitos, tratamos como MILHAR (ex: 173.622)
+      // Se tiver 1 ou 2 dígitos (ou > 3), tratamos como DECIMAL (ex: 14.64)
+      if (lastPart.length === 3) {
+        return parseFloat(s.replace(/\./g, '')) || 0;
+      }
+      return parseFloat(s) || 0;
+    }
+
+    return parseFloat(s) || 0;
   },
   formatValue: (v: any) => {
-    if (typeof v === 'string' && v.includes(',')) return v; // Já está formatado
+    if (typeof v === 'string' && v.includes(',')) return v; 
     const n = typeof v === 'number' ? v : U.parseDecimal(v);
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  },
+  // Formata especificamente médias de consumo para evitar confusão de milhar
+  formatMedia: (v: any) => {
+    let n = typeof v === 'number' ? v : U.parseDecimal(v);
+    if (!n || n <= 0) return '-';
+    
+    // Se o número for absurdamente grande para uma média (> 500), 
+    // possivelmente foi salvo errado devido ao bug do ponto (ex: 1464 em vez de 14.64)
+    if (n > 500 && n % 1 === 0) { 
+        n = n / 100; // Tentativa de recuperação de dados corrompidos
+    }
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   },
   formatInt: (v: any) => {
     const n = typeof v === 'number' ? v : U.parseDecimal(v);
     return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  },
+  formatHorimetro: (v: any) => {
+    // Para horímetros/odômetros, usamos apenas 1 casa decimal conforme pedido (ex: 5.125,7)
+    // Sem a lógica de recuperação de média para não distorcer dados reais
+    const n = typeof v === 'number' ? v : U.parseDecimal(v);
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   },
   formatDate: (iso: string) => {
     if (!iso) return '';
@@ -60,6 +109,9 @@ export const U = {
     if (m.includes("failed to fetch")) return "Falha na conexão. Verifique sua internet.";
 
     return msg;
+  },
+  getAppVersion: () => {
+    return APP_VERSION;
   }
 };
 

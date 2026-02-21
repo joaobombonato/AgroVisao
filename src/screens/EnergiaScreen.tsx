@@ -274,6 +274,54 @@ export default function EnergiaScreen() {
         </form>
       </div>
 
+      {/* LANÇAMENTOS RECENTES (Últimos 5) */}
+      <div className="bg-white rounded-lg border-2 p-4 shadow-sm">
+        <h2 className="text-xs font-bold text-gray-500 mb-3 uppercase flex items-center gap-1">
+          <Check className="w-3 h-3 text-yellow-500"/> Últimas 5 Leituras
+        </h2>
+        {(() => {
+          const recentes = [...(dados?.energia || [])]
+            .sort((a, b) => {
+              // 1. Ordem Absoluta pela Leitura (Se houver)
+              const va = U.parseDecimal(a.leitura_atual || a.leituraAtual || 0);
+              const vb = U.parseDecimal(b.leitura_atual || b.leituraAtual || 0);
+              if (va > 0 && vb > 0 && vb !== va) return vb - va;
+
+              // 2. Fallback por data
+              const da = a.data_leitura || a.data || '';
+              const db = b.data_leitura || b.data || '';
+              if (db !== da) return db.localeCompare(da);
+
+              return String(b.id || '').localeCompare(String(a.id || ''));
+            })
+            .filter((v, i, arr) => {
+               return arr.findIndex(t => 
+                  t.id === v.id || 
+                  (t.medidor === v.medidor && (t.leitura_atual || t.leituraAtual) === (v.leitura_atual || v.leituraAtual) && (t.data_leitura || t.data) === (v.data_leitura || v.data))
+               ) === i;
+            })
+            .slice(0, 5);
+
+          if (recentes.length === 0) return <p className="text-xs text-gray-400 italic">Nenhum registro recente.</p>;
+          return (
+            <div className="space-y-2">
+              {recentes.map((r: any) => (
+                <div key={r.id} className="text-xs flex justify-between items-center py-2 border-b last:border-0 border-gray-100">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800 truncate max-w-[120px]">{r.ponto}</span>
+                    <span className="text-[10px] text-gray-400">{U.formatDate(r.data_leitura || r.data)}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className="font-bold text-yellow-600">{r.leitura_atual || r.leitura} kWh</span>
+                    <span className="text-[10px] text-gray-400">Medidor: {r.medidor}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+      </div>
+
       <div className="bg-white rounded-lg border-2 overflow-hidden shadow-sm">
         <div className="p-3 border-b bg-gray-50">
             <h2 className="font-bold text-sm uppercase text-gray-600 mb-2">Histórico de Energia</h2>
