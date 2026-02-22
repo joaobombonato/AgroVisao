@@ -1,10 +1,10 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
-import { U } from '../utils';
-import { APP_VERSION } from '../constants';
-import { PRATICO_LOGO_B64 } from '../assets/praticoBase64';
-import { AGROVISAO_LOGO_B64 } from '../assets/agrovisaoBase64';
+import { U } from '../../../utils';
+import { APP_VERSION } from '../../../constants';
+import { PRATICO_LOGO_B64 } from '../../../assets/praticoBase64';
+import { AGROVISAO_LOGO_B64 } from '../../../assets/agrovisaoBase64';
 
 interface ExportOptions {
   filename: string;

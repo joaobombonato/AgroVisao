@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { FileText, Download, Filter, Search, Table, FileSpreadsheet, File as FilePdf, ChevronRight, Fuel, Utensils, CloudRain, Package } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
-import { PageHeader } from '../components/ui/Shared';
+import { useAppContext } from '../../../context/AppContext';
+import { PageHeader } from '../../../components/ui/Shared';
 import { toast } from 'react-hot-toast';
-import { exportService } from '../services';
-import { U } from '../utils';
+import { exportService } from '../services/exportService';
+import { U } from '../../../utils';
 import ReportColumnsModal from '../components/ReportColumnsModal';
 
 export default function RelatoriosScreen() {
