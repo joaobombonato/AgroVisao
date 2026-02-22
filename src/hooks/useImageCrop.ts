@@ -26,7 +26,7 @@ interface UseImageCropReturn {
   setZoom: (zoom: number) => void;
   setOffset: (offsetX: number, offsetY: number) => void;
   resetAdjustment: () => void;
-  applyAdjustment: (outputSize?: number) => string | null;
+  applyAdjustment: (outputSize?: number, aspectRatio?: number) => string | null;
   setIsAdjusting: (v: boolean) => void;
   // Drag handlers
   onStartDrag: (e: React.MouseEvent | React.TouchEvent) => void;
@@ -41,7 +41,7 @@ const INITIAL_CONFIG: ImageAdjustConfig = {
   rawImage: ''
 };
 
-export function useImageCrop(maxFileSizeMB = 2, uiSize = 176): UseImageCropReturn {
+export function useImageCrop(maxFileSizeMB = 2, uiSize = 176, aspectRatio = 1): UseImageCropReturn {
   const [config, setConfig] = useState<ImageAdjustConfig>(INITIAL_CONFIG);
   const [isAdjusting, setIsAdjusting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -101,7 +101,7 @@ export function useImageCrop(maxFileSizeMB = 2, uiSize = 176): UseImageCropRetur
   }, [config.rawImage, uiSize]);
 
   // Apply adjustment and return base64
-  const applyAdjustment = useCallback((outputSize = 400): string | null => {
+  const applyAdjustment = useCallback((outputSize = 400, customAspectRatio?: number): string | null => {
     const canvas = canvasRef.current;
     if (!canvas || !config.rawImage) return null;
 
@@ -111,22 +111,28 @@ export function useImageCrop(maxFileSizeMB = 2, uiSize = 176): UseImageCropRetur
     const img = new Image();
     img.src = config.rawImage;
     
+    // Calcula altura baseada no aspect ratio (default do hook ou customizado no momento da aplicação)
+    const activeRatio = customAspectRatio || aspectRatio;
+    
     // Synchronous drawing
     canvas.width = outputSize;
-    canvas.height = outputSize;
+    canvas.height = outputSize / activeRatio;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Removido preenchimento branco forçado para suportar transparência em PNGs
 
     const ratio = outputSize / uiSize;
     const drawW = img.width * config.zoom * ratio;
     const drawH = img.height * config.zoom * ratio;
-    const startX = (outputSize - drawW) / 2 + (config.offsetX * ratio);
-    const startY = (outputSize - drawH) / 2 + (config.offsetY * ratio);
+    
+    // Centralização baseada no novo canvas retangular
+    const startX = (canvas.width - drawW) / 2 + (config.offsetX * ratio);
+    const startY = (canvas.height - drawH) / 2 + (config.offsetY * ratio);
 
     ctx.drawImage(img, startX, startY, drawW, drawH);
 
-    const adjustedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+    // Usa PNG para manter transparência, ou JPEG se o usuário preferir (padrão PNG para logos)
+    const adjustedBase64 = canvas.toDataURL('image/png');
     
     if (adjustedBase64.length > 250 * 1024) {
       toast.error("A imagem ficou muito pesada. Tente reduzir o zoom.");

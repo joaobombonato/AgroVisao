@@ -19,6 +19,7 @@ interface LogoAdjustModalProps {
     onMoveDrag: (e: any) => void;
     onEndDrag: () => void;
     canvasRef: React.RefObject<HTMLCanvasElement>;
+    aspectRatio?: number;
 }
 
 export function LogoAdjustModal({
@@ -31,7 +32,8 @@ export function LogoAdjustModal({
     onStartDrag,
     onMoveDrag,
     onEndDrag,
-    canvasRef
+    canvasRef,
+    aspectRatio = 1
 }: LogoAdjustModalProps) {
     if (!isOpen) return null;
 
@@ -47,7 +49,7 @@ export function LogoAdjustModal({
 
                 <div className="flex-1 overflow-y-auto p-5 flex flex-col items-center gap-5">
                     <div
-                        className="w-44 h-44 shrink-0 rounded-full border-4 border-dashed border-green-500 relative overflow-hidden bg-gray-100 flex items-center justify-center shadow-inner cursor-move select-none"
+                        className={`shrink-0 border-4 border-dashed border-green-500 relative overflow-hidden bg-gray-100 flex items-center justify-center shadow-inner cursor-move select-none ${aspectRatio === 1 ? 'w-44 h-44 rounded-full' : 'w-64 h-32 rounded-3xl'}`}
                         onMouseDown={onStartDrag}
                         onMouseMove={onMoveDrag}
                         onMouseUp={onEndDrag}
@@ -83,7 +85,7 @@ export function LogoAdjustModal({
                             <input
                                 type="range"
                                 min="0.1"
-                                max="1.5"
+                                max="10"
                                 step="0.01"
                                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                                 value={adjustConfig.zoom}

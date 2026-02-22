@@ -60,6 +60,7 @@ export default function RelatoriosScreen() {
       let data: any[][] = [];
       let rawData: any[] = [];
       let filename = titulo.replace(/\s+/g, '_');
+      let summaryData: { totalsRow?: any[]; machineSummary?: { maquina: string; litros: number; custo: number; horasKm: number; isKM: boolean }[] } | undefined;
 
       // Coleta e Tratamento de Dados por Tipo
       if (relId === 'custo_abast') {
@@ -171,22 +172,90 @@ export default function RelatoriosScreen() {
           const suffix = isKM ? ' KM/L' : ' L/HR';
           const formattedMedia = U.formatMedia(r.media);
           
+          // Unifica Máquina + Marca + Modelo em uma coluna só
+          const brand = maq?.fabricante || '';
+          const model = maq?.descricao || '';
+          const maqFull = maq ? `${r.maquina} - ${brand} ${model}`.trim() : (r.maquina || 'Desconhecida');
+          
           return {
             'Data': U.formatDate(r.data_operacao || r.data),
-            'Bomba Inicial': U.parseDecimal(r.bomba_inicial || r.bombaInicial || 0),
-            'Bomba Final': U.parseDecimal(r.bomba_final || r.bombaFinal || 0),
-            'Saldo Estoque': U.parseDecimal(r.saldoCalculado),
-            'Máquina': r.maquina,
-            'Identificação': maq?.identificacao || '',
-            'Marca': maq?.fabricante || '',
-            'Modelo': maq?.descricao || '',
-            'Litros': U.parseDecimal(r.litros || r.qtd),
-            'KM/H Inicial': U.parseDecimal(r.horimetro_anterior || r.horimetroAnterior || 0),
-            'KM/H Final': U.parseDecimal(r.horimetro_atual || r.horimetroAtual || 0),
+            'Bomba Inicial': U.formatHorimetro(r.bomba_inicial || r.bombaInicial || 0),
+            'Bomba Final': U.formatHorimetro(r.bomba_final || r.bombaFinal || 0),
+            'Saldo Estoque': U.formatHorimetro(r.saldoCalculado),
+            'Máquina (Marca/Modelo)': maqFull,
+            'Litros': U.formatHorimetro(r.litros || r.qtd),
+            'KM/H Inicial': U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
+            'KM/H Final': U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
             'Média': formattedMedia === '-' ? '-' : `${formattedMedia}${suffix}`,
-            'Custo R$': U.parseDecimal(r.custo || 0)
+            'Custo R$': `R$ ${U.formatValue(U.parseDecimal(r.custo || 0))}`
           };
         });
+
+        // === CÁLCULO DOS TOTAIS ===
+        // Dias = diferença entre data final e data inicial do período selecionado
+        const dStart = new Date(dateStart + 'T00:00:00');
+        const dEnd = new Date(dateEnd + 'T00:00:00');
+        const diffMs = dEnd.getTime() - dStart.getTime();
+        const totalDias = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1); // +1 para incluir ambos os dias
+        
+        const totalLitros = registros.reduce((s: number, r: any) => s + U.parseDecimal(r.litros || r.qtd || 0), 0);
+        const totalCusto = registros.reduce((s: number, r: any) => s + U.parseDecimal(r.custo || 0), 0);
+
+        // Linha de totais (10 colunas, mesma posição das colunas da tabela)
+        const totalsRow = [
+          `${totalDias} dias`,  // Data
+          '', // Bomba Inicial
+          '', // Bomba Final
+          '', // Estoque Final
+          'TOTAIS',  // Máquina
+          `${U.formatHorimetro(totalLitros)} Litros`, // Litros
+          '', // Início KM/H (vazio aqui)
+          '', // Final KM/H
+          '', // Média  
+          `R$ ${U.formatValue(totalCusto)}` // Custo
+        ];
+
+        // === RESUMO POR MÁQUINA ===
+        const maquinaMap: Record<string, { litros: number; custo: number; horimInicial: number; horimFinal: number; isKM: boolean }> = {};
+        registros.forEach((r: any) => {
+          const maq = maquinas.find((m: any) => m.nome === r.maquina || m.identificacao === r.maquina);
+          const brand = maq?.fabricante || '';
+          const model = maq?.descricao || '';
+          const maqFull = maq ? `${r.maquina} - ${brand} ${model}`.trim() : (r.maquina || 'Desconhecida');
+          
+          const horimAnt = U.parseDecimal(r.horimetro_anterior || r.horimetroAnterior || 0);
+          const horimAtu = U.parseDecimal(r.horimetro_atual || r.horimetroAtual || 0);
+          const isKM = maq?.unidade_medida?.toLowerCase().includes('km') || false;
+
+          if (!maquinaMap[maqFull]) {
+            maquinaMap[maqFull] = { litros: 0, custo: 0, horimInicial: horimAnt || Infinity, horimFinal: 0, isKM };
+          }
+          maquinaMap[maqFull].litros += U.parseDecimal(r.litros || r.qtd || 0);
+          maquinaMap[maqFull].custo += U.parseDecimal(r.custo || 0);
+          // Pega o menor horímetro como "inicial" e o maior como "final"
+          if (horimAnt > 0 && horimAnt < maquinaMap[maqFull].horimInicial) {
+            maquinaMap[maqFull].horimInicial = horimAnt;
+          }
+          if (horimAtu > maquinaMap[maqFull].horimFinal) {
+            maquinaMap[maqFull].horimFinal = horimAtu;
+          }
+        });
+
+        // Ordena por maior consumo
+        const machineSummary = Object.entries(maquinaMap)
+          .map(([maquina, vals]) => ({
+            maquina,
+            litros: vals.litros,
+            custo: vals.custo,
+            horasKm: vals.horimFinal > 0 && vals.horimInicial < Infinity 
+              ? vals.horimFinal - vals.horimInicial 
+              : 0,
+            isKM: vals.isKM
+          }))
+          .sort((a, b) => b.litros - a.litros);
+
+        // Armazena os dados de resumo
+        summaryData = { totalsRow, machineSummary };
       } 
       else if (relId === 'fat_refeicoes') {
         const registros = dados.refeicoes || [];
@@ -232,6 +301,7 @@ export default function RelatoriosScreen() {
         farmName: fNome,
         subtitle: periodStr,
         logo: logo,
+        summaryData: summaryData,
         columnStyles: relId === 'custo_abast' ? {
           1: { cellWidth: 17 }, // Bomba Inicial
           2: { cellWidth: 17 }, // Bomba Final
@@ -245,7 +315,7 @@ export default function RelatoriosScreen() {
       if (type === 'pdf') {
         await exportService.exportToPDF(columns, data, options);
       } else {
-        exportService.exportToExcel(rawData, options);
+        await exportService.exportToExcel(rawData, options);
       }
 
       toast.success(`${titulo} exportado com sucesso!`);

@@ -27,7 +27,7 @@ export default function FazendaPerfilEditor() {
     onStartDrag,
     onMoveDrag,
     onEndDrag
-  } = useImageCrop(2, 176);
+  } = useImageCrop(2, 176, 2); // 2:1 aspect ratio para logos
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -150,7 +150,8 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleApplyAdjustment = () => {
-    const result = applyAdjustment(400);
+    // Aplica com o mesmo aspect ratio do PDF (aprox 2:1 -> 32/16 ou 30/16)
+    const result = applyAdjustment(600, 2); 
     if (result) setFormData(prev => ({ ...prev, logo_url: result }));
   };
 
@@ -240,6 +241,7 @@ export default function FazendaPerfilEditor() {
         onMoveDrag={onMoveDrag}
         onEndDrag={onEndDrag}
         canvasRef={canvasRef}
+        aspectRatio={2}
       />
 
       <FazendaLogoHeader 
