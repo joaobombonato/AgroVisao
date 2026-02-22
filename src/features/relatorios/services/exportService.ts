@@ -203,7 +203,9 @@ export const exportService = {
             fontStyle: 'bold' as const,
             halign: 'center' as const
           },
-          columnStyles: options.columnStyles,
+          columnStyles: {
+            0: { halign: 'left' as const, cellWidth: 'auto' as any }
+          },
           margin: { left: 14, right: 14 }
         };
 
@@ -331,9 +333,17 @@ export const exportService = {
       }
     }
 
-    // 6. Download direto via jsPDF
+    // 6. Download via Blob manual (jsPDF.save() é instável após reestruturação de módulos)
     const finalFilename = generateFormattedFilename(title, farmName || '', 'pdf');
-    doc.save(finalFilename);
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const pdfLink = document.createElement('a');
+    pdfLink.href = pdfUrl;
+    pdfLink.download = finalFilename;
+    document.body.appendChild(pdfLink);
+    pdfLink.click();
+    document.body.removeChild(pdfLink);
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 150);
   },
 
   /**
@@ -510,7 +520,9 @@ export const exportService = {
     const link = document.createElement('a');
     link.href = url;
     link.download = generateFormattedFilename(title, farmName || '', 'xlsx');
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 150);
   }
 };
