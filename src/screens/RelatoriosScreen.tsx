@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { FileText, Download, Filter, Search, Table, FileSpreadsheet, File as FilePdf, ChevronRight } from 'lucide-react';
+import { FileText, Download, Filter, Search, Table, FileSpreadsheet, File as FilePdf, ChevronRight, Fuel, Utensils, CloudRain, Package } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { PageHeader } from '../components/ui/Shared';
 import { toast } from 'react-hot-toast';
 import { exportService } from '../services';
 import { U } from '../utils';
+import ReportColumnsModal from '../components/ReportColumnsModal';
 
 export default function RelatoriosScreen() {
   const { setTela, state, fazendaSelecionada } = useAppContext();
@@ -14,38 +15,81 @@ export default function RelatoriosScreen() {
   const [dateStart, setDateStart] = useState(U.todayIso().slice(0, 8) + '01'); // Início do mês
   const [dateEnd, setDateEnd] = useState(U.todayIso());
 
+  // Estado do modal de personalização
+  const [modalConfig, setModalConfig] = useState<{
+    reportId: string;
+    reportTitle: string;
+    exportType: 'pdf' | 'excel';
+  } | null>(null);
+
+  // Mapeamento key -> índice de coluna para o relatório de abastecimentos
+  const ABAST_KEY_MAP: Record<string, number> = {
+    data: 0, bomba_ini: 1, bomba_fin: 2, saldo: 3,
+    maquina: 4, litros: 5, km_ini: 6, km_fin: 7,
+    media: 8, custo: 9
+  };
+
+  // Mapeamento key -> chave do rawData (Excel)
+  const ABAST_RAW_KEY_MAP: Record<string, string> = {
+    data: 'Data', bomba_ini: 'Bomba Inicial', bomba_fin: 'Bomba Final',
+    saldo: 'Saldo Estoque', maquina: 'Máquina (Marca/Modelo)',
+    litros: 'Litros', km_ini: 'KM/H Inicial', km_fin: 'KM/H Final',
+    media: 'Média', custo: 'Custo R$'
+  };
+
   const relatorios = [
     { 
       id: 'fat_refeicoes', 
       titulo: 'Faturamento de Refeições', 
       desc: 'Resumo mensal por fornecedor e cozinha.',
-      categoria: 'Financeiro',
-      icon: Table
+      categoria: 'Refeições',
+      icon: Utensils,
+      iconBg: 'bg-orange-50',
+      iconColor: 'text-orange-500',
+      iconHoverBg: 'group-hover:bg-orange-500',
+      catColor: 'text-orange-500'
     },
     { 
       id: 'custo_abast', 
       titulo: 'Relatório de Abastecimentos', 
       desc: 'Histórico cronológico com saldo de estoque e médias.',
-      categoria: 'Combustível',
-      icon: FileSpreadsheet
+      categoria: 'Abastecimentos',
+      icon: Fuel,
+      iconBg: 'bg-red-50',
+      iconColor: 'text-red-500',
+      iconHoverBg: 'group-hover:bg-red-500',
+      catColor: 'text-red-500'
     },
     { 
       id: 'extrato_chuvas', 
       titulo: 'Extrato de Chuvas', 
       desc: 'Acumulado mensal por safra e estação.',
       categoria: 'Clima',
-      icon: FilePdf
+      icon: CloudRain,
+      iconBg: 'bg-sky-50',
+      iconColor: 'text-sky-500',
+      iconHoverBg: 'group-hover:bg-sky-500',
+      catColor: 'text-sky-500'
     },
     { 
       id: 'uso_insumos', 
       titulo: 'Uso de Insumos', 
       desc: 'Relatório de saídas de estoque por talhão.',
       categoria: 'Estoque',
-      icon: Table
+      icon: Package,
+      iconBg: 'bg-emerald-50',
+      iconColor: 'text-emerald-500',
+      iconHoverBg: 'group-hover:bg-emerald-500',
+      catColor: 'text-emerald-500'
     }
   ];
 
-  const handleExport = async (type: 'pdf' | 'excel', relId: string, titulo: string) => {
+  // Abre modal ao invés de exportar direto
+  const openExportModal = (type: 'pdf' | 'excel', relId: string, titulo: string) => {
+    setModalConfig({ reportId: relId, reportTitle: titulo, exportType: type });
+  };
+
+  const handleExport = async (type: 'pdf' | 'excel', relId: string, titulo: string, selectedColumns?: string[]) => {
     const loadingToast = toast.loading(`Preparando ${type.toUpperCase()}: ${titulo}...`);
     
     try {
@@ -295,13 +339,19 @@ export default function RelatoriosScreen() {
         return;
       }
 
+      // Detecta se é relatório personalizado (colunas removidas)
+      const totalColsForReport = relId === 'custo_abast' ? 10 : 0;
+      const isCustomized = selectedColumns && selectedColumns.length < totalColsForReport;
+      const customTag = isCustomized ? ' (Personalizado)' : '';
+
       const options = {
-        title: titulo,
-        filename: filename,
+        title: titulo + customTag,
+        filename: filename + (isCustomized ? '_Personalizado' : ''),
         farmName: fNome,
-        subtitle: periodStr,
+        subtitle: periodStr + (isCustomized ? `  •  ${selectedColumns!.length} de ${totalColsForReport} colunas` : ''),
         logo: logo,
         summaryData: summaryData,
+        selectedColumns: selectedColumns,
         columnStyles: relId === 'custo_abast' ? {
           1: { cellWidth: 17 }, // Bomba Inicial
           2: { cellWidth: 17 }, // Bomba Final
@@ -313,9 +363,47 @@ export default function RelatoriosScreen() {
       };
 
       if (type === 'pdf') {
-        await exportService.exportToPDF(columns, data, options);
+        // Filtra colunas e dados se o usuário personalizou
+        let finalColumns = columns;
+        let finalData = data;
+
+        if (selectedColumns && relId === 'custo_abast' && selectedColumns.length < 10) {
+          const indices = selectedColumns.map(k => ABAST_KEY_MAP[k]).filter(i => i !== undefined).sort((a, b) => a - b);
+          finalColumns = indices.map(i => columns[i]);
+          finalData = data.map(row => indices.map(i => row[i]));
+
+          // Ajusta totalsRow também
+          if (summaryData && summaryData.totalsRow) {
+            const sd = summaryData;
+            sd.totalsRow = indices.map(i => sd.totalsRow![i]);
+          }
+
+          // Remapeia columnStyles para os novos índices
+          if (options.columnStyles) {
+            const oldStyles = options.columnStyles as Record<number, any>;
+            const newStyles: Record<number, any> = {};
+            indices.forEach((origIdx, newIdx) => {
+              if (oldStyles[origIdx]) {
+                newStyles[newIdx] = oldStyles[origIdx];
+              }
+            });
+            options.columnStyles = newStyles as any;
+          }
+        }
+
+        await exportService.exportToPDF(finalColumns, finalData, options);
       } else {
-        await exportService.exportToExcel(rawData, options);
+        // Filtra rawData se o usuário personalizou
+        let finalRawData = rawData;
+        if (selectedColumns && relId === 'custo_abast') {
+          const selectedRawKeys = selectedColumns.map(k => ABAST_RAW_KEY_MAP[k]).filter(Boolean);
+          finalRawData = rawData.map((row: any) => {
+            const filtered: Record<string, any> = {};
+            selectedRawKeys.forEach(rk => { filtered[rk] = row[rk]; });
+            return filtered;
+          });
+        }
+        await exportService.exportToExcel(finalRawData, options);
       }
 
       toast.success(`${titulo} exportado com sucesso!`);
@@ -375,18 +463,29 @@ export default function RelatoriosScreen() {
           </div>
       </div>
 
+      {/* Alerta Filtros Avançados */}
+      <div className="bg-amber-50 border-2 border-amber-100 p-3 rounded-xl mb-4 flex gap-3">
+          <div className="bg-amber-100 text-amber-700 p-2 rounded-lg h-fit">
+              <Filter className="w-4 h-4"/>
+          </div>
+          <div>
+              <h4 className="font-bold text-amber-800 text-xs">Filtros Avançados</h4>
+              <p className="text-[10px] text-amber-600 mt-0.5 leading-tight">Use os filtros em cada módulo para pré-visualizar antes de exportar o relatório final.</p>
+          </div>
+      </div>
+
       <div className="space-y-3">
         {filtrados.map((rel: any) => {
           const Icon = rel.icon;
           return (
-            <div key={rel.id} className="bg-white border-2 border-gray-100 rounded-xl p-4 shadow-sm hover:border-indigo-300 transition-all group">
+            <div key={rel.id} className="bg-white border-2 border-gray-100 rounded-xl p-4 shadow-sm hover:border-gray-200 transition-all group">
               <div className="flex items-start justify-between">
                 <div className="flex gap-3">
-                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                  <div className={`p-3 ${rel.iconBg} ${rel.iconColor} rounded-xl ${rel.iconHoverBg} group-hover:text-white transition-colors`}>
                     <Icon className="w-6 h-6" />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-tighter text-indigo-500">{rel.categoria}</span>
+                    <span className={`text-[10px] font-black uppercase tracking-tighter ${rel.catColor}`}>{rel.categoria}</span>
                     <h3 className="font-bold text-gray-800 text-base">{rel.titulo}</h3>
                     <p className="text-[9px] text-gray-400 mt-1 leading-tight">{rel.desc}</p>
                   </div>
@@ -398,13 +497,13 @@ export default function RelatoriosScreen() {
 
               <div className="mt-4 pt-4 border-t border-gray-50 flex gap-2">
                 <button 
-                  onClick={() => handleExport('pdf', rel.id, rel.titulo)}
+                  onClick={() => openExportModal('pdf', rel.id, rel.titulo)}
                   className="flex-1 bg-gray-900 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-black transition-colors active:scale-95"
                 >
                   <Download className="w-3.5 h-3.5" /> PDF
                 </button>
                 <button 
-                  onClick={() => handleExport('excel', rel.id, rel.titulo)}
+                  onClick={() => openExportModal('excel', rel.id, rel.titulo)}
                   className="flex-1 bg-green-600 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition-colors active:scale-95"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" /> EXCEL
@@ -415,15 +514,27 @@ export default function RelatoriosScreen() {
         })}
       </div>
 
-      <div className="bg-amber-50 border-2 border-amber-100 p-4 rounded-xl mt-6 flex gap-3">
-          <div className="bg-amber-100 text-amber-700 p-2 rounded-lg h-fit">
-              <Filter className="w-5 h-5"/>
-          </div>
-          <div>
-              <h4 className="font-bold text-amber-800 text-sm">Filtros Avançados</h4>
-              <p className="text-[11px] text-amber-600 mt-1 leading-tight">Use os filtros em cada módulo para pré-visualizar antes de exportar o relatório final.</p>
-          </div>
-      </div>
+
+
+      {/* Modal de Personalização de Colunas */}
+      {modalConfig && (
+        <ReportColumnsModal
+          reportId={modalConfig!.reportId}
+          reportTitle={modalConfig!.reportTitle}
+          exportType={modalConfig!.exportType}
+          onClose={() => setModalConfig(null)}
+          onConfirm={(selectedKeys) => {
+            const cfg = modalConfig!;
+            setModalConfig(null);
+            handleExport(
+              cfg.exportType,
+              cfg.reportId,
+              cfg.reportTitle,
+              selectedKeys
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -12,10 +12,10 @@ interface ExportOptions {
   subtitle?: string;
   logo?: string; // Base64
   farmName?: string;
-  columnStyles?: any; // Configurações de coluna como larguras especificas
-  // Dados de resumo para o rodapé do relatório
+  columnStyles?: any;
+  selectedColumns?: string[]; // Colunas selecionadas pelo usuário (keys do reportColumns.ts)
   summaryData?: {
-    totalsRow?: any[]; // Linha de totais (mesma quantidade de colunas)
+    totalsRow?: any[];
     machineSummary?: { maquina: string; litros: number; custo: number; horasKm: number; isKM: boolean }[];
   };
 }
@@ -243,17 +243,28 @@ export const exportService = {
         doc.line(14, cursorY, pageWidth - 14, cursorY);
         cursorY += 2;
 
-        // Tabela de resumo por máquina
-        const machineColumns = ['Máquina', 'Total Litros', 'KM/Hrs no Período', 'Total Custo R$', '% do Total'];
+        // Tabela de resumo por máquina (filtra colunas baseado na seleção do usuário)
+        const sel = options.selectedColumns;
+        const showKmHrs = !sel || sel.includes('km_ini') || sel.includes('km_fin');
+        const showCusto = !sel || sel.includes('custo');
+
+        const machineColumns: string[] = ['Máquina', 'Total Litros'];
+        if (showKmHrs) machineColumns.push('KM/Hrs no Período');
+        if (showCusto) machineColumns.push('Total Custo R$');
+        machineColumns.push('% do Total');
+
         const totalLitrosGeral = machineSummary.reduce((s, m) => s + m.litros, 0);
         
-        const machineData = machineSummary.map(m => [
-          m.maquina,
-          `${U.formatHorimetro(m.litros)} L`,
-          m.horasKm > 0 ? `${U.formatHorimetro(m.horasKm)} ${m.isKM ? 'KM' : 'Hrs'}` : '-',
-          `R$ ${U.formatValue(m.custo)}`,
-          `${totalLitrosGeral > 0 ? ((m.litros / totalLitrosGeral) * 100).toFixed(1) : '0.0'}%`
-        ]);
+        const machineData = machineSummary.map(m => {
+          const row: string[] = [
+            m.maquina,
+            `${U.formatHorimetro(m.litros)} L`,
+          ];
+          if (showKmHrs) row.push(m.horasKm > 0 ? `${U.formatHorimetro(m.horasKm)} ${m.isKM ? 'KM' : 'Hrs'}` : '-');
+          if (showCusto) row.push(`R$ ${U.formatValue(m.custo)}`);
+          row.push(`${totalLitrosGeral > 0 ? ((m.litros / totalLitrosGeral) * 100).toFixed(1) : '0.0'}%`);
+          return row;
+        });
 
         const machineTableOptions = {
           head: [machineColumns],
@@ -445,8 +456,16 @@ export const exportService = {
 
       wsResumo.addRow([]); // Separador
 
-      // Cabeçalho
-      const machHeaders = ['Máquina', 'Total Litros', 'KM/Hrs no Período', 'Total Custo R$', '% do Total'];
+      // Cabeçalho (filtra colunas baseado na seleção)
+      const selE = options.selectedColumns;
+      const showKmHrsE = !selE || selE.includes('km_ini') || selE.includes('km_fin');
+      const showCustoE = !selE || selE.includes('custo');
+
+      const machHeaders: string[] = ['Máquina', 'Total Litros'];
+      if (showKmHrsE) machHeaders.push('KM/Hrs no Período');
+      if (showCustoE) machHeaders.push('Total Custo R$');
+      machHeaders.push('% do Total');
+
       const mHeaderRow = wsResumo.addRow(machHeaders);
       mHeaderRow.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF374785' } };
@@ -457,13 +476,15 @@ export const exportService = {
 
       // Dados das máquinas
       summaryData.machineSummary.forEach((m, idx) => {
-        const row = wsResumo.addRow([
+        const rowData: string[] = [
           m.maquina,
           `${U.formatHorimetro(m.litros)} L`,
-          m.horasKm > 0 ? `${U.formatHorimetro(m.horasKm)} ${m.isKM ? 'KM' : 'Hrs'}` : '-',
-          `R$ ${U.formatValue(m.custo)}`,
-          `${totalLitrosGeral > 0 ? ((m.litros / totalLitrosGeral) * 100).toFixed(1) : '0.0'}%`
-        ]);
+        ];
+        if (showKmHrsE) rowData.push(m.horasKm > 0 ? `${U.formatHorimetro(m.horasKm)} ${m.isKM ? 'KM' : 'Hrs'}` : '-');
+        if (showCustoE) rowData.push(`R$ ${U.formatValue(m.custo)}`);
+        rowData.push(`${totalLitrosGeral > 0 ? ((m.litros / totalLitrosGeral) * 100).toFixed(1) : '0.0'}%`);
+
+        const row = wsResumo.addRow(rowData);
         row.eachCell((cell, colNumber) => {
           cell.font = { size: 9, color: { argb: 'FF3C3C3C' } };
           cell.alignment = { horizontal: colNumber === 1 ? 'left' : 'center', vertical: 'middle' };
@@ -473,12 +494,13 @@ export const exportService = {
         });
       });
 
-      // Larguras
+      // Larguras dinâmicas
       wsResumo.getColumn(1).width = 55;
       wsResumo.getColumn(2).width = 16;
-      wsResumo.getColumn(3).width = 22;
-      wsResumo.getColumn(4).width = 18;
-      wsResumo.getColumn(5).width = 14;
+      let colIdx = 3;
+      if (showKmHrsE) { wsResumo.getColumn(colIdx).width = 22; colIdx++; }
+      if (showCustoE) { wsResumo.getColumn(colIdx).width = 18; colIdx++; }
+      wsResumo.getColumn(colIdx).width = 14;
     }
 
     // ========== DOWNLOAD ==========

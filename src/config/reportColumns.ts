@@ -1,0 +1,50 @@
+// ============================================================
+// CONFIGURAÇÃO DE COLUNAS POR RELATÓRIO
+// Define quais colunas estão disponíveis e quais são obrigatórias
+// ============================================================
+
+export interface ReportColumnDef {
+  key: string;          // Chave única interna
+  label: string;        // Rótulo exibido no modal e no relatório
+  required: boolean;    // Obrigatória (não pode desmarcar)
+  defaultOn: boolean;   // Ligada por padrão
+  group?: string;       // Agrupamento visual no modal
+}
+
+export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
+  custo_abast: [
+    { key: 'data',       label: 'Data',              required: true,  defaultOn: true },
+    { key: 'maquina',    label: 'Máquina (Marca/Modelo)', required: true,  defaultOn: true },
+    { key: 'litros',     label: 'Litros',            required: true,  defaultOn: true },
+    { key: 'saldo',      label: 'Saldo Estoque',     required: false, defaultOn: true },
+    { key: 'custo',      label: 'Custo R$',          required: false, defaultOn: true },
+    { key: 'bomba_ini',  label: 'Bomba Inicial',     required: false, defaultOn: true,  group: 'Bomba' },
+    { key: 'bomba_fin',  label: 'Bomba Final',       required: false, defaultOn: true,  group: 'Bomba' },
+    { key: 'km_ini',     label: 'KM/H Inicial',      required: false, defaultOn: true,  group: 'Horímetro' },
+    { key: 'km_fin',     label: 'KM/H Final',        required: false, defaultOn: true,  group: 'Horímetro' },
+    { key: 'media',      label: 'Média',             required: false, defaultOn: true,  group: 'Horímetro' },
+  ],
+
+  fat_refeicoes: [
+    { key: 'data',        label: 'Data',             required: true,  defaultOn: true },
+    { key: 'fornecedor',  label: 'Fornecedor',       required: true,  defaultOn: true },
+    { key: 'cozinha',     label: 'Cozinha',          required: false, defaultOn: true },
+    { key: 'tipo',        label: 'Tipo Refeição',    required: false, defaultOn: true },
+    { key: 'qtd',         label: 'Quantidade',       required: true,  defaultOn: true },
+    { key: 'valor_unit',  label: 'Valor Unitário',   required: false, defaultOn: true },
+    { key: 'total',       label: 'Total R$',         required: true,  defaultOn: true },
+  ],
+
+  extrato_chuvas: [
+    { key: 'data',     label: 'Data',          required: true,  defaultOn: true },
+    { key: 'estacao',  label: 'Estação',       required: true,  defaultOn: true },
+    { key: 'mm',       label: 'Milímetros',    required: true,  defaultOn: true },
+  ],
+};
+
+// Retorna as chaves ligadas por padrão para um relatório
+export function getDefaultColumns(reportId: string): string[] {
+  const cols = REPORT_COLUMNS[reportId];
+  if (!cols) return [];
+  return cols.filter(c => c.defaultOn).map(c => c.key);
+}

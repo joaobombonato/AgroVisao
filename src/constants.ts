@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.70";
+export const APP_VERSION = "v4.7.73";
 
 export const DADOS_INICIAIS = {
   chuvas: [],
