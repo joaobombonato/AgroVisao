@@ -229,15 +229,18 @@ export function useAbastecimentoForm() {
       bomba_final: U.parseDecimal(form.bombaFinal),
       horimetro_anterior: U.parseDecimal(form.horimetroAnterior),
       horimetro_atual: U.parseDecimal(form.horimetroAtual),
-      estoque_final: estoqueAtual - U.parseDecimal(litrosCalculados), // Salva o saldo projetado
       
       // id: REMOVIDO PARA GERAR UUID AUTOMÁTICO
     };
 
     // Detalhes da OS
     const descOS = `Abastecimento: ${form.maquina} (${litrosCalculados}L)`;
+    const maqInfo = (ativos?.maquinas || []).find((m: any) => m.nome === form.maquina);
+    const maqLabel = [form.maquina, maqInfo?.fabricante, maqInfo?.descricao].filter(Boolean).join(' - ');
     const detalhesOS: any = {
+      "Máquina": maqLabel,
       "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
+      "Horímetro": `${form.horimetroAnterior} -> ${form.horimetroAtual}`,
       "Consumo": `${mediaConsumo} L/h (Média)`,
       "Custo": `R$ ${U.formatValue(custoEstimado || 0)}`,
       "Obs": form.obs || '-'

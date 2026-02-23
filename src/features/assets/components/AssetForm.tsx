@@ -257,7 +257,7 @@ export function AssetForm({
     };
 
     return (
-        <form onSubmit={onSubmit} className={`bg-white p-4 rounded-xl shadow-md grid grid-cols-2 gap-x-4 gap-y-1 group border-l-4 border-${editingItem ? 'amber' : color}-500 animate-in slide-in-from-left-5`}>
+        <form onSubmit={onSubmit} className={`bg-white p-4 pb-24 rounded-xl shadow-md grid grid-cols-2 gap-x-4 gap-y-1 group border-l-4 border-${editingItem ? 'amber' : color}-500 animate-in slide-in-from-left-5`}>
             <div className="col-span-2 flex justify-between items-center mb-2">
                 <p className="text-sm font-bold text-gray-700 uppercase tracking-tight">
                     {editingItem ? `Editando: ${editingItem.nome || label}` : `Novo(a) ${label}`}

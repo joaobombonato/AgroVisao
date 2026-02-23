@@ -13,6 +13,7 @@ interface AssetListItemProps {
     showPositioner?: boolean;
     listLength: number;
     isSelected: boolean;
+    isSelectingBulk?: boolean;
     onToggleSelect: (id: string) => void;
     onEdit: (item: any) => void;
     onDelete: (item: any) => void;
@@ -29,6 +30,7 @@ export function AssetListItem({
     showPositioner,
     listLength,
     isSelected,
+    isSelectingBulk,
     onToggleSelect,
     onEdit,
     onDelete,
@@ -38,7 +40,7 @@ export function AssetListItem({
         <div 
             className={`flex items-center gap-3 bg-white p-4 rounded-xl shadow-sm border transition-all ${isSelected ? 'border-indigo-400 bg-indigo-50/10' : 'border-gray-100'}`}
         >
-            {assetKey === 'maquinas' && (
+            {assetKey === 'maquinas' && isSelectingBulk && (
                 <div 
                     onClick={() => onToggleSelect(item.id)}
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 bg-white'}`}
@@ -47,7 +49,7 @@ export function AssetListItem({
                 </div>
             )}
             
-            <div className="flex-1 min-w-0" onClick={() => assetKey === 'maquinas' && onToggleSelect(item.id)}>
+            <div className="flex-1 min-w-0" onClick={() => assetKey === 'maquinas' && isSelectingBulk && onToggleSelect(item.id)}>
                 <p className="font-bold text-gray-900 truncate text-base">{item.nome}</p>
                 
                 {type === 'complex' && fields.filter((f: any) => f.showInList && f.key !== 'nome').map((f: any) => {

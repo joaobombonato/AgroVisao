@@ -23,6 +23,7 @@ export function useAssetEditor({ assetKey, table, type, label, fields, orderBy, 
     const [openSections, setOpenSections] = useState<{[key: string]: boolean}>({});
     const [editingItem, setEditingItem] = useState<any>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [isSelectingBulk, setIsSelectingBulk] = useState(false);
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     const [formTab, setFormTab] = useState<'dados' | 'historico'>('dados');
     const [itemToDelete, setItemToDelete] = useState<any>(null);
@@ -280,6 +281,7 @@ export function useAssetEditor({ assetKey, table, type, label, fields, orderBy, 
         setNewItemName('');
         setNewItemFields({});
         setActiveTab('lista');
+        setIsSelectingBulk(false);
     };
 
     return {
@@ -294,7 +296,11 @@ export function useAssetEditor({ assetKey, table, type, label, fields, orderBy, 
         setNewItemFields,
         openSections,
         editingItem,
+        setEditingItem,
         selectedIds,
+        setSelectedIds,
+        isSelectingBulk,
+        setIsSelectingBulk,
         isWizardOpen,
         setIsWizardOpen,
         formTab,

@@ -277,19 +277,29 @@ export default function AbastecimentoScreen() {
           return (
             <div className="space-y-2">
               {recentes.map((r: any) => (
-                <div key={r.id} className="text-xs flex justify-between items-center py-2 border-b last:border-0 border-gray-100">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-gray-800">{r.maquina}</span>
-                    <span className="text-[10px] text-gray-400">{U.formatDate(r.data_operacao || r.data)}</span>
+                <div key={r.id} className="text-xs flex justify-between items-start py-2 border-b last:border-0 border-gray-100 gap-4">
+                  <div className="flex flex-col min-w-0" style={{ maxWidth: '70%' }}>
+                    {(() => {
+                      const m = (ativos?.maquinas || []).find((maq: any) => maq.nome === r.maquina || maq.identificacao === r.maquina);
+                      const brand = m?.fabricante || '';
+                      const model = m?.descricao || '';
+                      const details = [brand, model].filter(Boolean).join(' - ');
+                      return (
+                        <>
+                          <span className="font-bold text-gray-800">{r.maquina}</span>
+                          {details && <span className="text-[10px] text-gray-500 truncate">{details}</span>}
+                          <span className="text-[10px] text-gray-400">{U.formatDate(r.data_operacao || r.data)}</span>
+                        </>
+                      );
+                    })()}
                   </div>
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end shrink-0">
                     <span className="font-bold text-red-600">{r.litros || r.quantidade || r.qtd} L</span>
                     <span className="text-[10px] text-gray-500 font-medium">Méd: {U.formatMedia(r.media)}</span>
                     <span className="text-[10px] text-gray-400">
                       {(() => {
                         const m = (ativos?.maquinas || []).find((maq: any) => maq.nome === r.maquina);
-                        const t = (m?.tipo || '').toLowerCase();
-                        const isKm = t.includes('caminhão') || t.includes('veículo') || t.includes('carro') || t.includes('moto');
+                        const isKm = m?.unidade_medida?.toLowerCase().includes('km');
                         return isKm ? 'Km' : 'Hrs';
                       })()}: {r.horimetro_atual || r.horimetro}
                     </span>

@@ -161,9 +161,17 @@ export default function useRelatorios() {
 // ==========================================
 
 function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: string) {
-  const abastecimentosRaw = (dados.abastecimentos || []).filter((a: any) => {
+  const abastecimentosFiltered = (dados.abastecimentos || []).filter((a: any) => {
     const d = a.data_operacao || a.data;
     return d >= dateStart && d <= dateEnd;
+  });
+  // Deduplicação: remove registros fantasma duplicados do state local (sync retry)
+  const seen = new Set<string>();
+  const abastecimentosRaw = abastecimentosFiltered.filter((a: any) => {
+    const key = `${a.maquina}|${a.bomba_inicial || a.bombaInicial}|${a.bomba_final || a.bombaFinal}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
   const compras = (dados.compras || []).filter((c: any) => {
     const d = c.data;

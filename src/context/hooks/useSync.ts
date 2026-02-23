@@ -48,6 +48,10 @@ export function useSync({ fazendaId, state, dispatch, isOnline }: UseSyncParams)
         const isUnrecoverable = (e.code && (e.code.startsWith('22') || e.code.startsWith('P'))) || e.status === 400;
         if (isUnrecoverable) {
             dispatch({ type: ACTIONS.REMOVE_FROM_QUEUE, id: item.id });
+            // Rollback: remove registro fantasma do state se era INSERT
+            if (item.action === 'INSERT' && item.payload?.id) {
+              dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: item.table, id: item.payload.id });
+            }
             toast.error(`Falha ao sincronizar ${item.table} (Erro fatal). Item removido.`);
         }
       }

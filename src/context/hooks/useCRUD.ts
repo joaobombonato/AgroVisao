@@ -48,17 +48,40 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
 
     // LÓGICA DE SEQUENCIAL PARA OS (Padrão: OS-YYYY-NNNN)
     if (table === 'os' && !payload.numero) {
-      const ordens = (state.os || []);
       const currentYear = new Date().getFullYear();
-      
-      const maxNum = ordens.reduce((max: number, o: any) => {
-        const match = String(o.numero || '').match(/(\d+)$/);
-        const n = match ? parseInt(match[0]) : 0;
-        return !isNaN(n) ? Math.max(max, n) : max;
-      }, 0);
+      let maxNum = 0;
 
-      const totalPadding = 4;
-      const nextSeq = String(maxNum + 1).padStart(totalPadding, '0');
+      if (!isOff && fazendaId) {
+        // ONLINE: consulta o MAX no banco para sequência fiel
+        try {
+          const { dbService } = await import('../../services');
+          const result = await (dbService as any).supabase
+            .from('os')
+            .select('numero')
+            .eq('fazenda_id', fazendaId)
+            .like('numero', `OS-${currentYear}-%`)
+            .order('numero', { ascending: false })
+            .limit(1);
+          const lastNumero = result?.data?.[0]?.numero || '';
+          const match = String(lastNumero).match(/(\d+)$/);
+          maxNum = match ? parseInt(match[0]) : 0;
+        } catch { /* fallback abaixo */ }
+      }
+
+      // FALLBACK (offline ou se a consulta falhou): usa state local + queue
+      if (maxNum === 0) {
+        const ordens = (state.os || []);
+        maxNum = ordens.reduce((max: number, o: any) => {
+          const match = String(o.numero || '').match(/(\d+)$/);
+          const n = match ? parseInt(match[0]) : 0;
+          return !isNaN(n) ? Math.max(max, n) : max;
+        }, 0);
+        // Conta itens de OS na fila de sync para evitar colisão
+        const osInQueue = (state.syncQueue || []).filter((q: any) => q.table === 'os' && q.action === 'INSERT').length;
+        maxNum = Math.max(maxNum, maxNum + osInQueue);
+      }
+
+      const nextSeq = String(maxNum + 1).padStart(4, '0');
       payload.numero = `OS-${currentYear}-${nextSeq}`;
 
       if (payload.descricao?.includes('HISTÓRICO') || payload.descricao?.includes('CONFERÊNCIA') || payload.modulo === 'Seguro') {
@@ -87,7 +110,19 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
         }
         toast.success(`Salvo Cloud: ${table}`, { id: 'sync-toast' });
         return { success: true, online: true, data };
-      } catch (e) { console.warn("Sync Insert Fail", e); }
+      } catch (e: any) {
+        console.warn('Sync Insert Fail', e);
+        const isFatal = e?.status === 400 || (e?.code && (e.code.startsWith('22') || e.code.startsWith('P')));
+        if (isFatal) {
+          // Rollback estado otimista + notifica o usuário
+          if (optimisticAction) {
+            dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: table, id: tempid });
+          }
+          toast.error(`Erro ao salvar ${table}. Verifique os dados e tente novamente.`);
+          return { success: false, online: true, data: null };
+        }
+        // Erro transiente (rede, 500) — segue para fila offline
+      }
     }
     // Se falhou online ou está offline, adiciona à fila (sem ID temporário)
     const queuePayload = { ...payload };

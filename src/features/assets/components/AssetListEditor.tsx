@@ -125,7 +125,6 @@ export default function AssetListEditor({ assetKey, onBack }: AssetListEditorPro
                 />
             )}
 
-            {/* Lista */}
             {editor.activeTab === 'lista' && (
                 <AssetList
                     title={label}
@@ -136,6 +135,9 @@ export default function AssetListEditor({ assetKey, onBack }: AssetListEditorPro
                     showPositioner={showPositioner}
                     listToRender={editor.listToRender}
                     selectedIds={editor.selectedIds}
+                    isSelectingBulk={editor.isSelectingBulk}
+                    setIsSelectingBulk={editor.setIsSelectingBulk}
+                    setSelectedIds={editor.setSelectedIds}
                     onToggleSelect={editor.toggleSelect}
                     onToggleSelectAll={editor.toggleSelectAll}
                     onEdit={editor.startEdit}
