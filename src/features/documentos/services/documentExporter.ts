@@ -104,7 +104,7 @@ export async function downloadImage(element: HTMLElement, filename: string): Pro
     // Limpeza
     setTimeout(() => {
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
     }, 100);
     
     return true;

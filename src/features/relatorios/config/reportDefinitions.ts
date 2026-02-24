@@ -1,4 +1,4 @@
-import { Fuel, Utensils, CloudRain, Package } from 'lucide-react';
+import { Fuel, Utensils, CloudRain, Package, ClipboardList } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 // ==========================================
@@ -50,10 +50,45 @@ export const ABAST_COLUMN_STYLES: Record<number, { cellWidth: number }> = {
 export const ABAST_TOTAL_COLS = 10;
 
 // ==========================================
+// CONSTANTES DE MAPEAMENTO (os)
+// ==========================================
+
+export const OS_KEY_MAP: Record<string, number> = {
+  data: 0, numero: 1, modulo: 2, descricao: 3, status: 4, referencia: 5
+};
+
+export const OS_RAW_KEY_MAP: Record<string, string> = {
+  data: 'Data', numero: 'Número O.S.', modulo: 'Módulo', descricao: 'Descrição', status: 'Status', referencia: 'Referência'
+};
+
+export const OS_COLUMN_STYLES: Record<number, any> = {
+    0: { halign: 'center', cellWidth: 20 }, // Data
+    1: { halign: 'center', cellWidth: 36 }, // Número O.S.
+    2: { halign: 'center', cellWidth: 26 }, // Módulo
+    3: { halign: 'center' }, // Descrição (stretches)
+    4: { halign: 'center', cellWidth: 22 }, // Status
+    5: { halign: 'center' }  // Referência (stretches)
+};
+
+export const OS_TOTAL_COLS = 6;
+
+
+// ==========================================
 // DEFINIÇÕES DOS RELATÓRIOS
 // ==========================================
 
 export const RELATORIOS: ReportDef[] = [
+  {
+    id: 'os',
+    titulo: 'Relatório de Ordens de Serviço',
+    desc: 'Listagem e detalhes das Ordens de Serviço.',
+    categoria: 'O.S',
+    icon: ClipboardList,
+    iconBg: 'bg-indigo-50',
+    iconColor: 'text-indigo-500',
+    iconHoverBg: 'group-hover:bg-indigo-500',
+    catColor: 'text-indigo-500'
+  },
   {
     id: 'fat_refeicoes',
     titulo: 'Faturamento de Refeições',

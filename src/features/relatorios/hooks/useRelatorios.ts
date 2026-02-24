@@ -1,14 +1,21 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAppContext } from '../../../context/AppContext';
-import { exportService } from '../services/exportService';
+import { fuelExportService } from '../services/fuelExportService';
+import { osExportService } from '../services/osExportService';
+import { weatherExportService } from '../services/weatherExportService';
+import { mealsExportService } from '../services/mealsExportService';
 import { U } from '../../../utils';
 import {
   RELATORIOS,
   ABAST_KEY_MAP,
   ABAST_RAW_KEY_MAP,
   ABAST_COLUMN_STYLES,
-  ABAST_TOTAL_COLS
+  ABAST_TOTAL_COLS,
+  OS_KEY_MAP,
+  OS_RAW_KEY_MAP,
+  OS_COLUMN_STYLES,
+  OS_TOTAL_COLS
 } from '../config/reportDefinitions';
 
 // ==========================================
@@ -51,10 +58,10 @@ export default function useRelatorios() {
       const periodStr = `Período: ${U.formatDate(dateStart)} até ${U.formatDate(dateEnd)}`;
 
       let columns: string[] = [];
-      let data: any[][] = [];
-      let rawData: any[] = [];
+      let data: any[][] | Record<string, any[][]> = [];
+      let rawData: any[] | Record<string, any[]> = [];
       let filename = titulo.replace(/\s+/g, '_');
-      let summaryData: | { totalsRow?: any[]; machineSummary?: { maquina: string; litros: number; custo: number; horasKm: number; isKM: boolean }[] } | undefined;
+      let summaryData: | { totalsRow?: any[] | Record<string, any[]>; machineSummary?: { maquina: string; litros: number; custo: number; horasKm: number; isKM: boolean }[] } | undefined;
 
       // ── Coleta de dados por tipo ──
       if (relId === 'custo_abast') {
@@ -63,6 +70,8 @@ export default function useRelatorios() {
         ({ columns, data, rawData } = buildRefeicaoData(dados));
       } else if (relId === 'extrato_chuvas') {
         ({ columns, data, rawData } = buildChuvasData(dados));
+      } else if (relId === 'os') {
+        ({ columns, data, rawData, summaryData } = buildOSData(state.os, ativos, dateStart, dateEnd));
       } else {
         toast.error("Este relatório ainda está em desenvolvimento.");
         toast.dismiss(loadingToast);
@@ -70,7 +79,7 @@ export default function useRelatorios() {
       }
 
       // ── Personalização ──
-      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : 0;
+      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : 0;
       const isCustomized = selectedColumns && selectedColumns.length < totalColsForReport;
       const customTag = isCustomized ? ' (Personalizado)' : '';
 
@@ -82,7 +91,7 @@ export default function useRelatorios() {
         logo,
         summaryData,
         selectedColumns,
-        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : undefined
+        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : relId === 'os' ? { ...OS_COLUMN_STYLES } : undefined
       };
 
       // ── PDF ──
@@ -90,23 +99,58 @@ export default function useRelatorios() {
         let finalColumns = columns;
         let finalData = data;
 
-        if (selectedColumns && relId === 'custo_abast' && selectedColumns.length < ABAST_TOTAL_COLS) {
-          const indices = selectedColumns.map(k => ABAST_KEY_MAP[k]).filter(i => i !== undefined).sort((a, b) => a - b);
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os') && selectedColumns.length < totalColsForReport) {
+          const keyMap = relId === 'custo_abast' ? ABAST_KEY_MAP : OS_KEY_MAP;
+          const indices = selectedColumns.map(k => keyMap[k]).filter(i => i !== undefined).sort((a, b) => a - b);
           finalColumns = indices.map(i => columns[i]);
-          finalData = data.map(row => indices.map(i => row[i]));
+          
+          if (Array.isArray(data)) {
+            finalData = data.map(row => indices.map(i => row[i]));
+          } else {
+             finalData = {};
+             const typedData = data as Record<string, any[][]>;
+             Object.keys(typedData).forEach(key => {
+                 (finalData as Record<string, any[][]>)[key] = typedData[key].map(row => indices.map(i => row[i]));
+             });
+          }
 
           if (summaryData && summaryData.totalsRow) {
-            const origTotals = summaryData.totalsRow;
-            const numCols = finalColumns.length;
-            const newTotals = new Array(numCols).fill('');
-            newTotals[0] = origTotals[0]; // Texto descritivo
-            const maqIdx = finalColumns.findIndex(c => c.includes('Máquina'));
-            if (maqIdx >= 0) newTotals[maqIdx] = 'TOTAIS';
-            const litIdx = finalColumns.indexOf('Litros');
-            if (litIdx >= 0) newTotals[litIdx] = origTotals[2]; // Valor de litros
-            const custoIdx = finalColumns.findIndex(c => c.includes('Custo'));
-            if (custoIdx >= 0) newTotals[custoIdx] = origTotals[9];
-            summaryData.totalsRow = newTotals;
+            
+            if (Array.isArray(summaryData.totalsRow)) {
+                const origTotals = summaryData.totalsRow;
+                const numCols = finalColumns.length;
+                const newTotals = new Array(numCols).fill('');
+                newTotals[0] = origTotals[0]; // Texto descritivo
+                
+                if (relId === 'custo_abast') {
+                    const maqIdx = finalColumns.findIndex(c => c.includes('Máquina'));
+                    if (maqIdx >= 0) newTotals[maqIdx] = 'TOTAIS';
+                    const litIdx = finalColumns.indexOf('Litros');
+                    if (litIdx >= 0) newTotals[litIdx] = origTotals[2]; // Valor de litros
+                    const custoIdx = finalColumns.findIndex(c => c.includes('Custo') || c.includes('Valor'));
+                    if (custoIdx >= 0) newTotals[custoIdx] = origTotals[9];
+                }
+                summaryData.totalsRow = newTotals;
+            } else {
+                const origTotalsObj = summaryData.totalsRow as Record<string, any[]>;
+                const numCols = finalColumns.length;
+                const newTotalsObj: Record<string, any[]> = {};
+                
+                Object.keys(origTotalsObj).forEach(key => {
+                    const origTotals = origTotalsObj[key];
+                    const newTotals = new Array(numCols).fill('');
+                    newTotals[0] = origTotals[0];
+                    
+                    const descIdx = finalColumns.findIndex(c => c.includes('Referência') || c.includes('Descrição'));
+                    if (descIdx >= 0) newTotals[descIdx] = 'TOTAIS';
+                    const custoIdx = finalColumns.findIndex(c => c.includes('Custo') || c.includes('Valor'));
+                    if (custoIdx >= 0) newTotals[custoIdx] = origTotals[7];
+                    
+                    newTotalsObj[key] = newTotals;
+                });
+                
+                summaryData.totalsRow = newTotalsObj;
+            }
           }
 
           if (options.columnStyles) {
@@ -119,20 +163,51 @@ export default function useRelatorios() {
           }
         }
 
-        await exportService.exportToPDF(finalColumns, finalData, options);
+        if (relId === 'os') {
+            await osExportService.exportToPDF(finalColumns, finalData as any, options as any);
+        } else if (relId === 'extrato_chuvas') {
+            await weatherExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
+        } else if (relId === 'fat_refeicoes') {
+            await mealsExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
+        } else {
+            await fuelExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
+        }
       }
       // ── Excel ──
       else {
         let finalRawData = rawData;
-        if (selectedColumns && relId === 'custo_abast') {
-          const selectedRawKeys = selectedColumns.map(k => ABAST_RAW_KEY_MAP[k]).filter(Boolean);
-          finalRawData = rawData.map((row: any) => {
-            const filtered: Record<string, any> = {};
-            selectedRawKeys.forEach(rk => { filtered[rk] = row[rk]; });
-            return filtered;
-          });
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os')) {
+          const rawKeyMap = relId === 'custo_abast' ? ABAST_RAW_KEY_MAP : OS_RAW_KEY_MAP;
+          const selectedRawKeys = selectedColumns.map(k => rawKeyMap[k]).filter(Boolean);
+          
+          if (Array.isArray(rawData)) {
+             finalRawData = rawData.map((row: any) => {
+                const filtered: Record<string, any> = {};
+                selectedRawKeys.forEach(rk => { filtered[rk] = row[rk]; });
+                return filtered;
+             });
+          } else {
+             finalRawData = {};
+             const typedRawData = rawData as Record<string, any[]>;
+             Object.keys(typedRawData).forEach(key => {
+                 (finalRawData as Record<string, any[]>)[key] = typedRawData[key].map((row: any) => {
+                     const filtered: Record<string, any> = {};
+                     selectedRawKeys.forEach(rk => { filtered[rk] = row[rk]; });
+                     return filtered;
+                 });
+             });
+          }
         }
-        await exportService.exportToExcel(finalRawData, options);
+
+        if (relId === 'os') {
+            await osExportService.exportToExcel(finalRawData as any, options as any);
+        } else if (relId === 'extrato_chuvas') {
+            await weatherExportService.exportToExcel(finalRawData as any[], options as any);
+        } else if (relId === 'fat_refeicoes') {
+            await mealsExportService.exportToExcel(finalRawData as any[], options as any);
+        } else {
+            await fuelExportService.exportToExcel(finalRawData as any[], options as any);
+        }
       }
 
       toast.success(`${titulo} exportado com sucesso!`);
@@ -162,7 +237,7 @@ export default function useRelatorios() {
 
 function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: string) {
   const abastecimentosFiltered = (dados.abastecimentos || []).filter((a: any) => {
-    const d = a.data_operacao || a.data;
+    const d = (a.data_operacao || a.data || '').slice(0, 10);
     return d >= dateStart && d <= dateEnd;
   });
   // Deduplicação: remove registros fantasma duplicados do state local (sync retry)
@@ -174,7 +249,7 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
     return true;
   });
   const compras = (dados.compras || []).filter((c: any) => {
-    const d = c.data;
+    const d = (c.data || '').slice(0, 10);
     return d >= dateStart && d <= dateEnd;
   });
   const maquinas = ativos?.maquinas || [];
@@ -356,4 +431,105 @@ function buildChuvasData(dados: any) {
     Milimetros: U.parseDecimal(r.milimetros)
   }));
   return { columns, data, rawData };
+}
+
+function buildOSData(osData: any[], ativos: any, dateStart: string, dateEnd: string) {
+  const osFiltered = (osData || []).filter((o: any) => {
+    const d = (o.data_abertura || o.data || '').slice(0, 10);
+    return d >= dateStart && d <= dateEnd;
+  });
+
+  // Ordenação ascendente por data (da mais antiga para a mais nova)
+  osFiltered.sort((a: any, b: any) => {
+    const da = a.data_abertura || a.data;
+    const db = b.data_abertura || b.data;
+    return da.localeCompare(db);
+  });
+
+  const columns = ['Data', 'Número O.S.', 'Módulo', 'Descrição', 'Status', 'Referência'];
+
+  const groupedData: Record<string, any[][]> = { Pendentes: [], Confirmadas: [], Canceladas: [] };
+  const groupedRawData: Record<string, any[]> = { Pendentes: [], Confirmadas: [], Canceladas: [] };
+  const groupedCusto: Record<string, number> = { Pendentes: 0, Confirmadas: 0, Canceladas: 0 };
+
+  osFiltered.forEach((o: any) => {
+    let refInfo = '-';
+    let addInfo = '-';
+    let custoInfo: number | string = 0;
+    
+    // Define group
+    let groupMap = 'Pendentes';
+    if (o.status === 'Confirmado' || o.status === 'Confirmada') groupMap = 'Confirmadas';
+    else if (o.status === 'Cancelado' || o.status === 'Cancelada') groupMap = 'Canceladas';
+
+    if (o.detalhes) {
+        let curCusto = U.parseDecimal(o.detalhes['Custo'] || o.detalhes['Custo R$'] || o.detalhes['Valor'] || 0);
+        custoInfo = curCusto;
+        groupedCusto[groupMap] += curCusto;
+
+        // Referência Genérica
+        let refValue = o.detalhes['Máquina'] || o.detalhes['Fornecedor'] || o.detalhes['Cozinha'] || o.detalhes['Bomba'] || o.detalhes['Ponto'] || o.detalhes['Estação'] || o.detalhes['Produto'];
+        
+        // Enriquecer caso seja Máquina
+        if (o.detalhes['Máquina'] && ativos?.maquinas) {
+            const machineId = o.maquina_id || o.asset_id;
+            const machine = ativos.maquinas.find((m: any) => 
+                (machineId && m.id === machineId) || 
+                m.nome?.trim().toLowerCase() === String(refValue).trim().toLowerCase() ||
+                m.id === String(refValue)
+            );
+            if (machine) {
+                refValue = `${machine.nome || refValue}${machine.fabricante ? ` - ${machine.fabricante}` : ''}${machine.descricao ? ` - ${machine.descricao}` : ''}`;
+            }
+        }
+        if (refValue) refInfo = refValue;
+        
+        // Info Adicional Genérica
+        const ad1 = o.detalhes['Horímetro Atual'] || o.detalhes['Horímetro'] || o.detalhes['KM/H Final'] || o.detalhes['KM/H Inicial'];
+        const ad2 = o.detalhes['Tipo '] || o.detalhes['Tipo'] || o.detalhes['Atividade'] || o.detalhes['Milímetros'];
+        const ad3 = o.detalhes['Quantidade'] || o.detalhes['Litros'];
+
+        if (ad1) addInfo = ad1;
+        else if (ad2 && ad3) addInfo = `${ad2} - ${ad3}`;
+        else if (ad2) addInfo = ad2;
+        else if (ad3) addInfo = String(ad3);
+    }
+
+    const arrData = [
+      U.formatDate(o.data_abertura || o.data),
+      o.numero ? `#${o.numero}` : o.id.slice(0, 8).toUpperCase(),
+      o.modulo || 'Geral',
+      o.descricao,
+      o.status,
+      refInfo
+    ];
+
+    const rawObj = {
+      'Data': U.formatDate(o.data_abertura || o.data),
+      'Número O.S.': o.numero ? `#${o.numero}` : o.id.slice(0, 8).toUpperCase(),
+      'Módulo': o.modulo || 'Geral',
+      'Descrição': o.descricao,
+      'Status': o.status,
+      'Referência': refInfo
+    };
+
+    groupedData[groupMap].push(arrData);
+    groupedRawData[groupMap].push(rawObj);
+  });
+
+  const totalsRow: Record<string, string[]> = {};
+  ['Pendentes', 'Confirmadas', 'Canceladas'].forEach(g => {
+    totalsRow[g] = [
+        `${groupedData[g].length} O.S. no período`,
+        '', '', '', '', ''
+    ];
+  });
+
+  // Marca dataGrouped e rawDataGrouped para exportService saber lidar
+  return { 
+    columns, 
+    data: groupedData, 
+    rawData: groupedRawData, 
+    summaryData: { totalsRow } 
+  };
 }

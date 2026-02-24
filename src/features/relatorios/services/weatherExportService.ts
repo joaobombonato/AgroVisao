@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import { U } from '../../../utils';
+import { downloadFile } from '../../../utils/downloadFile';
 import { APP_VERSION } from '../../../constants';
 import { PRATICO_LOGO_B64 } from '../../../assets/praticoBase64';
 import { AGROVISAO_LOGO_B64 } from '../../../assets/agrovisaoBase64';
@@ -40,7 +41,7 @@ const generateFormattedFilename = (title: string, farmName: string, ext: string)
   return `AgroVisão ${cleanTitle} ${dateStr} - ${cleanFarm}.${ext}`;
 };
 
-export const exportService = {
+export const weatherExportService = {
   /**
    * Exporta dados para PDF usando jsPDF e jspdf-autotable
    */
@@ -318,9 +319,10 @@ export const exportService = {
       doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
 
       // Rodapé Esq (Autoria e Versão)
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text(`AgroVisão ${APP_VERSION} — Solução PráticoApp`, 14, pageHeight - 10);
+      doc.text(`Relatório gerado pelo sistema AgroVisão - ${APP_VERSION} — Solução PráticoApp`, 14, pageHeight - 10);
 
       // Rodapé Centro (Paginação X - Y)
       doc.text(`Página ${i} - ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
@@ -333,17 +335,10 @@ export const exportService = {
       }
     }
 
-    // 6. Download via Blob manual (jsPDF.save() é instável após reestruturação de módulos)
+    // 6. Download via Blob manual
     const finalFilename = generateFormattedFilename(title, farmName || '', 'pdf');
     const pdfBlob = doc.output('blob');
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    const pdfLink = document.createElement('a');
-    pdfLink.href = pdfUrl;
-    pdfLink.download = finalFilename;
-    document.body.appendChild(pdfLink);
-    pdfLink.click();
-    document.body.removeChild(pdfLink);
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 150);
+    await downloadFile(pdfBlob, finalFilename, 'pdf');
   },
 
   /**
@@ -516,13 +511,6 @@ export const exportService = {
     // ========== DOWNLOAD ==========
     const buffer = await wb.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = generateFormattedFilename(title, farmName || '', 'xlsx');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 150);
+    await downloadFile(blob, generateFormattedFilename(title, farmName || '', 'xlsx'), 'xlsx');
   }
 };

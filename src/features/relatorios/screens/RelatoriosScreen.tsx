@@ -71,8 +71,20 @@ export default function RelatoriosScreen() {
           <ReportCard
             key={rel.id}
             rel={rel}
-            onExportPdf={() => openExportModal('pdf', rel.id, rel.titulo)}
-            onExportExcel={() => openExportModal('excel', rel.id, rel.titulo)}
+            onExportPdf={() => {
+              if (rel.id === 'os') {
+                handleExport('pdf', rel.id, rel.titulo);
+              } else {
+                openExportModal('pdf', rel.id, rel.titulo);
+              }
+            }}
+            onExportExcel={() => {
+              if (rel.id === 'os') {
+                handleExport('excel', rel.id, rel.titulo);
+              } else {
+                openExportModal('excel', rel.id, rel.titulo);
+              }
+            }}
           />
         ))}
       </div>

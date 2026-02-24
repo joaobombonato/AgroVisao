@@ -227,7 +227,7 @@ export const handleExportPNG = async ({
         const u = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = u; a.download = fileName; a.click();
-        setTimeout(() => URL.revokeObjectURL(u), 2000);
+        setTimeout(() => URL.revokeObjectURL(u), 10000);
       } catch (err: any) {
          if (err.name !== 'AbortError') console.error(err);
       }
