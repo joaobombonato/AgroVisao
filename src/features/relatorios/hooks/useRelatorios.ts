@@ -47,8 +47,12 @@ export default function useRelatorios() {
     r.desc.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Abre modal ao invés de exportar direto
+  // Abre modal ao invés de exportar direto (exceto para equipe que agora é direto)
   const openExportModal = (type: 'pdf' | 'excel', relId: string, titulo: string) => {
+    if (relId === 'equipe') {
+        handleExport(type, relId, titulo);
+        return;
+    }
     setModalConfig({ reportId: relId, reportTitle: titulo, exportType: type });
   };
 
@@ -465,10 +469,19 @@ function buildOSData(osData: any[], ativos: any, dateStart: string, dateEnd: str
     return d >= dateStart && d <= dateEnd;
   });
 
-  // Ordenação ascendente por data (da mais antiga para a mais nova)
+  // Ordenação ascendente prioritariamente por Número da OS (se existir) e data
   osFiltered.sort((a: any, b: any) => {
-    const da = a.data_abertura || a.data;
-    const db = b.data_abertura || b.data;
+    const da = a.data_abertura || a.data || '';
+    const db = b.data_abertura || b.data || '';
+    
+    // Se ambos tem número, ordena pelo número
+    if (a.numero && b.numero) {
+        const numA = parseInt(String(a.numero).replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(String(b.numero).replace(/\D/g, ''), 10) || 0;
+        if (numA !== numB) return numA - numB;
+    }
+    
+    // Fallback para a string de data
     return da.localeCompare(db);
   });
 

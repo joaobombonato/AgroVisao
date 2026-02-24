@@ -90,6 +90,16 @@ export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
     { key: 'referencia',  label: 'Referência',         required: false, defaultOn: true, group: 'Detalhes' },
     { key: 'info',        label: 'Info Adicional',     required: false, defaultOn: true, group: 'Detalhes' },
     { key: 'custo',       label: 'Valor/Custo R$',     required: false, defaultOn: true, group: 'Detalhes' },
+  ],
+
+  cadastros: [
+    { key: 'Maquinas_e_Veiculos',    label: 'Máquinas e Veículos',    required: false, defaultOn: true, group: 'Ativos' },
+    { key: 'Talhoes_e_Areas',        label: 'Talhões (Áreas de Plantio)', required: false, defaultOn: true, group: 'Campos' },
+    { key: 'Produtos_de_Manutencao', label: 'Produtos de Manutenção', required: false, defaultOn: true, group: 'Estoque' },
+    { key: 'Insumos_Agricolas',      label: 'Insumos Agrícolas',      required: false, defaultOn: true, group: 'Estoque' },
+    { key: 'Medidores_Energia',      label: 'Medidores de Energia',   required: false, defaultOn: true, group: 'Monitoramento' },
+    { key: 'Pluviometros',           label: 'Pluviômetros',           required: false, defaultOn: true, group: 'Monitoramento' },
+    { key: 'Apolices_Seguros',       label: 'Apólices de Seguros',    required: false, defaultOn: true, group: 'Diversos' },
   ]
 };
 
