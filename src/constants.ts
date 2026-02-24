@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.82";
+export const APP_VERSION = "v4.7.83";
 
 export const DADOS_INICIAIS = {
   chuvas: [],
@@ -19,7 +19,7 @@ export const ATIVOS_INICIAIS = {
   parametros: {
     estoque: { capacidadeTanque: "", estoqueMinimo: "", ajusteManual: "" },
     financeiro: { precoDiesel: "" },
-    energia: { diaLeitura: "", metaConsumo: "", custoKwh: "" },
+    energia: { diaLeitura: "", metaConsumo: "", custoKwhPadrao: "", custoKwhPonta: "", custoKwhForaPonta: "" },
     manutencao: { alertaPreventiva: "" },
   },
   maquinas: [],

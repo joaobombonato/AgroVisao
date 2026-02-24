@@ -77,7 +77,10 @@ export default function EnergiaScreen() {
     const params = ativos.parametros?.energia || {};
     const valConsumo = U.parseDecimal(consumo);
 
-    // Se consumo for ZERO, aplica Taxa Mínima (Custo de Disponibilidade)
+    // Se não houver leitura nos campos principais, ou campos vazios, mostra 0
+    if (!form.leitura_atual_04 || (isHorario && !form.leitura_atual_08)) return "0.00";
+
+    // Se consumo for ZERO após preencher, aplica Taxa Mínima (Custo de Disponibilidade)
     if (valConsumo <= 0) return "92.30";
       
     if (!isHorario) {
@@ -88,7 +91,7 @@ export default function EnergiaScreen() {
         const tarifaFora = U.parseDecimal(params.custoKwhForaPonta || '0.45');
         return (consumo_04 * tarifaPonta + consumo_08 * tarifaFora).toFixed(2);
     }
-  }, [consumo, consumo_04, consumo_08, isHorario, ativos.parametros]);
+  }, [form.leitura_atual_04, form.leitura_atual_08, consumo, consumo_04, consumo_08, isHorario, ativos.parametros]);
 
   const handlePontoChange = (e: any) => {
       const nomePonto = e.target.value;
@@ -286,12 +289,15 @@ export default function EnergiaScreen() {
              </div>
           </div>
 
-          {/* CLASSE E CONSTANTE AUTOMÁTICA */}
           {form.ponto && (
             <div className="flex gap-2">
                 <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
                     <span className="text-[10px] uppercase font-bold text-yellow-600">Classe</span>
                     <span className="text-sm font-medium text-yellow-800">{mapping.label}</span>
+                </div>
+                <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
+                    <span className="text-[10px] uppercase font-bold text-yellow-600">Tipo</span>
+                    <span className="text-sm font-bold text-yellow-800">{isHorario ? 'Horário' : 'Padrao'}</span>
                 </div>
                 <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
                     <span className="text-[10px] uppercase font-bold text-yellow-600">Constante</span>
@@ -300,11 +306,6 @@ export default function EnergiaScreen() {
             </div>
           )}
 
-          <div className="space-y-3">
-              <div className="bg-yellow-50/50 p-2 rounded-lg border border-yellow-100 italic text-[10px] text-yellow-700 flex justify-between">
-                <span>Constante Medidor: <b>{constante}</b></span>
-                <span>Tipo: <b>{isHorario ? 'Horário (Pivô)' : 'Convencional'}</b></span>
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -357,7 +358,6 @@ export default function EnergiaScreen() {
                     </div>
                 </div>
               )}
-          </div>
 
 
           {/* Card de Resultado */}
@@ -391,9 +391,9 @@ export default function EnergiaScreen() {
 
               <div className="text-right relative z-10">
                   <p className="text-xs text-gray-400 uppercase font-bold mb-1">Custo Estimado</p>
-                  <p className="text-xl font-bold text-green-400">R$ {valorEstimado}</p>
+                  <p className="text-xl font-bold text-green-400">R$ {U.formatValue(valorEstimado)}</p>
                   <p className="text-[10px] text-gray-500 mt-1">
-                      Base: R$ {ativos.parametros?.energia?.custoKwh || 0.92}/kWh
+                      Base: R$ {U.formatValue(ativos.parametros?.energia?.custoKwhPadrao || '0.92')}/kWh
                   </p>
               </div>
               
