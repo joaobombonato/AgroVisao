@@ -4,7 +4,6 @@ import { useAppContext } from '../../../context/AppContext';
 import { fuelExportService } from '../services/fuelExportService';
 import { osExportService } from '../services/osExportService';
 import { weatherExportService } from '../services/weatherExportService';
-import { teamExportService } from '../services/teamExportService';
 import { registriesExportService } from '../services/registriesExportService';
 import { mealsExportService } from '../services/mealsExportService';
 import { U } from '../../../utils';
@@ -18,10 +17,6 @@ import {
   OS_RAW_KEY_MAP,
   OS_COLUMN_STYLES,
   OS_TOTAL_COLS,
-  EQUIPE_KEY_MAP,
-  EQUIPE_RAW_KEY_MAP,
-  EQUIPE_COLUMN_STYLES,
-  EQUIPE_TOTAL_COLS,
   CADASTROS_TOTAL_COLS
 } from '../config/reportDefinitions';
 
@@ -47,12 +42,8 @@ export default function useRelatorios() {
     r.desc.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Abre modal ao invés de exportar direto (exceto para equipe que agora é direto)
+  // Abre modal ao invés de exportar direto
   const openExportModal = (type: 'pdf' | 'excel', relId: string, titulo: string) => {
-    if (relId === 'equipe') {
-        handleExport(type, relId, titulo);
-        return;
-    }
     setModalConfig({ reportId: relId, reportTitle: titulo, exportType: type });
   };
 
@@ -83,8 +74,6 @@ export default function useRelatorios() {
         ({ columns, data, rawData } = buildChuvasData(dados));
       } else if (relId === 'os') {
         ({ columns, data, rawData, summaryData } = buildOSData(state.os, ativos, dateStart, dateEnd));
-      } else if (relId === 'equipe') {
-        ({ columns, data, rawData } = buildEquipeData(state.equipe, state.listas?.colaboradores));
       } else if (relId === 'cadastros') {
         const sel = selectedColumns || [];
         if (sel.length === 0) {
@@ -100,7 +89,7 @@ export default function useRelatorios() {
       }
 
       // ── Personalização ──
-      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : relId === 'equipe' ? EQUIPE_TOTAL_COLS : relId === 'cadastros' ? CADASTROS_TOTAL_COLS : 0;
+      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : relId === 'cadastros' ? CADASTROS_TOTAL_COLS : 0;
       const isCustomized = selectedColumns && selectedColumns.length < totalColsForReport;
       const customTag = isCustomized ? ' (Personalizado)' : '';
 
@@ -112,7 +101,7 @@ export default function useRelatorios() {
         logo,
         summaryData,
         selectedColumns,
-        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : relId === 'os' ? { ...OS_COLUMN_STYLES } : relId === 'equipe' ? { ...EQUIPE_COLUMN_STYLES } : undefined
+        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : relId === 'os' ? { ...OS_COLUMN_STYLES } : undefined
       };
 
       // ── PDF ──
@@ -120,8 +109,8 @@ export default function useRelatorios() {
         let finalColumns = columns;
         let finalData = data;
 
-        if (selectedColumns && (relId === 'custo_abast' || relId === 'os' || relId === 'equipe') && selectedColumns.length < totalColsForReport) {
-          const keyMap = relId === 'custo_abast' ? ABAST_KEY_MAP : relId === 'os' ? OS_KEY_MAP : EQUIPE_KEY_MAP;
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os') && selectedColumns.length < totalColsForReport) {
+          const keyMap = relId === 'custo_abast' ? ABAST_KEY_MAP : OS_KEY_MAP;
           const indices = selectedColumns.map(k => keyMap[k]).filter(i => i !== undefined).sort((a, b) => a - b);
           finalColumns = indices.map(i => columns[i]);
           
@@ -190,8 +179,6 @@ export default function useRelatorios() {
             await weatherExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
         } else if (relId === 'fat_refeicoes') {
             await mealsExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
-        } else if (relId === 'equipe') {
-            await teamExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
         } else if (relId === 'cadastros') {
             await registriesExportService.exportToPDF(finalColumns as any, finalData as any, options as any);
         } else {
@@ -202,8 +189,8 @@ export default function useRelatorios() {
       else {
         let finalRawData = rawData;
         // Notice we exclude 'cadastros' here too because selectedColumns applies at the builder level
-        if (selectedColumns && (relId === 'custo_abast' || relId === 'os' || relId === 'equipe')) {
-          const rawKeyMap = relId === 'custo_abast' ? ABAST_RAW_KEY_MAP : relId === 'os' ? OS_RAW_KEY_MAP : EQUIPE_RAW_KEY_MAP;
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os')) {
+          const rawKeyMap = relId === 'custo_abast' ? ABAST_RAW_KEY_MAP : OS_RAW_KEY_MAP;
           const selectedRawKeys = selectedColumns.map(k => rawKeyMap[k]).filter(Boolean);
           
           if (Array.isArray(rawData)) {
@@ -231,8 +218,6 @@ export default function useRelatorios() {
             await weatherExportService.exportToExcel(finalRawData as any[], options as any);
         } else if (relId === 'fat_refeicoes') {
             await mealsExportService.exportToExcel(finalRawData as any[], options as any);
-        } else if (relId === 'equipe') {
-            await teamExportService.exportToExcel(finalRawData as any[], options as any);
         } else if (relId === 'cadastros') {
             await registriesExportService.exportToExcel(finalRawData as any, options as any);
         } else {
@@ -573,64 +558,6 @@ function buildOSData(osData: any[], ativos: any, dateStart: string, dateEnd: str
   };
 }
 
-function buildEquipeData(equipe: any[], colaboradores: any[]) {
-  // Aggregate both system members (equipe) and field workers (colaboradores)
-  const aggregated: any[] = [];
-
-  // System Members
-  if (Array.isArray(equipe)) {
-    equipe.forEach(m => {
-      aggregated.push({
-        nome: m.nome,
-        cargo: m.funcao || m.cargo || 'Membro da Equipe',
-        tipo: 'Acesso ao Sistema',
-        contato: m.telefone || m.celular || 'Não informado',
-        nascimento: m.data_nascimento ? U.formatDate(m.data_nascimento) : 'Não informado',
-        status: m.status || m.ativo === false ? 'Ex-membro/Inativo' : 'Ativo'
-      });
-    });
-  }
-
-  // Field Collaborators
-  if (Array.isArray(colaboradores)) {
-    colaboradores.forEach(c => {
-      aggregated.push({
-        nome: c.nome,
-        cargo: c.funcao || c.cargo || 'Colaborador',
-        tipo: 'Trabalhador de Campo',
-        contato: c.telefone || c.celular || 'Não informado',
-        nascimento: c.data_nascimento ? U.formatDate(c.data_nascimento) : 'Não informado',
-        status: c.status || c.ativo === false ? 'Ex-colaborador/Inativo' : 'Ativo'
-      });
-    });
-  }
-
-  // Sort alphabetically by name
-  aggregated.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
-
-  const columns = ['Nome', 'Função/Cargo', 'Tipo', 'Telefone/Contato', 'Data Nasc.', 'Status'];
-
-  const data = aggregated.map(row => [
-    row.nome,
-    row.cargo,
-    row.tipo,
-    row.contato,
-    row.nascimento,
-    row.status
-  ]);
-
-  const rawData = aggregated.map(row => ({
-    'Nome': row.nome,
-    'Função/Cargo': row.cargo,
-    'Tipo': row.tipo,
-    'Telefone/Contato': row.contato,
-    'Data Nasc.': row.nascimento,
-    'Status': row.status
-  }));
-
-  return { columns, data, rawData };
-}
-
 function buildCadastrosData(state: any, selectedTypes: string[]) {
   // This builder returns objects formatted specifically for Multiple Worksheets (Excel) and Multiple Tables (PDF)
   // Both `data` (for PDF) and `rawData` (for Excel) will be dictionaries of arrays keyed by the Category string
@@ -639,6 +566,50 @@ function buildCadastrosData(state: any, selectedTypes: string[]) {
   const columns: Record<string, string[]> = {}; // Overriding the structure slightly to return multiple sets
 
   const listas = state.listas || {};
+
+  if (selectedTypes.includes('Membros_e_Colaboradores')) {
+      const eqKeys = 'Equipe e Colaboradores';
+      const equipe = state.equipe || [];
+      const colaboradores = listas.colaboradores || [];
+      
+      const aggregated: any[] = [];
+      if (Array.isArray(equipe)) {
+        equipe.forEach((m: any) => {
+          aggregated.push({
+            nome: m.nome,
+            cargo: m.funcao || m.cargo || 'Membro da Equipe',
+            tipo: 'Acesso ao Sistema',
+            contato: m.telefone || m.celular || 'Não informado',
+            nascimento: m.data_nascimento ? U.formatDate(m.data_nascimento) : 'Não informado',
+            status: m.status || m.ativo === false ? 'Ex-membro/Inativo' : 'Ativo'
+          });
+        });
+      }
+      if (Array.isArray(colaboradores)) {
+        colaboradores.forEach((c: any) => {
+          aggregated.push({
+            nome: c.nome,
+            cargo: c.funcao || c.cargo || 'Colaborador',
+            tipo: 'Trabalhador de Campo',
+            contato: c.telefone || c.celular || 'Não informado',
+            nascimento: c.data_nascimento ? U.formatDate(c.data_nascimento) : 'Não informado',
+            status: c.status || c.ativo === false ? 'Ex-colaborador/Inativo' : 'Ativo'
+          });
+        });
+      }
+      aggregated.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      
+      columns[eqKeys] = ['Nome', 'Função/Cargo', 'Tipo', 'Telefone/Contato', 'Data Nasc.', 'Status'];
+      data[eqKeys] = aggregated.map(row => [row.nome, row.cargo, row.tipo, row.contato, row.nascimento, row.status]);
+      rawData[eqKeys] = aggregated.map(row => ({
+        'Nome': row.nome,
+        'Função/Cargo': row.cargo,
+        'Tipo': row.tipo,
+        'Telefone/Contato': row.contato,
+        'Data Nasc.': row.nascimento,
+        'Status': row.status
+      }));
+  }
 
   if (selectedTypes.includes('Maquinas_e_Veiculos')) {
       const maqKeys = 'Máquinas e Veículos';

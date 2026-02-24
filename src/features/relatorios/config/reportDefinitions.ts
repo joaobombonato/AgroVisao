@@ -104,44 +104,12 @@ export const OS_COLUMN_STYLES: Record<number, any> = {
 export const OS_TOTAL_COLS = 6;
 
 // ==========================================
-// CONSTANTES DE MAPEAMENTO (equipe)
-// ==========================================
-
-export const EQUIPE_KEY_MAP: Record<string, number> = {
-  nome: 0,
-  cargo: 1,
-  tipo: 2,
-  contato: 3,
-  nascimento: 4,
-  status: 5,
-};
-
-export const EQUIPE_RAW_KEY_MAP: Record<string, string> = {
-  nome: "Nome",
-  cargo: "Função/Cargo",
-  tipo: "Tipo",
-  contato: "Telefone/Contato",
-  nascimento: "Data Nasc.",
-  status: "Status",
-};
-
-export const EQUIPE_COLUMN_STYLES: Record<number, any> = {
-  0: { halign: "left" }, // Nome (stretches)
-  1: { halign: "left", cellWidth: 40 }, // Cargo
-  2: { halign: "center", cellWidth: 35 }, // Tipo
-  3: { halign: "center", cellWidth: 35 }, // Contato
-  4: { halign: "center", cellWidth: 25 }, // Nascimento
-  5: { halign: "center", cellWidth: 20 }, // Status
-};
-
-export const EQUIPE_TOTAL_COLS = 6;
-
-// ==========================================
 // CONSTANTES DE MAPEAMENTO (cadastros)
 // ==========================================
 
 // Para Cadastros, a constante define as *categorias* exportáveis (as abas do excel / blocos do PDF)
 export const CADASTROS_CATEGORIAS: string[] = [
+  'Membros_e_Colaboradores',
   'Maquinas_e_Veiculos',
   'Produtos_de_Manutencao',
   'Talhoes_e_Areas',
@@ -152,6 +120,7 @@ export const CADASTROS_CATEGORIAS: string[] = [
 ];
 
 export const CADASTROS_RAW_KEY_MAP: Record<string, string> = {
+  Membros_e_Colaboradores: 'Equipe e Colaboradores',
   Maquinas_e_Veiculos: 'Máquinas e Veículos',
   Produtos_de_Manutencao: 'Produtos de Manutenção',
   Talhoes_e_Areas: 'Talhões (Áreas de Plantio)',
@@ -162,16 +131,17 @@ export const CADASTROS_RAW_KEY_MAP: Record<string, string> = {
 };
 
 export const CADASTROS_KEY_MAP: Record<string, number> = {
-  Maquinas_e_Veiculos: 0,
-  Produtos_de_Manutencao: 1,
-  Talhoes_e_Areas: 2,
-  Insumos_Agricolas: 3,
-  Medidores_Energia: 4,
-  Pluviometros: 5,
-  Apolices_Seguros: 6
+  Membros_e_Colaboradores: 0,
+  Maquinas_e_Veiculos: 1,
+  Produtos_de_Manutencao: 2,
+  Talhoes_e_Areas: 3,
+  Insumos_Agricolas: 4,
+  Medidores_Energia: 5,
+  Pluviometros: 6,
+  Apolices_Seguros: 7
 };
 
-export const CADASTROS_TOTAL_COLS = 7;
+export const CADASTROS_TOTAL_COLS = 8;
 
 // ==========================================
 // DEFINIÇÕES DOS RELATÓRIOS
@@ -188,17 +158,6 @@ export const RELATORIOS: ReportDef[] = [
     iconColor: "text-indigo-500",
     iconHoverBg: "group-hover:bg-indigo-500",
     catColor: "text-indigo-500",
-  },
-  {
-    id: "equipe",
-    titulo: "Membros e Colaboradores",
-    desc: "Listagem unificada da equipe de campo e acessos.",
-    categoria: "Equipe",
-    icon: Users,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-500",
-    iconHoverBg: "group-hover:bg-blue-500",
-    catColor: "text-blue-500",
   },
   {
     id: 'cadastros',

@@ -93,6 +93,7 @@ export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
   ],
 
   cadastros: [
+    { key: 'Membros_e_Colaboradores',label: 'Equipe e Colaboradores', required: false, defaultOn: true, group: 'Pessoas' },
     { key: 'Maquinas_e_Veiculos',    label: 'Máquinas e Veículos',    required: false, defaultOn: true, group: 'Ativos' },
     { key: 'Talhoes_e_Areas',        label: 'Talhões (Áreas de Plantio)', required: false, defaultOn: true, group: 'Campos' },
     { key: 'Produtos_de_Manutencao', label: 'Produtos de Manutenção', required: false, defaultOn: true, group: 'Estoque' },

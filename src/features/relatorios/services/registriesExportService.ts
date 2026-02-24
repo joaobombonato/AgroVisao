@@ -129,7 +129,8 @@ export const registriesExportService = {
         doc.text(`Página ${i} de ${pageCount}`, pageWidth - 25, pageHeight - 10);
     }
 
-    doc.save(`${options.filename}.pdf`);
+    const pdfBlob = doc.output('blob');
+    await downloadFile(pdfBlob, `${options.filename}.pdf`, 'pdf');
   },
 
   exportToExcel: async (rawMap: Record<string, any[]>, options: RegistriesExportOptions) => {
@@ -141,6 +142,25 @@ export const registriesExportService = {
     
     if (categories.length === 0) {
       const ws = workbook.addWorksheet('Cadastros Vazio');
+      const INDIGO_DARK = 'FF283593';
+      const INDIGO = 'FF3F51B5';
+      const dateStr = new Date().toLocaleDateString('pt-BR');
+      const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      const titleRow = ws.addRow([`${options.title.toUpperCase()}`]);
+      titleRow.font = { bold: true, size: 16, color: { argb: INDIGO_DARK } };
+      titleRow.height = 28;
+
+      const farmRow = ws.addRow([`Propriedade: ${options.farmName || 'Fazenda'}`]);
+      farmRow.font = { size: 10, color: { argb: 'FF6E6E6E' } };
+
+      const periodRow = ws.addRow([options.subtitle || '']);
+      periodRow.font = { bold: true, size: 10, color: { argb: INDIGO } };
+
+      const genRow = ws.addRow([`Gerado em: ${dateStr} ${timeStr} — AgroVisão ${APP_VERSION}`]);
+      genRow.font = { size: 8, color: { argb: 'FF999999' }, italic: true };
+      
+      ws.addRow([]);
       ws.addRow(['Nenhum cadastro selecionado ou sem dados.']);
       const buffer = await workbook.xlsx.writeBuffer();
       downloadFile(new Blob([buffer]), `${options.filename}.xlsx`, 'xlsx');
@@ -155,22 +175,30 @@ export const registriesExportService = {
       const sheetName = catKey.slice(0, 31).replace(/[^\w\s-]/gi, '');
       const ws = workbook.addWorksheet(sheetName);
 
-      // 1. Título principal (Mesclado)
-      ws.mergeCells('A1:F1');
-      const titleCell = ws.getCell('A1');
-      titleCell.value = options.title.toUpperCase();
-      titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3F3F46' } }; // Zinc 700
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      const INDIGO_DARK = 'FF283593';
+      const INDIGO = 'FF3F51B5';
+      const dateStr = new Date().toLocaleDateString('pt-BR');
+      const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-      // 2. Fazenda e Subtítulo da Aba
-      ws.mergeCells('A2:F2');
-      const farmCell = ws.getCell('A2');
-      farmCell.value = `${options.farmName} | Cadastro: ${catKey}`;
-      farmCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF4B5563' } };
-      farmCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      // Linha 1: Título
+      const titleRow = ws.addRow([`${options.title.toUpperCase()} - ${catKey.toUpperCase()}`]);
+      titleRow.font = { bold: true, size: 16, color: { argb: INDIGO_DARK } };
+      titleRow.height = 28;
 
-      ws.addRow(['']); // Blank row
+      // Linha 2: Propriedade
+      const farmRow = ws.addRow([`Propriedade: ${options.farmName || 'Fazenda'}`]);
+      farmRow.font = { size: 10, color: { argb: 'FF6E6E6E' } };
+
+      // Linha 3: Período
+      const periodRow = ws.addRow([options.subtitle || '']);
+      periodRow.font = { bold: true, size: 10, color: { argb: INDIGO } };
+
+      // Linha 4: Geração
+      const genRow = ws.addRow([`Gerado em: ${dateStr} ${timeStr} — AgroVisão ${APP_VERSION}`]);
+      genRow.font = { size: 8, color: { argb: 'FF999999' }, italic: true };
+
+      // Linha 5: Separador
+      ws.addRow([]);
 
       // 3. Headers of the table
       const columnsKeys = Object.keys(dataRaw[0]);
@@ -220,13 +248,7 @@ export const registriesExportService = {
         column.width = maxLen < 30 ? maxLen : 30;
       });
 
-      // 6. Rodapé
-      ws.addRow(['']);
-      const dateStr = new Date().toLocaleDateString('pt-BR');
-      const timeStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const genRow = ws.addRow([`Gerado em: ${dateStr} ${timeStr} — AgroVisão ${APP_VERSION}`]);
-      genRow.getCell(1).font = { italic: true, size: 8, color: { argb: 'FF64748B' } };
-      ws.mergeCells(`A${genRow.number}:F${genRow.number}`);
+
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
