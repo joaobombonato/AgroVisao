@@ -74,17 +74,21 @@ export default function EnergiaScreen() {
   const consumo = (consumo_04 + consumo_08).toFixed(0);
 
   const valorEstimado = useMemo(() => {
-      const params = ativos.parametros?.energia || {};
+    const params = ativos.parametros?.energia || {};
+    const valConsumo = U.parseDecimal(consumo);
+
+    // Se consumo for ZERO, aplica Taxa Mínima (Custo de Disponibilidade)
+    if (valConsumo <= 0) return "92.30";
       
-      if (!isHorario) {
-          const tarifa = U.parseDecimal(params.custoKwhPadrao || '0.92');
-          return (consumo_04 * tarifa).toFixed(2);
-      } else {
-          const tarifaPonta = U.parseDecimal(params.custoKwhPonta || '2.50');
-          const tarifaFora = U.parseDecimal(params.custoKwhForaPonta || '0.45');
-          return (consumo_04 * tarifaPonta + consumo_08 * tarifaFora).toFixed(2);
-      }
-  }, [consumo_04, consumo_08, isHorario, ativos.parametros]);
+    if (!isHorario) {
+        const tarifa = U.parseDecimal(params.custoKwhPadrao || '0.92');
+        return (consumo_04 * tarifa).toFixed(2);
+    } else {
+        const tarifaPonta = U.parseDecimal(params.custoKwhPonta || '2.50');
+        const tarifaFora = U.parseDecimal(params.custoKwhForaPonta || '0.45');
+        return (consumo_04 * tarifaPonta + consumo_08 * tarifaFora).toFixed(2);
+    }
+  }, [consumo, consumo_04, consumo_08, isHorario, ativos.parametros]);
 
   const handlePontoChange = (e: any) => {
       const nomePonto = e.target.value;
@@ -128,10 +132,18 @@ export default function EnergiaScreen() {
   const enviar = (e: any) => {
     e.preventDefault();
     
-    // 1. Validação de Consumo
-    if (U.parseDecimal(consumo) <= 0) { 
-        toast.error("Consumo total deve ser maior que zero. Verifique as leituras."); 
+    // 1. Validação de Consumo (Permitir zero com confirmação)
+    const valConsumo = U.parseDecimal(consumo);
+    if (valConsumo < 0) { 
+        toast.error("A leitura atual não pode ser menor que a anterior."); 
         return; 
+    }
+
+    if (valConsumo === 0) {
+        const confirmZero = window.confirm(
+            "Não houve consumo no mês atual? \nA leitura não teve mudança perante a última, está correto?"
+        );
+        if (!confirmZero) return;
     }
     
     // 2. Validação de Data
