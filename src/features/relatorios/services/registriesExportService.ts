@@ -15,6 +15,14 @@ export interface RegistriesExportOptions {
   selectedColumns?: string[];
 }
 
+const generateFormattedFilename = (title: string, farmName: string, ext: string) => {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR').replace(/\//g, '-');
+  const cleanTitle = title.toUpperCase();
+  const cleanFarm = farmName || 'Fazenda';
+  return `AgroVisão ${cleanTitle} ${dateStr} - ${cleanFarm}.${ext}`;
+};
+
 const drawPDFHeader = (doc: any, options: RegistriesExportOptions, pageWidth: number) => {
   const { title, subtitle, logo, farmName } = options;
   const now = new Date();
@@ -114,6 +122,7 @@ export const registriesExportService = {
       // Se não houver espaço suficiente para a próxima tabela, quebre a página *antes*
       if (startY > pageHeight - 40 && index > 0) {
         doc.addPage();
+        drawPDFHeader(doc, options, pageWidth);
         startY = 40;
       }
 
@@ -134,20 +143,40 @@ export const registriesExportService = {
           fillColor: [63, 81, 181],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          valign: 'middle'
         },
         styles: {
           fontSize: 8,
           cellPadding: 3,
           textColor: [60, 60, 60],
-          halign: 'center'
+          halign: 'center', // Volta ao centralizado para melhor estética
+          valign: 'middle',
+          overflow: 'visible' // Evita quebra caractere por caractere
         },
+        tableWidth: pageWidth - 28, // Força 100% da largura útil (margem 14+14=28)
+        columnStyles: (function() {
+          const styles: any = {};
+          cols.forEach((colName, cidx) => {
+            if (colName === 'Identificação da Máquina') {
+              styles[cidx] = { minCellWidth: 50 }; // Peso maior, mas permite expandir
+            }
+            if (colName === 'Dados da Compra') {
+              styles[cidx] = { minCellWidth: 60 }; // Peso maior, permite expandir
+            }
+            if (colName === 'Situação Financeira') {
+              styles[cidx] = { minCellWidth: 45 }; 
+            }
+          });
+          return styles;
+        })(),
         alternateRowStyles: {
           fillColor: [249, 250, 255]
         },
         margin: { top: 38, bottom: 20, left: 14, right: 14 },
         didDrawPage: (dataInfo: any) => {
-          if (dataInfo.pageNumber > 1 && dataInfo.cursor.y === dataInfo.settings.margin.top) {
+          // Sempre desenha o cabeçalho em novas páginas geradas pelo autoTable
+          if (dataInfo.pageNumber > 1) {
              drawPDFHeader(doc, options, pageWidth);
           }
         }
@@ -174,17 +203,26 @@ export const registriesExportService = {
         doc.setLineWidth(0.5);
         doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
 
-        doc.setFontSize(7);
-        doc.setTextColor(150);
-        doc.text(`Relatório gerado pelo sistema AgroVisão - v${APP_VERSION} — Solução PráticoApp`, 14, pageHeight - 10);
+        // Rodapé Esq (Autoria e Versão)
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Relatório gerado pelo sistema AgroVisão - ${APP_VERSION} — Solução PráticoApp`, 14, pageHeight - 10);
+
+        // Rodapé Centro (Paginação X - Y)
+        doc.text(`Página ${i} - ${pageCount}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+        // Rodapé Dir (Logo PráticoApp)
         try {
-          doc.addImage(PRATICO_LOGO_B64, 'PNG', pageWidth - 30, pageHeight - 12, 16, 7);
-        } catch(e){}
-        doc.text(`Página ${i} de ${pageCount}`, pageWidth - 14, pageHeight - 10, { align: 'right' });
+          doc.addImage(PRATICO_LOGO_B64, 'PNG', pageWidth - 34, pageHeight - 14, 20, 5);
+        } catch(e) {
+          doc.text('PráticoApp', pageWidth - 14, pageHeight - 10, { align: 'right' });
+        }
     }
 
+    const finalFilename = generateFormattedFilename(options.title || 'Cadastros', options.farmName || '', 'pdf');
     const pdfBlob = doc.output('blob');
-    await downloadFile(pdfBlob, `${options.filename}.pdf`, 'pdf');
+    await downloadFile(pdfBlob, finalFilename, 'pdf');
   },
 
   exportToExcel: async (rawMap: Record<string, any[]>, options: RegistriesExportOptions) => {
@@ -216,8 +254,9 @@ export const registriesExportService = {
       
       ws.addRow([]);
       ws.addRow(['Nenhum cadastro selecionado ou sem dados.']);
+      const finalFilename = generateFormattedFilename(options.title || 'Cadastros_Vazio', options.farmName || '', 'xlsx');
       const buffer = await workbook.xlsx.writeBuffer();
-      downloadFile(new Blob([buffer]), `${options.filename}.xlsx`, 'xlsx');
+      downloadFile(new Blob([buffer]), finalFilename, 'xlsx');
       return;
     }
 
@@ -305,7 +344,8 @@ export const registriesExportService = {
 
     }
 
+    const finalFilename = generateFormattedFilename(options.title || 'Cadastros', options.farmName || '', 'xlsx');
     const buffer = await workbook.xlsx.writeBuffer();
-    downloadFile(new Blob([buffer]), `${options.filename}.xlsx`, 'xlsx');
+    downloadFile(new Blob([buffer]), finalFilename, 'xlsx');
   }
 };

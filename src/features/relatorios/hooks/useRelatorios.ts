@@ -17,8 +17,10 @@ import {
   OS_RAW_KEY_MAP,
   OS_COLUMN_STYLES,
   OS_TOTAL_COLS,
-  CADASTROS_TOTAL_COLS
+  CADASTROS_TOTAL_COLS,
+  CADASTROS_CATEGORIAS
 } from '../config/reportDefinitions';
+import { REPORT_COLUMNS } from '../config/reportColumns';
 
 // ==========================================
 // HOOK: useRelatorios
@@ -90,14 +92,20 @@ export default function useRelatorios() {
 
       // ── Personalização ──
       const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : relId === 'cadastros' ? CADASTROS_TOTAL_COLS : 0;
-      const isCustomized = selectedColumns && selectedColumns.length < totalColsForReport;
+      
+      // Para Cadastros, filtramos as chaves de categorias pai para contar apenas as colunas reais
+      const filteredSelected = relId === 'cadastros' && selectedColumns 
+        ? selectedColumns.filter(k => !CADASTROS_CATEGORIAS.includes(k))
+        : selectedColumns;
+
+      const isCustomized = filteredSelected && filteredSelected.length < totalColsForReport;
       const customTag = isCustomized ? ' (Personalizado)' : '';
 
       const options = {
         title: titulo + customTag,
         filename: filename + (isCustomized ? '_Personalizado' : ''),
         farmName: fNome,
-        subtitle: periodStr + (isCustomized ? `  •  ${selectedColumns!.length} de ${totalColsForReport} colunas` : ''),
+        subtitle: periodStr + (isCustomized ? `  •  ${filteredSelected?.length} de ${totalColsForReport} colunas` : ''),
         logo,
         summaryData,
         selectedColumns,
@@ -614,16 +622,84 @@ function buildCadastrosData(state: any, selectedTypes: string[]) {
   if (selectedTypes.includes('Maquinas_e_Veiculos')) {
       const maqKeys = 'Máquinas e Veículos';
       const source = state.ativos?.maquinas || [];
-      columns[maqKeys] = ['Nome Identificador', 'Placa', 'Categoria', 'Status'];
-      data[maqKeys] = source.map((m: any) => [m.nome, m.placa || '-', m.categoria || '-', m.status || 'Ativo']);
-      rawData[maqKeys] = source.map((m: any) => ({
-          'Nome Identificador': m.nome,
-          'Placa': m.placa || '-',
-          'Categoria': m.categoria || '-',
-          'Status': m.status || 'Ativo',
-          'Aquisicao': m.data_aquisicao ? U.formatDate(m.data_aquisicao) : '',
-          'Valor': m.valor_aquisicao || 0
-      }));
+      
+      const maqDef = REPORT_COLUMNS['cadastros']?.find(c => c.key === 'Maquinas_e_Veiculos');
+      const subCols = maqDef?.subColumns?.filter(sub => selectedTypes.includes(sub.key)) || [];
+      
+      if (subCols.length > 0) {
+        columns[maqKeys] = subCols.map(sub => sub.label);
+        
+        data[maqKeys] = source.map((m: any) => {
+            return subCols.map(sub => {
+                switch(sub.key) {
+                  case 'identificacao_resumo': return `${m.nome} - ${m.fabricante || '-'} - ${m.descricao || '-'}`;
+                  case 'status': return m.status || 'Ativo';
+                  case 'ultimo_horimetro_km': return m.ultimo_horimetro_km || '-';
+                  case 'proxima_revisao': return m.proxima_revisao || '-';
+                  case 'dados_compra': {
+                    const parts = [];
+                    if (m.data_compra || m.data_aquisicao) parts.push(`Data: ${U.formatDate(m.data_compra || m.data_aquisicao)}`);
+                    if (m.valor_pago || m.valor_aquisicao) {
+                      const val = m.valor_pago || m.valor_aquisicao;
+                      parts.push(`Valor: R$ ${U.formatValue(val)}`);
+                    }
+                    if (m.fornecedor) parts.push(`Forn: ${m.fornecedor}`);
+                    return parts.length > 0 ? parts.join(' | ') : '-';
+                  }
+                  case 'situacao_financeira': {
+                    let base = m.situacao_financeira || '-';
+                    if (base === 'Alienado' || base === 'Financiado (liquidado)') {
+                         const details = [];
+                         if (m.banco_alienacao) details.push(`Banco: ${m.banco_alienacao}`);
+                         if (m.data_final_alienacao) details.push(`Venc: ${U.formatDate(m.data_final_alienacao)}`);
+                         if (m.numero_contrato) details.push(`Contr: ${m.numero_contrato}`);
+                         if (details.length > 0) base += ` (${details.join(' | ')})`;
+                    }
+                    return base;
+                  }
+                  default: return '-';
+                }
+            });
+        });
+        
+        rawData[maqKeys] = source.map((m: any) => {
+            const row: Record<string, any> = {};
+            subCols.forEach(sub => {
+                let val: any = '-';
+                switch(sub.key) {
+                  case 'identificacao_resumo': val = `${m.nome} - ${m.fabricante || '-'} - ${m.descricao || '-'}`; break;
+                  case 'status': val = m.status || 'Ativo'; break;
+                  case 'ultimo_horimetro_km': val = m.ultimo_horimetro_km || '-'; break;
+                  case 'proxima_revisao': val = m.proxima_revisao || '-'; break;
+                  case 'dados_compra': {
+                    const parts = [];
+                    if (m.data_compra || m.data_aquisicao) parts.push(`Data: ${U.formatDate(m.data_compra || m.data_aquisicao)}`);
+                    if (m.valor_pago || m.valor_aquisicao) {
+                       const vP = m.valor_pago || m.valor_aquisicao;
+                       parts.push(`Valor: R$ ${U.formatValue(vP)}`);
+                    }
+                    if (m.fornecedor) parts.push(`Forn: ${m.fornecedor}`);
+                    val = parts.length > 0 ? parts.join(' | ') : '-';
+                    break;
+                  }
+                  case 'situacao_financeira': {
+                    let baseVal = m.situacao_financeira || '-';
+                    if (baseVal === 'Alienado' || baseVal === 'Financiado (liquidado)') {
+                         const dts = [];
+                         if (m.banco_alienacao) dts.push(`Banco: ${m.banco_alienacao}`);
+                         if (m.data_final_alienacao) dts.push(`Venc: ${U.formatDate(m.data_final_alienacao)}`);
+                         if (m.numero_contrato) dts.push(`Contr: ${m.numero_contrato}`);
+                         if (dts.length > 0) baseVal += ` (${dts.join(' | ')})`;
+                    }
+                    val = baseVal;
+                    break;
+                  }
+                }
+                row[sub.label] = val;
+            });
+            return row;
+        });
+      }
   }
 
   if (selectedTypes.includes('Produtos_de_Manutencao')) {
@@ -671,12 +747,22 @@ function buildCadastrosData(state: any, selectedTypes: string[]) {
 
   if (selectedTypes.includes('Medidores_Energia')) {
       const medKeys = 'Medidores de Energia';
-      const source = listas.medidores || [];
-      columns[medKeys] = ['Medidor (Nome)', 'Meta Mensal kWh'];
-      data[medKeys] = source.map((m: any) => [m.id, m.meta_mensal || 0]);
+      const source = state.ativos?.pontosEnergia || [];
+      columns[medKeys] = ['Medidor (Nome)', 'Tipo de Medição', 'Constante', 'Meta Mensal kWh'];
+      data[medKeys] = source.map((m: any) => [
+        m.nome || m.id, 
+        m.tipo_medicao || 'Padrao',
+        m.constante_medidor || '1',
+        m.meta_consumo || 0
+      ]);
       rawData[medKeys] = source.map((m: any) => ({
-          'Medidor (Nome)': m.id,
-          'Meta Mensal kWh': m.meta_mensal || 0
+          'Medidor (Nome)': m.nome || m.id,
+          'Identificador Ext.': m.identificador_externo || '-',
+          'Tipo de Medição': m.tipo_medicao || 'Padrao',
+          'Constante': m.constante_medidor || '1',
+          'Leitura Inicial 04': m.leitura_inicial_04 || 0,
+          'Leitura Inicial 08': m.leitura_inicial_08 || 0,
+          'Meta Mensal kWh': m.meta_consumo || 0
       }));
   }
 

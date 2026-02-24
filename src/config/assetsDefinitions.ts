@@ -52,8 +52,11 @@ export const ASSET_DEFINITIONS: any = {
       { key: "descricao", label: "Modelo / Potência", placeholder: "Ex: 6125J - 125 CV", required: true, showInList: true },
       { key: "unidade_medida", label: "Medidor Principal", type: "select", options: ["Horas (Máquinas)", "Km (Veículos)"], default: "", required: true, showInList: true },
       { key: "horimetro_inicial", label: "Horímetro/Km Inicial", type: "text", mask: "decimal", placeholder: "Ex: 6.500,50", required: true, showInList: true },
+      { key: "ultimo_horimetro_km", label: "Último Horímetro/Km", type: "text", mask: "decimal", placeholder: "Ex: 6.800,00", showInList: true },
       { key: "ultima_revisao", label: "Última Revisão Realizada (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 5.370,00", required: true, showInList: true },
+      { key: "proxima_revisao", label: "Próxima Revisão (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 5.620,00", showInList: true },
       { key: "intervalo_revisao", label: "Intervalo de Manutenção (Horas/Km)", type: "text", mask: "decimal", placeholder: "Ex: 250", required: true, showInList: true },
+      { key: "status", label: "Status da Máquina", type: "select", options: ["Ativo", "Em Manutenção", "Vendido", "Inativo"], default: "Ativo", required: true, showInList: true },
       { key: "data_inicial_app", label: "Data do Registro (DD/MM/AAAA)", type: "date", default: new Date().toISOString().split('T')[0], hidden: true },
 
       { 
@@ -245,7 +248,57 @@ export const ASSET_DEFINITIONS: any = {
     fields: [
       { key: "nome", label: "Ponto de Consumo", placeholder: "Ex: Secador 01", showInList: true, required: true },
       { key: "identificador_externo", label: "Nº do Medidor (CEMIG)", placeholder: "Ex: 12345678", showInList: true },
-      { key: "meta_consumo", label: "Meta de Consumo (kWh)", type: "text", mask: "metric", placeholder: "Ex: 500,0", showInList: true },
+      { 
+        key: "classe_tarifaria", 
+        label: "Classe Tarifária", 
+        type: "select", 
+        options: [
+          { value: "rural_mono", label: "Rural Monofásica (Constante 1)" },
+          { value: "comercial_tri", label: "Comercial Trifásica (Constante 80)" },
+          { value: "irrigante_tri", label: "Irrigante Noturno (Constante 40)" },
+          { value: "personalizado", label: "Personalizado / Outro" }
+        ], 
+        default: "rural_mono",
+        showInList: true,
+        required: true 
+      },
+      { 
+        key: "tipo_medicao", 
+        label: "Modo de Medição", 
+        type: "select", 
+        options: ["Padrao", "Horario"], 
+        dependsOn: { key: "classe_tarifaria", value: "personalizado" },
+        default: "Padrao"
+      },
+      { 
+        key: "constante_medidor", 
+        label: "Constante Manual", 
+        type: "text", 
+        mask: "decimal", 
+        dependsOn: { key: "classe_tarifaria", value: "personalizado" },
+        placeholder: "Ex: 1,0", 
+        default: "1,0"
+      },
+      { 
+        key: "leitura_inicial_04", 
+        label: "Leitura Inicial Geral (03) / Ponta (04)", 
+        type: "text", 
+        mask: "decimal", 
+        placeholder: "Ex: 1.250", 
+        required: true, 
+        showInList: true 
+      },
+      { 
+        key: "leitura_inicial_08", 
+        label: "Leitura Inicial Fora Ponta (08)", 
+        type: "text", 
+        mask: "decimal", 
+        placeholder: "Ex: 2.150", 
+        dependsOn: { key: "classe_tarifaria", value: "irrigante_tri" },
+        requiredIf: { key: "classe_tarifaria", value: "irrigante_tri" },
+        showInList: true 
+      },
+      { key: "meta_consumo", label: "Meta Mensal Total (kWh)", type: "text", mask: "metric", placeholder: "Ex: 5.000 (Soma de 04 e 08)", showInList: true },
       { key: "observacao_antiga", label: "Obs / Numeração Antiga", placeholder: "Ex: Troca de medidor em 2025...", showInList: true },
       { key: "tipo", label: "Tipo", hidden: true, default: "energia" },
     ],

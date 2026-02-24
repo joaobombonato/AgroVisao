@@ -141,7 +141,7 @@ export const CADASTROS_KEY_MAP: Record<string, number> = {
   Apolices_Seguros: 7
 };
 
-export const CADASTROS_TOTAL_COLS = 8;
+export const CADASTROS_TOTAL_COLS = 9;
 
 // ==========================================
 // DEFINIÇÕES DOS RELATÓRIOS

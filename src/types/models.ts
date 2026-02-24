@@ -30,9 +30,13 @@ export interface Refeicao extends BaseRecord {
 export interface Energia extends BaseRecord {
     data: string;
     ponto: string; // Medidor (locais_monitoramento)
-    leituraAnterior: number;
-    leituraAtual: number;
-    consumo: number; // Calculado
+    leitura_ant_04: number;
+    leitura_atual_04: number;
+    leitura_ant_08?: number;
+    leitura_atual_08?: number;
+    consumo_04: number;
+    consumo_08?: number;
+    consumo: number; // Total calculado
     valorEstimado?: number; // Calculado
 }
 

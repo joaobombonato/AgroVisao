@@ -1,0 +1,47 @@
+# Relatórios de Equipe e Cadastros (Planejamento)
+
+Este documento detalha o plano de implementação para os dois novos relatórios solicitados: **Membros da Equipe** e **Cadastros Gerais**.
+
+## 1. Relatório de Equipe (Colaboradores + Membros)
+
+**Objetivo:** Criar um relatório unificado que traga tanto os colaboradores (trabalhadores de campo, operadores registrados nas listas) quanto os membros da equipe (usuários com acesso ao sistema AgroVisão).
+
+**Mudanças Propostas:**
+- Criar a definição no [reportDefinitions.ts](file:///c:/Users/Usu%C3%A1rio/Desktop/Projeto%20Vis%C3%A3oAgro/src/features/relatorios/config/reportDefinitions.ts) com ID `equipe`.
+- Adicionar no [useRelatorios.ts](file:///c:/Users/Usu%C3%A1rio/Desktop/Projeto%20Vis%C3%A3oAgro/src/features/relatorios/hooks/useRelatorios.ts) a função `buildEquipeData` que vai ler dos estados de `equipe` (acessos) e `listas.colaboradores`.
+- Criar `teamExportService.ts` para lidar com o desenho do PDF e a montagem do Excel, seguindo os padrões visuais já estabelecidos (Cores Indigo, cabeçalhos, rodapés com paginação).
+
+**Estrutura de Colunas:**
+1. Nome
+2. Função/Cargo
+3. Tipo (Membro do Sistema / Colaborador s/ Acesso)
+4. Telefone/Contato
+5. Status (Ativo/Inativo)
+
+---
+
+## 2. Relatório de Cadastros e Listas Gerais
+
+**Objetivo:** Consolidar os vários ativos e cadastros do sistema em um relatório denso, separado por categorias (abas no Excel, ou quebras de página no PDF).
+
+**Categorias Alvo (a extrair do estado global `listas` e outros reducers):**
+- Máquinas e Veículos
+- Produtos de Manutenção / Peças
+- Talhões (Áreas de Plantio)
+- Insumos Agrícolas (Sementes, Defensivos, Fertilizantes)
+- Medidores de Energia
+- Pluviômetros (Estações de Chuva)
+- Apólices de Seguros
+
+**Mudanças Propostas:**
+- Criar a definição no [reportDefinitions.ts](file:///c:/Users/Usu%C3%A1rio/Desktop/Projeto%20Vis%C3%A3oAgro/src/features/relatorios/config/reportDefinitions.ts) com ID `cadastros`.
+- Criar a montagem de dados no [useRelatorios.ts](file:///c:/Users/Usu%C3%A1rio/Desktop/Projeto%20Vis%C3%A3oAgro/src/features/relatorios/hooks/useRelatorios.ts) chamada `buildCadastrosData`. Como são dados com formatos variados, este relatório será agrupado por *Tipo de Cadastro* (ex: O grupo "Máquinas" tem colunas específicas, o grupo "Talhões" tem outras).
+- Criar `registriesExportService.ts` focado em renderizar múltiplas tabelas dinâmicas no PDF (cada ciclo gera uma tabela com colunas diferentes) e múltiplas *Worksheets* no Excel (uma aba para Máquinas, uma para Insumos, etc).
+
+---
+
+## Próximos Passos (Aprovação)
+
+Se as colunas sugeridas para a Equipe e as categorias listadas para os Cadastros estiverem corretas, me dê o sinal verde nesta ou na nossa próxima conversa para eu iniciar a **Fase 2 (Equipe)** e a **Fase 3 (Cadastros)** detalhadas no nosso [task.md](file:///c:/Users/Usu%C3%A1rio/.gemini/antigravity/brain/dd5597dc-1590-48b3-8b1b-46d4b63771be/task.md).
+
+Bom descanso!

@@ -9,7 +9,12 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         const safeParams = currentParams || {};
         // Se currentParams vier vazio ou incompleto, garantimos a estrutura
         return {
-            energia: safeParams.energia || { custoKwh: '', metaConsumo: '', diaLeitura: '' },
+            energia: safeParams.energia || { 
+                custoKwhPadrao: '', 
+                custoKwhPonta: '', 
+                custoKwhForaPonta: '', 
+                diaLeitura: '' 
+            },
             estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '', ajusteManual: '' },
             financeiro: safeParams.financeiro || { precoDiesel: '' },
             manutencao: safeParams.manutencao || { alertaPreventiva: '' },
@@ -68,12 +73,28 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     <Zap className="w-5 h-5 text-yellow-500"/> Energia Elétrica
                 </h3>
                 <Input 
-                    label="Custo por kWh (R$)" 
-                    value={getVal('energia', 'custoKwh')} 
-                    onChange={(e: any) => handleChange('energia', 'custoKwh', e.target.value)}
+                    label="Tarifa Padrão (03 ou Geral) - R$/kWh" 
+                    value={getVal('energia', 'custoKwhPadrao')} 
+                    onChange={(e: any) => handleChange('energia', 'custoKwhPadrao', e.target.value)}
                     type="text"
                     mask="decimal"
-                    placeholder="Ex: 0,92"
+                    placeholder="Ex: 0,85"
+                />
+                <Input 
+                    label="Tarifa Ponta (04) - R$/kWh" 
+                    value={getVal('energia', 'custoKwhPonta')} 
+                    onChange={(e: any) => handleChange('energia', 'custoKwhPonta', e.target.value)}
+                    type="text"
+                    mask="decimal"
+                    placeholder="Ex: 2,50"
+                />
+                <Input 
+                    label="Tarifa Fora Ponta (08) - R$/kWh" 
+                    value={getVal('energia', 'custoKwhForaPonta')} 
+                    onChange={(e: any) => handleChange('energia', 'custoKwhForaPonta', e.target.value)}
+                    type="text"
+                    mask="decimal"
+                    placeholder="Ex: 0,45"
                 />
                 <Input 
                     label="Dia do Fechamento (Leitura)" 

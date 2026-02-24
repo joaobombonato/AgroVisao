@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { X, Settings, Download, RotateCcw, Lock, FileSpreadsheet } from 'lucide-react';
+import { X, Settings, Download, RotateCcw, Lock, FileSpreadsheet, Check } from 'lucide-react';
 import { REPORT_COLUMNS, getDefaultColumns, type ReportColumnDef } from '../config/reportColumns';
 
 interface ReportColumnsModalProps {
@@ -36,10 +36,18 @@ export default function ReportColumnsModal({
   }, [reportId]);
 
   const handleConfirm = () => {
-    // Mantém a ordem original das colunas
-    const orderedKeys = allColumns
-      .filter(c => selected.has(c.key))
-      .map(c => c.key);
+    // Mantém a ordem original e anexa sub-colunas ativas atreladas aos pais
+    const orderedKeys: string[] = [];
+    allColumns.forEach(c => {
+      if (selected.has(c.key)) {
+        orderedKeys.push(c.key);
+        if (c.subColumns) {
+          c.subColumns.forEach(sub => {
+            if (selected.has(sub.key)) orderedKeys.push(sub.key);
+          });
+        }
+      }
+    });
     onConfirm(orderedKeys);
   };
 
@@ -52,8 +60,20 @@ export default function ReportColumnsModal({
     return acc;
   }, []);
 
-  const selectedCount = selected.size;
-  const totalCount = allColumns.length;
+  // Conta total de campos reais (folhas)
+  const totalCount = allColumns.reduce((acc, col) => {
+    return acc + (col.subColumns && col.subColumns.length > 0 ? col.subColumns.length : 1);
+  }, 0);
+
+  // Conta quantos desses campos reais estão selecionados
+  const selectedCount = allColumns.reduce((acc, col) => {
+    if (!selected.has(col.key)) return acc;
+    if (col.subColumns && col.subColumns.length > 0) {
+      const subSelected = col.subColumns.filter(s => selected.has(s.key)).length;
+      return acc + subSelected;
+    }
+    return acc + 1;
+  }, 0);
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-white animate-in fade-in duration-200">
@@ -100,49 +120,90 @@ export default function ReportColumnsModal({
             {cols.map(col => {
               const isOn = selected.has(col.key);
               return (
-                <button
-                  key={col.key}
-                  onClick={() => !col.required && toggle(col.key)}
-                  disabled={col.required}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left ${
-                    col.required
-                      ? 'bg-indigo-50/70 cursor-default'
-                      : isOn
-                        ? 'bg-white hover:bg-gray-50 active:scale-[0.98]'
-                        : 'bg-gray-50 hover:bg-gray-100 active:scale-[0.98]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    {col.required && <Lock className="w-3 h-3 text-indigo-400" />}
-                    <span className={`text-sm font-medium ${
-                      col.required ? 'text-indigo-600' : isOn ? 'text-gray-800' : 'text-gray-400'
-                    }`}>
-                      {col.label}
-                    </span>
-                    {col.required && (
-                      <span className="text-[8px] font-black uppercase bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-full">
-                        Essencial
-                      </span>
-                    )}
-                  </div>
-                  
-                  {/* Toggle */}
-                  <div className={`w-10 rounded-full p-0.5 transition-colors duration-200 ${
-                    col.required
-                      ? 'bg-indigo-400'
-                      : isOn
-                        ? 'bg-green-500'
-                        : 'bg-gray-300'
-                  }`}
-                    style={{ height: 22 }}
-                  >
-                    <div className={`bg-white rounded-full shadow-sm transition-transform duration-200 ${
-                      isOn || col.required ? 'translate-x-[18px]' : 'translate-x-0'
+                <div key={col.key} className="space-y-0.5">
+                  <button
+                    onClick={() => !col.required && toggle(col.key)}
+                    disabled={col.required}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-xl transition-all text-left ${
+                      col.required
+                        ? 'bg-indigo-50/70 cursor-default'
+                        : isOn
+                          ? 'bg-white hover:bg-gray-50 active:scale-[0.98]'
+                          : 'bg-gray-50 hover:bg-gray-100 active:scale-[0.98]'
                     }`}
-                      style={{ width: 18, height: 18 }}
-                    />
-                  </div>
-                </button>
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {col.required && <Lock className="w-3 h-3 text-indigo-400" />}
+                      <span className={`text-sm font-medium ${
+                        col.required ? 'text-indigo-600' : isOn ? 'text-gray-800' : 'text-gray-400'
+                      }`}>
+                        {col.label}
+                      </span>
+                      {col.required && (
+                        <span className="text-[8px] font-black uppercase bg-indigo-100 text-indigo-500 px-1.5 py-0.5 rounded-full">
+                          Essencial
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Toggle */}
+                    <div className={`w-10 rounded-full p-0.5 transition-colors duration-200 ${
+                      col.required
+                        ? 'bg-indigo-400'
+                        : isOn
+                          ? 'bg-green-500'
+                          : 'bg-gray-300'
+                    }`}
+                      style={{ height: 22 }}
+                    >
+                      <div className={`bg-white rounded-full shadow-sm transition-transform duration-200 ${
+                        isOn || col.required ? 'translate-x-[18px]' : 'translate-x-0'
+                      }`}
+                        style={{ width: 18, height: 18 }}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Renderização condicional de Sub-Colunas */}
+                  {isOn && col.subColumns && col.subColumns.length > 0 && (
+                    <div className="ml-5 mt-1 pl-3 border-l-[1.5px] border-indigo-100/60 flex flex-col gap-1 py-1">
+                      {col.subColumns.map(sub => {
+                        const isSubOn = selected.has(sub.key);
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => !sub.required && toggle(sub.key)}
+                            disabled={sub.required}
+                            className={`w-full flex items-center justify-between p-2 rounded-lg transition-all text-left ${
+                              sub.required
+                                ? 'bg-indigo-50/40 cursor-default'
+                                : isSubOn
+                                  ? 'bg-slate-50 hover:bg-slate-100 active:scale-[0.98]'
+                                  : 'bg-transparent hover:bg-gray-50 active:scale-[0.98]'
+                            }`}
+                          >
+                            <span className={`text-xs ${
+                              sub.required ? 'text-indigo-400 font-medium' : isSubOn ? 'text-gray-600 font-medium' : 'text-gray-400'
+                            }`}>
+                              {sub.label}
+                            </span>
+                            
+                            {/* Checkbox Menor */}
+                            <div className={`w-4 h-4 rounded mt-0.5 flex items-center justify-center border transition-colors duration-200 ${
+                              sub.required
+                                ? 'bg-indigo-100 border-indigo-200 text-indigo-400'
+                                : isSubOn
+                                  ? 'bg-green-500 border-green-500 text-white'
+                                  : 'bg-white border-gray-300 text-transparent'
+                            }`}>
+                              <Check className="w-3 h-3" strokeWidth={3} />
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

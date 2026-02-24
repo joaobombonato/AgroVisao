@@ -9,6 +9,7 @@ export interface ReportColumnDef {
   required: boolean; // Obrigatória (não pode desmarcar)
   defaultOn: boolean; // Ligada por padrão
   group?: string; // Agrupamento visual no modal
+  subColumns?: ReportColumnDef[]; // Sub-colunas (usado p/ Maquinas e Veiculos)
 }
 
 export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
@@ -94,7 +95,25 @@ export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
 
   cadastros: [
     { key: 'Membros_e_Colaboradores',label: 'Equipe e Colaboradores', required: false, defaultOn: false, group: 'Pessoas' },
-    { key: 'Maquinas_e_Veiculos',    label: 'Máquinas e Veículos',    required: false, defaultOn: false, group: 'Ativos' },
+    { 
+      key: 'Maquinas_e_Veiculos',    
+      label: 'Máquinas e Veículos',    
+      required: false, 
+      defaultOn: false, 
+      group: 'Ativos',
+      subColumns: [
+        { key: 'identificacao_resumo', label: 'Identificação da Máquina', required: true, defaultOn: true },
+        { key: 'placa', label: 'Placa', required: false, defaultOn: false },
+        { key: 'chassis', label: 'Nº Chassis', required: false, defaultOn: false },
+        { key: 'renavam_serie', label: 'Renavam/Série', required: false, defaultOn: false },
+        { key: 'ano_modelo', label: 'Ano/Modelo', required: false, defaultOn: false },
+        { key: 'ultimo_horimetro_km', label: 'Último Horím./Km', required: false, defaultOn: false },
+        { key: 'proxima_revisao', label: 'Próxima Revisão', required: false, defaultOn: false },
+        { key: 'dados_compra', label: 'Dados da Compra', required: false, defaultOn: false },
+        { key: 'situacao_financeira', label: 'Situação Financeira', required: false, defaultOn: false },
+        { key: 'status', label: 'Status', required: false, defaultOn: false }
+      ]
+    },
     { key: 'Talhoes_e_Areas',        label: 'Talhões (Áreas de Plantio)', required: false, defaultOn: false, group: 'Campos' },
     { key: 'Produtos_de_Manutencao', label: 'Produtos de Manutenção', required: false, defaultOn: false, group: 'Estoque' },
     { key: 'Insumos_Agricolas',      label: 'Insumos Agrícolas',      required: false, defaultOn: false, group: 'Estoque' },
@@ -104,9 +123,24 @@ export const REPORT_COLUMNS: Record<string, ReportColumnDef[]> = {
   ]
 };
 
-// Retorna as chaves ligadas por padrão para um relatório
+// Retorna as chaves ligadas por padrão para um relatório (incluindo sub-colunas recursivamente)
 export function getDefaultColumns(reportId: string): string[] {
   const cols = REPORT_COLUMNS[reportId];
   if (!cols) return [];
-  return cols.filter((c) => c.defaultOn).map((c) => c.key);
+  
+  const defaults: string[] = [];
+  
+  const extractDefaults = (columns: ReportColumnDef[]) => {
+    columns.forEach(c => {
+      if (c.defaultOn) {
+        defaults.push(c.key);
+      }
+      if (c.subColumns) {
+        extractDefaults(c.subColumns);
+      }
+    });
+  };
+  
+  extractDefaults(cols);
+  return defaults;
 }

@@ -23,42 +23,92 @@ export default function EnergiaScreen() {
       data_leitura: U.todayIso(), 
       ponto: '', 
       medidor: '', 
-      leituraAnterior: '', 
-      leituraAtual: '',
+      leitura_ant_04: '', 
+      leitura_atual_04: '',
+      leitura_ant_08: '', 
+      leitura_atual_08: '',
       centroCusto: ''
   });
   
   const [filterData, setFilterData] = useState(U.todayIso());
   const [filterText, setFilterText] = useState('');
 
+  // 1. Busca Dados do Ponto Selecionado
+  const pontoSelecionado = useMemo(() => {
+    return ativos.pontosEnergia.find((l:any) => (l.nome === form.ponto) || (l === form.ponto));
+  }, [form.ponto, ativos.pontosEnergia]);
+
+  // Lógica de Mapeamento por Classe Tarifária
+  const mapping = useMemo(() => {
+    const classe = pontoSelecionado?.classe_tarifaria || 'rural_mono';
+    
+    if (classe === 'rural_mono') return { tipo: 'Padrao', constant: 1, label: 'Rural Monofásica' };
+    if (classe === 'comercial_tri') return { tipo: 'Padrao', constant: 80, label: 'Comercial Trifásica' };
+    if (classe === 'irrigante_tri') return { tipo: 'Horario', constant: 40, label: 'Irrigante Noturno' };
+    
+    // Personalizado
+    return { 
+        tipo: pontoSelecionado?.tipo_medicao || 'Padrao', 
+        constant: U.parseDecimal(pontoSelecionado?.constante_medidor || '1'),
+        label: 'Personalizado'
+    };
+  }, [pontoSelecionado]);
+
+  const isHorario = mapping.tipo === 'Horario';
+  const constante = mapping.constant;
+
   // Cálculos Automáticos
-  const consumo = useMemo(() => {
-      const atual = U.parseDecimal(form.leituraAtual);
-      const ant = U.parseDecimal(form.leituraAnterior);
-      return atual > ant ? (atual - ant).toFixed(0) : '0';
-  }, [form.leituraAtual, form.leituraAnterior]);
+  const consumo_04 = useMemo(() => {
+      const atual = U.parseDecimal(form.leitura_atual_04);
+      const ant = U.parseDecimal(form.leitura_ant_04);
+      return atual > ant ? (atual - ant) * constante : 0;
+  }, [form.leitura_atual_04, form.leitura_ant_04, constante]);
+
+  const consumo_08 = useMemo(() => {
+      if (!isHorario) return 0;
+      const atual = U.parseDecimal(form.leitura_atual_08);
+      const ant = U.parseDecimal(form.leitura_ant_08);
+      return atual > ant ? (atual - ant) * constante : 0;
+  }, [form.leitura_atual_08, form.leitura_ant_08, isHorario, constante]);
+
+  const consumo = (consumo_04 + consumo_08).toFixed(0);
 
   const valorEstimado = useMemo(() => {
-      const kwh = U.parseDecimal(consumo);
-      const custoKwhStr = ativos.parametros?.energia?.custoKwh;
-      const custoMedio = custoKwhStr !== '' ? U.parseDecimal(custoKwhStr) : 0.92; 
-      return (kwh * custoMedio).toFixed(2);
-  }, [consumo, ativos.parametros]);
+      const params = ativos.parametros?.energia || {};
+      
+      if (!isHorario) {
+          const tarifa = U.parseDecimal(params.custoKwhPadrao || '0.92');
+          return (consumo_04 * tarifa).toFixed(2);
+      } else {
+          const tarifaPonta = U.parseDecimal(params.custoKwhPonta || '2.50');
+          const tarifaFora = U.parseDecimal(params.custoKwhForaPonta || '0.45');
+          return (consumo_04 * tarifaPonta + consumo_08 * tarifaFora).toFixed(2);
+      }
+  }, [consumo_04, consumo_08, isHorario, ativos.parametros]);
 
   const handlePontoChange = (e: any) => {
       const nomePonto = e.target.value;
       
       // 1. Busca o Medidor nas Configurações
       const pontoObj = ativos.pontosEnergia.find((l:any) => (l.nome === nomePonto) || (l === nomePonto));
-      const medidorAuto = (pontoObj && typeof pontoObj === 'object') ? pontoObj.medidor : '';
+      const medidorAuto = (pontoObj && typeof pontoObj === 'object') ? pontoObj.identificador_externo : '';
 
       // 2. Busca a Última Leitura no Histórico
       const ultimoRegistro = buscarUltimaLeitura('energia', 'ponto', nomePonto);
-      const leituraAntAuto = ultimoRegistro ? ultimoRegistro.leituraAtual : '0';
+      
+      let leituraAnt04 = '0';
+      let leituraAnt08 = '0';
+
+      if (ultimoRegistro) {
+          leituraAnt04 = ultimoRegistro.leitura_atual_04 || '0';
+          leituraAnt08 = ultimoRegistro.leitura_atual_08 || '0';
+      } else if (pontoObj && typeof pontoObj === 'object') {
+          // Fallback para leitura inicial do cadastro
+          leituraAnt04 = pontoObj.leitura_inicial_04 || '0';
+          leituraAnt08 = pontoObj.leitura_inicial_08 || '0';
+      }
 
       setForm(prev => {
-          const novoPonto = nomePonto;
-          
           // Busca Centro de Custo vinculado a este medidor/ponto
           const ccVinculado = (ativos.centros_custos || []).find((cc: any) => 
             cc.tipo_vinculo === 'Medidor de Energia' && cc.vinculo_id === nomePonto
@@ -68,7 +118,8 @@ export default function EnergiaScreen() {
               ...prev, 
               ponto: nomePonto, 
               medidor: medidorAuto || prev.medidor, 
-              leituraAnterior: leituraAntAuto,
+              leitura_ant_04: leituraAnt04,
+              leitura_ant_08: leituraAnt08,
               centroCusto: ccVinculado ? ccVinculado.nome : prev.centroCusto
           };
       });
@@ -76,31 +127,43 @@ export default function EnergiaScreen() {
 
   const enviar = (e: any) => {
     e.preventDefault();
-    if (U.parseDecimal(consumo) <= 0) { toast.error("Leitura Atual deve ser maior que a Anterior"); return; }
     
-    // 1. Validação de Data
+    // 1. Validação de Consumo
+    if (U.parseDecimal(consumo) <= 0) { 
+        toast.error("Consumo total deve ser maior que zero. Verifique as leituras."); 
+        return; 
+    }
+    
+    // 2. Validação de Data
     const dateCheck = validateOperationalDate(form.data_leitura);
     if (!dateCheck.valid) { toast.error(dateCheck.error || 'Data Inválida'); return; }
     if (dateCheck.warning && !window.confirm(dateCheck.warning)) return;
 
-
-    // 2. Validação Sequencial (Leitura > Anterior)
-    const atual = U.parseDecimal(form.leituraAtual);
-    const anterior = U.parseDecimal(form.leituraAnterior);
-    if (atual <= anterior && anterior > 0) {
-        toast.error(`A leitura atual (${atual}) deve ser MAIOR que a anterior (${anterior}).`);
+    // 3. Validação de Sequência (Ponta 04)
+    const atual04 = U.parseDecimal(form.leitura_atual_04);
+    const ant04 = U.parseDecimal(form.leitura_ant_04);
+    if (atual04 < ant04) {
+        toast.error(`Leitura Atual 04 (${atual04}) não pode ser menor que a anterior (${ant04}).`);
         return;
     }
 
-    // 3. Validação de Frequência (1 por Mês)
+    // 4. Validação de Sequência (Fora Ponta 08)
+    if (isHorario) {
+        const atual08 = U.parseDecimal(form.leitura_atual_08);
+        const ant08 = U.parseDecimal(form.leitura_ant_08);
+        if (atual08 < ant08) {
+            toast.error(`Leitura Atual 08 (${atual08}) não pode ser menor que a anterior (${ant08}).`);
+            return;
+        }
+    }
+
+    // 5. Validação de Frequência (1 por Mês)
     const mesAtual = form.data_leitura.substring(0, 7); // YYYY-MM
     const jaExisteMes = (dados.energia || []).some((r: any) => 
         (r.ponto === form.ponto || r.medidor === form.medidor) && 
         (r.data_leitura || r.data).startsWith(mesAtual)
     );
 
-    // Verificar se existe OS cancelada para permitir re-leitura? 
-    // Por enquanto, bloqueia se tiver registro ativo.
     if (jaExisteMes) {
         toast.error(`Já existe uma leitura registrada para este medidor em ${mesAtual}.`);
         return;
@@ -108,13 +171,14 @@ export default function EnergiaScreen() {
     
     const novo = { 
         ...form, 
+        consumo_04,
+        consumo_08,
         consumo, 
         valorEstimado, 
         safra_id: ativos.parametros?.safraAtiva || null,
         id: U.id('EN-') 
     };
 
-    
     const descOS = `Energia: ${form.ponto} (${consumo} kWh)`;
     genericSave('energia', novo, { type: ACTIONS.ADD_RECORD, modulo: 'energia' });
 
@@ -126,7 +190,9 @@ export default function EnergiaScreen() {
         detalhes: { 
             "Ponto": form.ponto, 
             "Consumo": `${consumo} kWh`,
-            "Estimativa": `R$ ${valorEstimado}`
+            "Estimativa": `R$ ${valorEstimado}`,
+            "Ponta (04)": `${consumo_04} kWh`,
+            "Fora Ponta (08)": isHorario ? `${consumo_08} kWh` : 'N/A'
         },
         status: 'Pendente',
         data_abertura: new Date().toISOString()
@@ -138,7 +204,16 @@ export default function EnergiaScreen() {
         record: novaOS
     });
     
-    setForm({ data_leitura: U.todayIso(), ponto: '', medidor: '', leituraAnterior: '', leituraAtual: '', centroCusto: '' });
+    setForm({ 
+        data_leitura: U.todayIso(), 
+        ponto: '', 
+        medidor: '', 
+        leitura_ant_04: '', 
+        leitura_atual_04: '', 
+        leitura_ant_08: '', 
+        leitura_atual_08: '', 
+        centroCusto: '' 
+    });
     toast.success('Leitura de energia registrada!');
   };
 
@@ -199,12 +274,32 @@ export default function EnergiaScreen() {
              </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* CLASSE E CONSTANTE AUTOMÁTICA */}
+          {form.ponto && (
+            <div className="flex gap-2">
+                <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
+                    <span className="text-[10px] uppercase font-bold text-yellow-600">Classe</span>
+                    <span className="text-sm font-medium text-yellow-800">{mapping.label}</span>
+                </div>
+                <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
+                    <span className="text-[10px] uppercase font-bold text-yellow-600">Constante</span>
+                    <span className="text-sm font-bold text-yellow-800">x {constante}</span>
+                </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+              <div className="bg-yellow-50/50 p-2 rounded-lg border border-yellow-100 italic text-[10px] text-yellow-700 flex justify-between">
+                <span>Constante Medidor: <b>{constante}</b></span>
+                <span>Tipo: <b>{isHorario ? 'Horário (Pivô)' : 'Convencional'}</b></span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                       <Input 
-                        label="Leitura Anterior"
+                        label={isHorario ? "Ant. Ponta (04)" : "Leitura Anterior"}
                         type="text" 
-                        value={form.leituraAnterior} 
+                        value={form.leitura_ant_04} 
                         readOnly
                         className="w-full px-1 py-1 bg-gray-50 font-bold text-yellow-600 outline-none text-center border-2 border-yellow-200 rounded-lg"
                         placeholder="-"
@@ -212,17 +307,45 @@ export default function EnergiaScreen() {
                   </div>
                   <div className="space-y-1">
                       <Input 
-                        label="Leitura Atual"
+                        label={isHorario ? "Atual Ponta (04)" : "Leitura Atual"}
                         type="text" 
-                        value={form.leituraAtual} 
-                        onChange={(e: any) => setForm({...form, leituraAtual: e.target.value})}
+                        value={form.leitura_atual_04} 
+                        onChange={(e: any) => setForm({...form, leitura_atual_04: e.target.value})}
                         numeric={true}
                         className="w-full px-1 py-1 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-yellow-200 focus:outline-none text-center"
-                        placeholder="Ex: 1250,5"
+                        placeholder="Ex: 1250"
                         required
                       />
                   </div>
               </div>
+
+              {isHorario && (
+                <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2">
+                    <div className="space-y-1">
+                        <Input 
+                            label="Ant. Fora Ponta (08)"
+                            type="text" 
+                            value={form.leitura_ant_08} 
+                            readOnly
+                            className="w-full px-1 py-1 bg-gray-50 font-bold text-green-600 outline-none text-center border-2 border-green-200 rounded-lg"
+                            placeholder="-"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Input 
+                            label="Atual Fora Ponta (08)"
+                            type="text" 
+                            value={form.leitura_atual_08} 
+                            onChange={(e: any) => setForm({...form, leitura_atual_08: e.target.value})}
+                            numeric={true}
+                            className="w-full px-1 py-1 border-2 border-gray-300 rounded-lg font-bold text-gray-900 focus:border-green-200 focus:outline-none text-center"
+                            placeholder="Ex: 5000"
+                            required
+                        />
+                    </div>
+                </div>
+              )}
+          </div>
 
 
           {/* Card de Resultado */}
@@ -283,8 +406,8 @@ export default function EnergiaScreen() {
           const recentes = [...(dados?.energia || [])]
             .sort((a, b) => {
               // 1. Ordem Absoluta pela Leitura (Se houver)
-              const va = U.parseDecimal(a.leitura_atual || a.leituraAtual || 0);
-              const vb = U.parseDecimal(b.leitura_atual || b.leituraAtual || 0);
+              const va = U.parseDecimal(a.leitura_atual_04 || 0) + U.parseDecimal(a.leitura_atual_08 || 0);
+              const vb = U.parseDecimal(b.leitura_atual_04 || 0) + U.parseDecimal(b.leitura_atual_08 || 0);
               if (va > 0 && vb > 0 && vb !== va) return vb - va;
 
               // 2. Fallback por data
@@ -297,7 +420,7 @@ export default function EnergiaScreen() {
             .filter((v, i, arr) => {
                return arr.findIndex(t => 
                   t.id === v.id || 
-                  (t.medidor === v.medidor && (t.leitura_atual || t.leituraAtual) === (v.leitura_atual || v.leituraAtual) && (t.data_leitura || t.data) === (v.data_leitura || v.data))
+                  (t.medidor === v.medidor && t.leitura_atual_04 === v.leitura_atual_04 && (t.data_leitura || t.data) === v.data_leitura)
                ) === i;
             })
             .slice(0, 5);
@@ -312,8 +435,8 @@ export default function EnergiaScreen() {
                     <span className="text-[10px] text-gray-400">{U.formatDate(r.data_leitura || r.data)}</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="font-bold text-yellow-600">{r.leitura_atual || r.leitura} kWh</span>
-                    <span className="text-[10px] text-gray-400">Medidor: {r.medidor}</span>
+                    <span className="font-bold text-yellow-600">{r.consumo} kWh</span>
+                    <span className="text-[10px] text-gray-400">Total (04 + 08)</span>
                   </div>
                 </div>
               ))}
