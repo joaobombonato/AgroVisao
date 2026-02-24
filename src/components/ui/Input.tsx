@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: any) => {
+export const Input = ({ label, readOnly, numeric, mask, precision = 2, onChange, ...props }: any) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
 
@@ -21,7 +21,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
         const clean = val.replace(/[^\d,]/g, '');
         const parts = clean.split(',');
         let v = parts[0];
-        if (parts.length > 1) v += ',' + parts[1].slice(0, 2);
+        if (parts.length > 1) v += ',' + parts[1].slice(0, precision);
         
         // Limita a 100%
         const num = parseFloat(v.replace(',', '.'));
@@ -42,7 +42,7 @@ export const Input = ({ label, readOnly, numeric, mask, onChange, ...props }: an
         if (integerPart) {
             integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
         }
-        e.target.value = parts.length > 1 ? `${integerPart},${parts[1].slice(0, 2)}` : integerPart;
+        e.target.value = parts.length > 1 ? `${integerPart},${parts[1].slice(0, precision)}` : integerPart;
         if (onChange) onChange(e);
         return;
     }

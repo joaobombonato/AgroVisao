@@ -42,10 +42,10 @@ export const U = {
 
     return parseFloat(s) || 0;
   },
-  formatValue: (v: any) => {
+  formatValue: (v: any, digits = 2) => {
     if (typeof v === 'string' && v.includes(',')) return v; 
     const n = typeof v === 'number' ? v : U.parseDecimal(v);
-    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
   },
   // Formata especificamente médias de consumo para evitar confusão de milhar
   formatMedia: (v: any) => {

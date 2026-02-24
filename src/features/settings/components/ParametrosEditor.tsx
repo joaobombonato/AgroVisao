@@ -78,7 +78,8 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     onChange={(e: any) => handleChange('energia', 'custoKwhPadrao', e.target.value)}
                     type="text"
                     mask="decimal"
-                    placeholder="Ex: 0,92"
+                    precision={3}
+                    placeholder="Ex: 0,923"
                 />
                 <Input 
                     label="Tarifa Ponta (04) - R$/kWh" 
@@ -86,7 +87,8 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     onChange={(e: any) => handleChange('energia', 'custoKwhPonta', e.target.value)}
                     type="text"
                     mask="decimal"
-                    placeholder="Ex: 1,25"
+                    precision={3}
+                    placeholder="Ex: 1,250"
                 />
                 <Input 
                     label="Tarifa Fora Ponta (08) - R$/kWh" 
@@ -94,7 +96,8 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     onChange={(e: any) => handleChange('energia', 'custoKwhForaPonta', e.target.value)}
                     type="text"
                     mask="decimal"
-                    placeholder="Ex: 0,46"
+                    precision={3}
+                    placeholder="Ex: 0,460"
                 />
                 <Input 
                     label="Dia do Fechamento (Leitura)" 

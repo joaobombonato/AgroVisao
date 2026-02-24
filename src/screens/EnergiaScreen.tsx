@@ -76,16 +76,17 @@ export default function EnergiaScreen() {
   const valorEstimado = useMemo(() => {
     const params = ativos.parametros?.energia || {};
     const valConsumo = U.parseDecimal(consumo);
+    const tarifaPadrao = U.parseDecimal(params.custoKwhPadrao || '0.923');
 
     // Se não houver leitura nos campos principais, ou campos vazios, mostra 0
     if (!form.leitura_atual_04 || (isHorario && !form.leitura_atual_08)) return "0.00";
 
     // Se consumo for ZERO após preencher, aplica Taxa Mínima (Custo de Disponibilidade)
-    if (valConsumo <= 0) return "92.30";
+    // Cálculo sugerido: 100 kWh * Tarifa Padrão
+    if (valConsumo <= 0) return (100 * tarifaPadrao).toFixed(2);
       
     if (!isHorario) {
-        const tarifa = U.parseDecimal(params.custoKwhPadrao || '0.92');
-        return (consumo_04 * tarifa).toFixed(2);
+        return (consumo_04 * tarifaPadrao).toFixed(2);
     } else {
         const tarifaPonta = U.parseDecimal(params.custoKwhPonta || '2.50');
         const tarifaFora = U.parseDecimal(params.custoKwhForaPonta || '0.45');
@@ -291,9 +292,9 @@ export default function EnergiaScreen() {
 
           {form.ponto && (
             <div className="flex gap-2">
-                <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
+                <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm text-center">
                     <span className="text-[10px] uppercase font-bold text-yellow-600">Classe</span>
-                    <span className="text-sm font-medium text-yellow-800">{mapping.label}</span>
+                    <span className="text-sm font-medium text-yellow-800 leading-tight">{mapping.label}</span>
                 </div>
                 <div className="flex-1 bg-yellow-50 border border-yellow-100 p-2 rounded flex flex-col items-center shadow-sm">
                     <span className="text-[10px] uppercase font-bold text-yellow-600">Tipo</span>
@@ -393,7 +394,7 @@ export default function EnergiaScreen() {
                   <p className="text-xs text-gray-400 uppercase font-bold mb-1">Custo Estimado</p>
                   <p className="text-xl font-bold text-green-400">R$ {U.formatValue(valorEstimado)}</p>
                   <p className="text-[10px] text-gray-500 mt-1">
-                      Base: R$ {U.formatValue(ativos.parametros?.energia?.custoKwhPadrao || '0.92')}/kWh
+                      Base: R$ {U.formatValue(ativos.parametros?.energia?.custoKwhPadrao || '0.923', 3)}/kWh
                   </p>
               </div>
               
