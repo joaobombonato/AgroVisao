@@ -74,7 +74,7 @@ export default function AssetListEditor({ assetKey, onBack }: AssetListEditorPro
     const selectedMachines = editor.listToRender.filter((m: any) => editor.selectedIds.includes(m.id));
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100/80 p-4 font-inter animate-in fade-in duration-300">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100/80 p-4 pb-32 font-inter animate-in fade-in duration-300">
             <PageHeader 
                 title={title} 
                 icon={Icon} 

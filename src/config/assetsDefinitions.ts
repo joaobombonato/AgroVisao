@@ -253,8 +253,8 @@ export const ASSET_DEFINITIONS: any = {
         label: "Classe Tarifária", 
         type: "select", 
         options: [
-          { value: "rural_mono", label: "Rural Monofásica (Constante 1)" },
-          { value: "comercial_tri", label: "Comercial Trifásica (Constante 80)" },
+          { value: "rural_mono", label: "Rural Monofásico (Constante 1)" },
+          { value: "comercial_tri", label: "Comercial Trifásico (Constante 80)" },
           { value: "irrigante_tri", label: "Irrigante Noturno (Constante 40)" },
           { value: "personalizado", label: "Personalizado / Outro" }
         ], 

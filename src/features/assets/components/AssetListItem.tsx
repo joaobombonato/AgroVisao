@@ -55,16 +55,31 @@ export function AssetListItem({
                 {type === 'complex' && fields.filter((f: any) => f.showInList && f.key !== 'nome').map((f: any) => {
                     let displayVal = item[f.key] || '-';
 
+                    // 1. Ocultar Leitura 08 se não for irrigante
+                    if (assetKey === 'locaisEnergia' && f.key === 'leitura_inicial_08' && item.classe_tarifaria !== 'irrigante_tri') {
+                        return null;
+                    }
+
                     if (f.type === 'date') {
                         displayVal = U.formatDate(item[f.key]);
                     } else if (f.mask === 'currency' || f.mask === 'decimal' || f.mask === 'metric' || f.mask === 'percentage') {
                         displayVal = U.formatValue(item[f.key]);
-                    } else if (f.type === 'select' && f.optionsFrom) {
-                        // Tenta resolver o nome a partir do ID se for uma relação
-                        const sourceTable = typeof f.optionsFrom === 'string' ? f.optionsFrom : (f.dependsOn ? f.optionsFrom[item[f.dependsOn.key]] : null);
-                        if (sourceTable) {
-                            const related = (dbAssets[sourceTable] || []).find((r: any) => r.id === item[f.key] || r.nome === item[f.key]);
-                            if (related) displayVal = related.nome || related.titulo || related.id;
+                        // Remover ,00 desnecessário se for inteiro (conforme pedido)
+                        if (typeof displayVal === 'string' && displayVal.endsWith(',00')) {
+                            displayVal = displayVal.replace(',00', '');
+                        }
+                    } else if (f.type === 'select') {
+                        if (f.optionsFrom) {
+                            // Tenta resolver o nome a partir do ID se for uma relação
+                            const sourceTable = typeof f.optionsFrom === 'string' ? f.optionsFrom : (f.dependsOn ? f.optionsFrom[item[f.dependsOn.key]] : null);
+                            if (sourceTable) {
+                                const related = (dbAssets[sourceTable] || []).find((r: any) => r.id === item[f.key] || r.nome === item[f.key]);
+                                if (related) displayVal = related.nome || related.titulo || related.id;
+                            }
+                        } else if (f.options) {
+                            // Resolver label amigável para opções estáticas (ex: Classe Tarifária)
+                            const option = f.options.find((o: any) => (o.value || o) === item[f.key]);
+                            if (option) displayVal = option.label || option;
                         }
                     }
 
