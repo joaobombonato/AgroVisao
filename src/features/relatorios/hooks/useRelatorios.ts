@@ -4,6 +4,8 @@ import { useAppContext } from '../../../context/AppContext';
 import { fuelExportService } from '../services/fuelExportService';
 import { osExportService } from '../services/osExportService';
 import { weatherExportService } from '../services/weatherExportService';
+import { teamExportService } from '../services/teamExportService';
+import { registriesExportService } from '../services/registriesExportService';
 import { mealsExportService } from '../services/mealsExportService';
 import { U } from '../../../utils';
 import {
@@ -15,7 +17,12 @@ import {
   OS_KEY_MAP,
   OS_RAW_KEY_MAP,
   OS_COLUMN_STYLES,
-  OS_TOTAL_COLS
+  OS_TOTAL_COLS,
+  EQUIPE_KEY_MAP,
+  EQUIPE_RAW_KEY_MAP,
+  EQUIPE_COLUMN_STYLES,
+  EQUIPE_TOTAL_COLS,
+  CADASTROS_TOTAL_COLS
 } from '../config/reportDefinitions';
 
 // ==========================================
@@ -72,6 +79,16 @@ export default function useRelatorios() {
         ({ columns, data, rawData } = buildChuvasData(dados));
       } else if (relId === 'os') {
         ({ columns, data, rawData, summaryData } = buildOSData(state.os, ativos, dateStart, dateEnd));
+      } else if (relId === 'equipe') {
+        ({ columns, data, rawData } = buildEquipeData(state.equipe, state.listas?.colaboradores));
+      } else if (relId === 'cadastros') {
+        const sel = selectedColumns || [];
+        if (sel.length === 0) {
+            toast.error("Selecione ao menos um cadastro para exportar.");
+            toast.dismiss(loadingToast);
+            return;
+        }
+        ({ columns, data, rawData } = buildCadastrosData(state, sel));
       } else {
         toast.error("Este relatório ainda está em desenvolvimento.");
         toast.dismiss(loadingToast);
@@ -79,7 +96,7 @@ export default function useRelatorios() {
       }
 
       // ── Personalização ──
-      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : 0;
+      const totalColsForReport = relId === 'custo_abast' ? ABAST_TOTAL_COLS : relId === 'os' ? OS_TOTAL_COLS : relId === 'equipe' ? EQUIPE_TOTAL_COLS : relId === 'cadastros' ? CADASTROS_TOTAL_COLS : 0;
       const isCustomized = selectedColumns && selectedColumns.length < totalColsForReport;
       const customTag = isCustomized ? ' (Personalizado)' : '';
 
@@ -91,7 +108,7 @@ export default function useRelatorios() {
         logo,
         summaryData,
         selectedColumns,
-        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : relId === 'os' ? { ...OS_COLUMN_STYLES } : undefined
+        columnStyles: relId === 'custo_abast' ? { ...ABAST_COLUMN_STYLES } : relId === 'os' ? { ...OS_COLUMN_STYLES } : relId === 'equipe' ? { ...EQUIPE_COLUMN_STYLES } : undefined
       };
 
       // ── PDF ──
@@ -99,8 +116,8 @@ export default function useRelatorios() {
         let finalColumns = columns;
         let finalData = data;
 
-        if (selectedColumns && (relId === 'custo_abast' || relId === 'os') && selectedColumns.length < totalColsForReport) {
-          const keyMap = relId === 'custo_abast' ? ABAST_KEY_MAP : OS_KEY_MAP;
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os' || relId === 'equipe') && selectedColumns.length < totalColsForReport) {
+          const keyMap = relId === 'custo_abast' ? ABAST_KEY_MAP : relId === 'os' ? OS_KEY_MAP : EQUIPE_KEY_MAP;
           const indices = selectedColumns.map(k => keyMap[k]).filter(i => i !== undefined).sort((a, b) => a - b);
           finalColumns = indices.map(i => columns[i]);
           
@@ -169,6 +186,10 @@ export default function useRelatorios() {
             await weatherExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
         } else if (relId === 'fat_refeicoes') {
             await mealsExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
+        } else if (relId === 'equipe') {
+            await teamExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
+        } else if (relId === 'cadastros') {
+            await registriesExportService.exportToPDF(finalColumns as any, finalData as any, options as any);
         } else {
             await fuelExportService.exportToPDF(finalColumns, finalData as any[][], options as any);
         }
@@ -176,8 +197,9 @@ export default function useRelatorios() {
       // ── Excel ──
       else {
         let finalRawData = rawData;
-        if (selectedColumns && (relId === 'custo_abast' || relId === 'os')) {
-          const rawKeyMap = relId === 'custo_abast' ? ABAST_RAW_KEY_MAP : OS_RAW_KEY_MAP;
+        // Notice we exclude 'cadastros' here too because selectedColumns applies at the builder level
+        if (selectedColumns && (relId === 'custo_abast' || relId === 'os' || relId === 'equipe')) {
+          const rawKeyMap = relId === 'custo_abast' ? ABAST_RAW_KEY_MAP : relId === 'os' ? OS_RAW_KEY_MAP : EQUIPE_RAW_KEY_MAP;
           const selectedRawKeys = selectedColumns.map(k => rawKeyMap[k]).filter(Boolean);
           
           if (Array.isArray(rawData)) {
@@ -205,6 +227,10 @@ export default function useRelatorios() {
             await weatherExportService.exportToExcel(finalRawData as any[], options as any);
         } else if (relId === 'fat_refeicoes') {
             await mealsExportService.exportToExcel(finalRawData as any[], options as any);
+        } else if (relId === 'equipe') {
+            await teamExportService.exportToExcel(finalRawData as any[], options as any);
+        } else if (relId === 'cadastros') {
+            await registriesExportService.exportToExcel(finalRawData as any, options as any);
         } else {
             await fuelExportService.exportToExcel(finalRawData as any[], options as any);
         }
@@ -532,4 +558,167 @@ function buildOSData(osData: any[], ativos: any, dateStart: string, dateEnd: str
     rawData: groupedRawData, 
     summaryData: { totalsRow } 
   };
+}
+
+function buildEquipeData(equipe: any[], colaboradores: any[]) {
+  // Aggregate both system members (equipe) and field workers (colaboradores)
+  const aggregated: any[] = [];
+
+  // System Members
+  if (Array.isArray(equipe)) {
+    equipe.forEach(m => {
+      aggregated.push({
+        nome: m.nome,
+        cargo: m.funcao || m.cargo || 'Membro da Equipe',
+        tipo: 'Acesso ao Sistema',
+        contato: m.telefone || m.celular || 'Não informado',
+        nascimento: m.data_nascimento ? U.formatDate(m.data_nascimento) : 'Não informado',
+        status: m.status || m.ativo === false ? 'Ex-membro/Inativo' : 'Ativo'
+      });
+    });
+  }
+
+  // Field Collaborators
+  if (Array.isArray(colaboradores)) {
+    colaboradores.forEach(c => {
+      aggregated.push({
+        nome: c.nome,
+        cargo: c.funcao || c.cargo || 'Colaborador',
+        tipo: 'Trabalhador de Campo',
+        contato: c.telefone || c.celular || 'Não informado',
+        nascimento: c.data_nascimento ? U.formatDate(c.data_nascimento) : 'Não informado',
+        status: c.status || c.ativo === false ? 'Ex-colaborador/Inativo' : 'Ativo'
+      });
+    });
+  }
+
+  // Sort alphabetically by name
+  aggregated.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+
+  const columns = ['Nome', 'Função/Cargo', 'Tipo', 'Telefone/Contato', 'Data Nasc.', 'Status'];
+
+  const data = aggregated.map(row => [
+    row.nome,
+    row.cargo,
+    row.tipo,
+    row.contato,
+    row.nascimento,
+    row.status
+  ]);
+
+  const rawData = aggregated.map(row => ({
+    'Nome': row.nome,
+    'Função/Cargo': row.cargo,
+    'Tipo': row.tipo,
+    'Telefone/Contato': row.contato,
+    'Data Nasc.': row.nascimento,
+    'Status': row.status
+  }));
+
+  return { columns, data, rawData };
+}
+
+function buildCadastrosData(state: any, selectedTypes: string[]) {
+  // This builder returns objects formatted specifically for Multiple Worksheets (Excel) and Multiple Tables (PDF)
+  // Both `data` (for PDF) and `rawData` (for Excel) will be dictionaries of arrays keyed by the Category string
+  const data: Record<string, any[][]> = {};
+  const rawData: Record<string, any[]> = {};
+  const columns: Record<string, string[]> = {}; // Overriding the structure slightly to return multiple sets
+
+  const listas = state.listas || {};
+
+  if (selectedTypes.includes('Maquinas_e_Veiculos')) {
+      const maqKeys = 'Máquinas e Veículos';
+      const source = state.ativos?.maquinas || [];
+      columns[maqKeys] = ['Nome Identificador', 'Placa', 'Categoria', 'Status'];
+      data[maqKeys] = source.map((m: any) => [m.nome, m.placa || '-', m.categoria || '-', m.status || 'Ativo']);
+      rawData[maqKeys] = source.map((m: any) => ({
+          'Nome Identificador': m.nome,
+          'Placa': m.placa || '-',
+          'Categoria': m.categoria || '-',
+          'Status': m.status || 'Ativo',
+          'Aquisicao': m.data_aquisicao ? U.formatDate(m.data_aquisicao) : '',
+          'Valor': m.valor_aquisicao || 0
+      }));
+  }
+
+  if (selectedTypes.includes('Produtos_de_Manutencao')) {
+      const peKeys = 'Produtos de Manutenção';
+      const source = listas.pecas || [];
+      columns[peKeys] = ['Nome do Produto', 'Categoria', 'Saldo Estoque'];
+      data[peKeys] = source.map((p: any) => [p.nome, p.categoria || '-', p.estoque?.quantidade || 0]);
+      rawData[peKeys] = source.map((p: any) => ({
+          'Nome do Produto': p.nome,
+          'Categoria': p.categoria || '-',
+          'Fornecedor Fav.': p.fornecedor || '',
+          'Saldo Estoque': p.estoque?.quantidade || 0,
+          'Local/Prateleira': p.estoque?.localizacao || ''
+      }));
+  }
+
+  if (selectedTypes.includes('Talhoes_e_Areas')) {
+      const talKeys = 'Talhões';
+      const source = listas.talhoes || [];
+      columns[talKeys] = ['Nome do Talhão', 'Cultura', 'Área (Hectares)', 'Safra'];
+      data[talKeys] = source.map((t: any) => [t.id, t.cultura || '-', t.area || 0, t.safra || '-']);
+      rawData[talKeys] = source.map((t: any) => ({
+          'Nome do Talhão': t.id,
+          'Cultura': t.cultura || '-',
+          'Classe Agronomica': t.classe || '',
+          'Área (Hectares)': t.area || 0,
+          'Safra': t.safra || '-',
+          'Possui Geo': t.geojson ? 'Sim' : 'Não'
+      }));
+  }
+
+  if (selectedTypes.includes('Insumos_Agricolas')) {
+      const insKeys = 'Insumos Agrícolas';
+      const source = listas.insumos || [];
+      columns[insKeys] = ['Nome do Insumo', 'Finalidade', 'Dosagem Est.', 'Unidade'];
+      data[insKeys] = source.map((i: any) => [i.nome, i.categoria || '-', i.dosagem || 0, i.unidade || '-']);
+      rawData[insKeys] = source.map((i: any) => ({
+          'Nome do Insumo': i.nome,
+          'Finalidade': i.categoria || '-',
+          'Componente/Principio': i.principio || '',
+          'Dosagem Est.': i.dosagem || 0,
+          'Unidade': i.unidade || '-'
+      }));
+  }
+
+  if (selectedTypes.includes('Medidores_Energia')) {
+      const medKeys = 'Medidores de Energia';
+      const source = listas.medidores || [];
+      columns[medKeys] = ['Medidor (Nome)', 'Meta Mensal kWh'];
+      data[medKeys] = source.map((m: any) => [m.id, m.meta_mensal || 0]);
+      rawData[medKeys] = source.map((m: any) => ({
+          'Medidor (Nome)': m.id,
+          'Meta Mensal kWh': m.meta_mensal || 0
+      }));
+  }
+
+  if (selectedTypes.includes('Pluviometros')) {
+      const pluvKeys = 'Pluviômetros';
+      const source = listas.estacoes_chuva || [];
+      columns[pluvKeys] = ['Ponto de Coleta'];
+      data[pluvKeys] = source.map((p: any) => [p.nome || p.id]);
+      rawData[pluvKeys] = source.map((p: any) => ({
+          'Ponto de Coleta': p.nome || p.id
+      }));
+  }
+
+  if (selectedTypes.includes('Apolices_Seguros')) {
+      const segKeys = 'Apólices e Seguros';
+      const source = state.ativos?.seguros || [];
+      columns[segKeys] = ['Apólice', 'Seguradora', 'Vencimento'];
+      data[segKeys] = source.map((s: any) => [s.numero_apolice || '-', s.seguradora || '-', s.data_vencimento ? U.formatDate(s.data_vencimento) : '']);
+      rawData[segKeys] = source.map((s: any) => ({
+          'Apólice': s.numero_apolice || '-',
+          'Seguradora': s.seguradora || '-',
+          'Item Segurado': s.maquina_associada || 'Geral',
+          'Vencimento': s.data_vencimento ? U.formatDate(s.data_vencimento) : '',
+          'Valor Assegurado': s.valor_cobertura || 0
+      }));
+  }
+
+  return { columns: columns as any, data, rawData };
 }
