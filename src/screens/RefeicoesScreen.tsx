@@ -130,7 +130,23 @@ export default function RefeicoesScreen() {
     return 'bg-gray-100 text-gray-700 border-gray-200';
   };
 
-  const excluir = (id: string) => { dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: true, message: 'Excluir lançamento?', onConfirm: () => { dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'refeicoes', id }); dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); toast.error('Registro excluído.'); } } }); };
+  const excluir = (id: string) => { 
+    dispatch({ 
+      type: ACTIONS.SET_MODAL, 
+      modal: { 
+        isOpen: true, 
+        type: 'confirm',
+        props: {
+          title: 'Excluir Lançamento',
+          message: 'Tem certeza que deseja excluir esta refeição?',
+          onConfirm: () => {
+            dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'refeicoes', id });
+            toast.error('Registro excluído.');
+          }
+        }
+      } 
+    }); 
+  };
 
   return (
     <div className="space-y-4 p-4 pb-24">

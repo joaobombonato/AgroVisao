@@ -249,56 +249,95 @@ export const ASSET_DEFINITIONS: any = {
       { key: "nome", label: "Ponto de Consumo", placeholder: "Ex: Secador 01", showInList: true, required: true },
       { key: "identificador_externo", label: "Nº do Medidor (CEMIG)", placeholder: "Ex: 12345678", showInList: true },
       { 
+        key: "funcao_solar", 
+        label: "Função Solar", 
+        type: "select", 
+        options: [
+            { value: "nenhum", label: "Nenhum (Consumidor Padrão)" },
+            { value: "gerador", label: "Gerador (Injeta na Rede)" },
+            { value: "consumidor_remoto", label: "Consumidor (Recebe Crédito Remoto)" }
+        ], 
+        default: "nenhum",
+        showInList: true 
+      },
+      { 
+        key: "ponto_gerador_id", 
+        label: "Ponto Gerador Vinculado", 
+        type: "select", 
+        optionsFrom: "locais_monitoramento",
+        filter: { key: "funcao_solar", value: "gerador" },
+        dependsOn: { key: "funcao_solar", value: "consumidor_remoto" },
+        legend: "De onde vem o crédito de energia?"
+      },
+      { 
+        key: "percentual_recebido", 
+        label: "% do Crédito Recebido", 
+        type: "text", 
+        mask: "decimal", 
+        placeholder: "Ex: 20,0", 
+        dependsOn: { key: "funcao_solar", value: "consumidor_remoto" },
+        legend: "Qual a sua cota de participação na geração?"
+      },
+      { 
+        key: "saldo_inicial_solar_kwh", 
+        label: "Saldo Inicial de Crédito (kWh)", 
+        type: "text", 
+        mask: "decimal", 
+        placeholder: "Ex: 500", 
+        dependsOn: { key: "funcao_solar", value: ["gerador", "consumidor_remoto"] },
+        legend: "Saldo acumulado antes do uso do aplicativo."
+      },
+      { 
         key: "classe_tarifaria", 
         label: "Classe Tarifária", 
         type: "select", 
         options: [
-          { value: "rural_mono", label: "Rural Monofásico (Constante 1)" },
-          { value: "comercial_tri", label: "Comercial Trifásico (Constante 80)" },
-          { value: "irrigante_tri", label: "Irrigante Noturno (Constante 40)" },
-          { value: "personalizado", label: "Personalizado / Outro" }
+          { value: "rural", label: "Rural (B2) - Constante de Multiplicação 1" },
+          { value: "comercial", label: "Comercial (B3) - Constante de Multiplicação 80" },
+          { value: "irrigante", label: "Irrigante Noturno (B2) - Constante de Multiplicação 40" },
+          { value: "residencial", label: "Residencial (B1) - Constante de Multiplicação 1" },
+          { value: "gerador_b2", label: "Gerador (B2) - Constante de Multiplicação 40" }
         ], 
-        default: "rural_mono",
+        default: "rural",
         showInList: true,
-        required: true 
+        required: true,
+        dependsOn: { key: "funcao_solar", value: ["nenhum", "consumidor_remoto", "gerador"] } // Sempre visível
       },
-      { 
-        key: "tipo_medicao", 
-        label: "Modo de Medição", 
-        type: "select", 
-        options: ["Padrao", "Horario"], 
-        dependsOn: { key: "classe_tarifaria", value: "personalizado" },
-        default: "Padrao"
-      },
-      { 
-        key: "constante_medidor", 
-        label: "Constante Manual", 
-        type: "text", 
-        mask: "decimal", 
-        dependsOn: { key: "classe_tarifaria", value: "personalizado" },
-        placeholder: "Ex: 1,0", 
-        default: "1,0"
-      },
+      // Leituras Iniciais Condicionais
       { 
         key: "leitura_inicial_04", 
-        label: "Leitura Inicial Geral (03) / Ponta (04)", 
+        label: "Leitura Inicial Ponta (04)", 
         type: "text", 
         mask: "decimal", 
-        placeholder: "Ex: 1.250", 
-        required: true, 
-        showInList: true 
+        placeholder: "Ex: 1234,5", 
+        dependsOn: { key: "funcao_solar", value: ["nenhum", "consumidor_remoto", "gerador"] },
+        legend: "Leitura atual para início do controle." 
       },
       { 
         key: "leitura_inicial_08", 
-        label: "Leitura Inicial Fora Ponta (08)", 
+        label: "Leitura Inicial Fora de Ponta (08)", 
         type: "text", 
         mask: "decimal", 
-        placeholder: "Ex: 2.150", 
-        dependsOn: { key: "classe_tarifaria", value: "irrigante_tri" },
-        requiredIf: { key: "classe_tarifaria", value: "irrigante_tri" },
-        showInList: true 
+        placeholder: "Ex: 987,6", 
+        dependsOn: [
+            { key: "classe_tarifaria", value: "irrigante" },
+            { key: "funcao_solar", value: ["nenhum", "consumidor_remoto"] }
+        ],
+        legend: "Necessário apenas para Irrigante." 
       },
-      { key: "meta_consumo", label: "Meta Mensal Total (kWh)", type: "text", mask: "metric", placeholder: "Ex: 5.000 (Soma de 04 e 08)", showInList: true },
+      { 
+        key: "leitura_inicial_103", 
+        label: "Leitura Inicial Injeção (103)", 
+        type: "text", 
+        mask: "decimal", 
+        placeholder: "Ex: 50,0", 
+        dependsOn: { key: "funcao_solar", value: "gerador" }, 
+        legend: "Leitura atual de injeção (0103) para início do controle." 
+      },
+      // Metas
+      { key: "meta_consumo", label: "Meta Mensal de Consumo (kWh)", type: "text", mask: "metric", placeholder: "Ex: 5.000", showInList: true },
+      { key: "meta_injecao", label: "Meta Mensal de Injeção (kWh)", type: "text", mask: "metric", placeholder: "Ex: 10.000", dependsOn: { key: "funcao_solar", value: "gerador" } },
+      
       { key: "observacao_antiga", label: "Obs / Numeração Antiga", placeholder: "Ex: Troca de medidor em 2025...", showInList: true },
       { key: "tipo", label: "Tipo", hidden: true, default: "energia" },
     ],

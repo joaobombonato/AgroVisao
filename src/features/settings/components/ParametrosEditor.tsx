@@ -70,42 +70,44 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
             </div>
             <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 space-y-3">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-yellow-500"/> Energia Elétrica
+                    <Zap className="w-5 h-5 text-yellow-500"/> Parâmetros de Energia (CEMIG 2025)
                 </h3>
-                <Input 
-                    label="Tarifa Padrão (03 ou Geral) - R$/kWh" 
-                    value={getVal('energia', 'custoKwhPadrao')} 
-                    onChange={(e: any) => handleChange('energia', 'custoKwhPadrao', e.target.value)}
-                    type="text"
-                    mask="decimal"
-                    precision={3}
-                    placeholder="Ex: 0,923"
-                />
-                <Input 
-                    label="Tarifa Ponta (04) - R$/kWh" 
-                    value={getVal('energia', 'custoKwhPonta')} 
-                    onChange={(e: any) => handleChange('energia', 'custoKwhPonta', e.target.value)}
-                    type="text"
-                    mask="decimal"
-                    precision={3}
-                    placeholder="Ex: 1,250"
-                />
-                <Input 
-                    label="Tarifa Fora Ponta (08) - R$/kWh" 
-                    value={getVal('energia', 'custoKwhForaPonta')} 
-                    onChange={(e: any) => handleChange('energia', 'custoKwhForaPonta', e.target.value)}
-                    type="text"
-                    mask="decimal"
-                    precision={3}
-                    placeholder="Ex: 0,460"
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <Input 
+                        label="Tarifa Mínima Fixa (R$)" 
+                        value={getVal('energia', 'tarifaMinima')} 
+                        onChange={(e: any) => handleChange('energia', 'tarifaMinima', e.target.value)}
+                        type="text" mask="decimal" precision={2} placeholder="Ex: 93,20"
+                        legend="Valor mínimo cobrado pela CEMIG."
+                    />
+                    <Input 
+                        label="Diferença TUSD Solar (R$)" 
+                        value={getVal('energia', 'tusdSolar')} 
+                        onChange={(e: any) => handleChange('energia', 'tusdSolar', e.target.value)}
+                        type="text" mask="decimal" precision={4} placeholder="Ex: 0,1543"
+                    />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <Input 
+                        label="Tarifa Comercial (R$)" 
+                        value={getVal('energia', 'tarifaComercial')} 
+                        onChange={(e: any) => handleChange('energia', 'tarifaComercial', e.target.value)}
+                        type="text" mask="decimal" precision={4} placeholder="Ex: 1,1256"
+                        legend="Valor integral do kWh (Energia + Impostos)."
+                    />
+                    <Input 
+                        label="Tarifa GD / Reembolso (R$)" 
+                        value={getVal('energia', 'tusdGD')} 
+                        onChange={(e: any) => handleChange('energia', 'tusdGD', e.target.value)}
+                        type="text" mask="decimal" precision={4} placeholder="Ex: 0,4292"
+                        legend="Valor GD II para ajuste de disponibilidade."
+                    />
+                </div>
                 <Input 
                     label="Dia do Fechamento (Leitura)" 
                     value={getVal('energia', 'diaLeitura')} 
                     onChange={(e: any) => handleChange('energia', 'diaLeitura', e.target.value)}
-                    type="text"
-                    mask="day"
-                    placeholder="Ex: 15"
+                    type="text" mask="day" placeholder="Ex: 15"
                 />
             </div>
 

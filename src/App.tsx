@@ -282,7 +282,6 @@ const AppContent = () => {
     // PWA Install Prompt - Captura Global
     useEffect(() => {
         const handleBeforeInstallPrompt = (e: any) => {
-            console.log('PWA: Prompt de instalação capturado!');
             e.preventDefault();
             setDeferredPrompt(e);
         };

@@ -99,14 +99,24 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
       }
     });
 
-    if (record.id && !String(record.id).startsWith('temp-')) payload.id = record.id;
+    if (record.id && !String(record.id).startsWith('temp-')) {
+        payload.id = record.id;
+    } else {
+        delete payload.id; // Garante que IDs temporários não vão para o banco (UUID auto)
+    }
+
     if (optimisticAction) dispatch({ ...optimisticAction, record: recordWithId });
 
     if (!isOff && fazendaId) {
       try {
         const data = await dbService.insert(table, payload);
         if (data && data.id && optimisticAction) {
-          dispatch({ ...optimisticAction, record: data, records: optimisticAction.records?.map((r: any) => (r.id === tempid) ? data : r) });
+          dispatch({ 
+            type: ACTIONS.SYNC_SUCCESS, 
+            modulo: table, 
+            tempid: tempid, 
+            record: data 
+          });
         }
         toast.success(`Salvo Cloud: ${table}`, { id: 'sync-toast' });
         return { success: true, online: true, data };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Plus, ChevronDown, ChevronRight, Map as MapIcon, Pencil, X, Lock } from 'lucide-react';
 import { Input, Select, TalhaoThumbnail } from '../../../components/ui/Shared';
 import MaquinaTimeline from './MaquinaTimeline';
@@ -69,6 +69,23 @@ export function AssetForm({
 
     const buttonColorClass = editingItem ? colorMap['amber'] : (colorMap[color] || colorMap['green']);
 
+    // --- INTELIGÊNCIA DE ENERGIA: Auto-puxar medidor gerador ---
+    useEffect(() => {
+        const funcaoSolarDef = fields.find(f => f.key === 'funcao_solar')?.default;
+        const currentFuncao = newItemFields.funcao_solar || funcaoSolarDef;
+
+        if (assetKey === 'locaisEnergia' && currentFuncao === 'consumidor_remoto' && !newItemFields.ponto_gerador_id) {
+            const geradores = (dbAssets.locais_monitoramento || []).filter((i: any) => i.tipo === 'energia' && i.funcao_solar === 'gerador');
+            if (geradores.length === 1) {
+                setNewItemFields((prev: any) => ({ ...prev, ponto_gerador_id: geradores[0].id }));
+            }
+        }
+
+        if (assetKey === 'locaisEnergia' && currentFuncao === 'gerador' && newItemFields.classe_tarifaria !== 'gerador_b2') {
+            setNewItemFields((prev: any) => ({ ...prev, classe_tarifaria: 'gerador_b2' }));
+        }
+    }, [newItemFields.funcao_solar, dbAssets.locais_monitoramento, assetKey, fields]);
+
     const renderComplexFields = () => {
         if (editingItem && assetKey === 'maquinas' && formTab === 'historico') {
             const osList = dbAssets.os || [];
@@ -115,11 +132,20 @@ export function AssetForm({
 
             if (!isCurrentVisible) return null;
             if (f.dependsOn) {
-                const val = newItemFields[f.dependsOn.key] || '';
-                const target = f.dependsOn.value;
-                const isVisible = Array.isArray(target) 
-                    ? target.includes(val) 
-                    : val === target;
+                const conditions = Array.isArray(f.dependsOn) ? f.dependsOn : [f.dependsOn];
+                const isVisible = conditions.every((cond: any) => {
+                    // Tenta pegar o valor atual, senão tenta o default da definição do campo
+                    let val = newItemFields[cond.key];
+                    if (val === undefined || val === null || val === '') {
+                        const depField = fields.find((field: any) => field.key === cond.key);
+                        val = depField?.default || '';
+                    }
+                    
+                    const target = cond.value;
+                    return Array.isArray(target) 
+                        ? target.includes(val) 
+                        : val === target;
+                });
                 if (!isVisible) return null;
             }
 
@@ -139,7 +165,18 @@ export function AssetForm({
 
                      if (sourceTable) {
                          let sourceList = dbAssets[sourceTable] || [];
-                         if (sourceTable === 'locais_monitoramento' && f.dependsOn) {
+
+                         // Filtro Genérico (ex: para medidores geradores)
+                         if (f.filter) {
+                             const fKey = f.filter.key;
+                             const fVal = f.filter.value;
+                             sourceList = sourceList.filter((i: any) => {
+                                 const itemVal = i[fKey];
+                                 return Array.isArray(fVal) ? fVal.includes(itemVal) : itemVal === fVal;
+                             });
+                         }
+
+                         if (sourceTable === 'locais_monitoramento' && f.dependsOn && !f.filter) {
                              const parentVal = newItemFields[f.dependsOn.key];
                              const typeMap: any = { "Medidor de Energia": "energia" };
                              const subType = typeMap[parentVal];
@@ -154,16 +191,17 @@ export function AssetForm({
 
                  const currentVal = newItemFields[f.key] || f.default || '';
                 const isLocked = editingItem && (financeKeys.includes(f.key) || f.key === 'situacao_financeira') && isFormLiquidado;
+                const isDisabled = isLocked || (assetKey === 'locaisEnergia' && f.key === 'classe_tarifaria' && newItemFields.funcao_solar === 'gerador');
 
                 return (
                     <div key={f.key} className={gridClass}>
                         <Select
                             label={<>{f.label} {f.required && <span className="text-red-500">*</span>}</>}
                             value={currentVal}
-                            onChange={(e: any) => !isLocked && setNewItemFields({ ...newItemFields, [f.key]: e.target.value })}
+                            onChange={(e: any) => !isDisabled && setNewItemFields({ ...newItemFields, [f.key]: e.target.value })}
                             required={f.required}
-                            disabled={isLocked}
-                            className={isLocked ? 'bg-gray-100 font-bold border-gray-300 opacity-90 cursor-not-allowed text-gray-700 pointer-events-none select-none' : ''}
+                            disabled={isDisabled}
+                            className={isDisabled ? 'bg-gray-100 font-bold border-gray-300 opacity-90 cursor-not-allowed text-gray-700 pointer-events-none select-none' : ''}
                         >
                              <option value="">Selecione...</option>
                              {finalOptions?.map((opt: any) => {

@@ -28,7 +28,6 @@ export function useSync({ fazendaId, state, dispatch, isOnline }: UseSyncParams)
     const queue = state.syncQueue || [];
     if (queue.length === 0) return;
 
-    console.log(`[Sync] Processando ${queue.length} itens da fila...`);
 
     for (const item of queue) {
       try {

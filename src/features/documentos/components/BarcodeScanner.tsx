@@ -60,13 +60,11 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
     if (scanMode === 'boleto') {
       // Boleto ITF deve ter exatamente 44 dígitos
       if (digits.length !== 44) {
-        console.log(`[Scanner v5] Descartado: ${digits.length} dígitos (esperado 44 para boleto)`);
         return;
       }
     } else {
       // NF-e deve ter 44 dígitos e começar com UF válida
       if (digits.length !== 44) {
-        console.log(`[Scanner v5] Descartado: ${digits.length} dígitos (esperado 44)`);
         return;
       }
     }
@@ -74,7 +72,6 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
     processingRef.current = true;
     setProcessing(true);
 
-    console.log('[📱 Scanner v5] Código detectado:', rawValue, `(modo: ${scanMode})`);
     playFeedback();
 
     // Delay para feedback visual
@@ -107,12 +104,10 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
     const startScanner = async () => {
       try {
         // 1. Carrega o polyfill barcode-detector (usa zxing-wasm internamente)
-        console.log('[Scanner v5] Carregando barcode-detector polyfill (zxing-wasm)...');
         const { BarcodeDetector } = await import('barcode-detector/pure');
 
         // 2. Verifica formatos suportados
         const supportedFormats = await BarcodeDetector.getSupportedFormats();
-        console.log('[Scanner v5] Formatos suportados:', supportedFormats);
 
         // 3. Formatos por modo de scan
         const boletoFormats = ['itf'] as const;
@@ -134,7 +129,6 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
           throw new Error('Nenhum formato de código de barras suportado pelo polyfill');
         }
 
-        console.log('[Scanner v5] Usando formatos:', formats);
         detectorRef.current = new BarcodeDetector({ formats: formats as any });
 
         // 4. Inicia câmera com alta resolução
@@ -164,8 +158,6 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
           
           await videoRef.current.play();
           setCameraReady(true);
-          console.log('[Scanner v5] ✅ Câmera pronta! Resolução:', 
-            videoRef.current.videoWidth, 'x', videoRef.current.videoHeight);
 
           // 5. Loop de detecção com throttle
           const detectLoop = async () => {
@@ -183,7 +175,6 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
               const barcodes = await detectorRef.current.detect(videoRef.current);
               if (barcodes.length > 0) {
                 const code = barcodes[0];
-                console.log('[Scanner v5] ✅ Detectou:', code.format, '→', code.rawValue);
                 handleDetection(code.rawValue);
                 return; // Para o loop
               }

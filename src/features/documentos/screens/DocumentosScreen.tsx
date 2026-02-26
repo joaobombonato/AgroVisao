@@ -184,12 +184,15 @@ export default function DocumentosScreen() {
         type: ACTIONS.SET_MODAL, 
         modal: { 
             isOpen: true, 
-            message: 'Excluir documento?', 
-            onConfirm: () => { 
-                dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'documentos', id }); 
-                dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); 
-                toast.error('Registro excluído.'); 
-            } 
+            type: 'confirm',
+            props: {
+                title: 'Excluir Documento',
+                message: 'Tem certeza que deseja excluir este documento?',
+                onConfirm: () => {
+                    dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'documentos', id });
+                    toast.error('Registro excluído.');
+                }
+            }
         } 
       }); 
   };

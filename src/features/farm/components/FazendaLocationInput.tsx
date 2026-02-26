@@ -63,7 +63,6 @@ export default function FazendaLocationInput({
             // Tenta preencher cidade e estado via Reverse Geocoding
             const address = await reverseGeocode(result.lat, result.lng);
             if (address) {
-                console.log("Endereço reverso:", address);
                 
                 // 1. Tentar identificar Estado
                 const estadoEncontrado = estados.find((e: any) => address.includes(e.nome) || address.includes(e.sigla));

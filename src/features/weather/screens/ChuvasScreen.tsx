@@ -73,12 +73,15 @@ export default function ChuvasScreen({ initialTab = 'registro' }: { initialTab?:
       type: ACTIONS.SET_MODAL, 
       modal: { 
         isOpen: true, 
-        message: 'Excluir registro?', 
-        onConfirm: () => { 
-          dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'chuvas', id }); 
-          dispatch({ type: ACTIONS.SET_MODAL, modal: { isOpen: false, message: '', onConfirm: () => {} } }); 
-          toast.error('Registro excluído.'); 
-        } 
+        type: 'confirm',
+        props: {
+          title: 'Excluir Registro',
+          message: 'Deseja excluir este registro de chuva?',
+          onConfirm: () => {
+            dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'chuvas', id });
+            toast.error('Registro excluído.');
+          }
+        }
       } 
     }); 
   };

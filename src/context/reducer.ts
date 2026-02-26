@@ -61,6 +61,7 @@ export const ACTIONS = {
   SET_PERMISSIONS: 'SET_PERMISSIONS',
   SET_DADOS: 'SET_DADOS',
   UPDATE_USER_PROFILE: 'UPDATE_USER_PROFILE',
+  SYNC_SUCCESS: 'SYNC_SUCCESS',
 };
 
 export function appReducer(state: State, action: any) {
@@ -135,10 +136,19 @@ export function appReducer(state: State, action: any) {
     case ACTIONS.SET_TELA:
       return { ...state, tela: action.tela };
     case ACTIONS.ADD_RECORD: {
-      const { modulo, record, osDescricao, osDetalhes } = action;
-      const newDados = { ...state.dados, [modulo]: [...(state.dados[modulo] || []), record] };
-      
-      return { ...state, dados: newDados };
+      const { modulo, record } = action;
+      if (modulo === 'os') return { ...state, os: [...state.os, record] };
+      return { ...state, dados: { ...state.dados, [modulo]: [...(state.dados[modulo] || []), record] } };
+    }
+    case ACTIONS.SYNC_SUCCESS: {
+      const { modulo, tempid, record } = action;
+      if (modulo === 'os') {
+        const newOs = state.os.map(r => r.id === tempid ? { ...r, ...record } : r);
+        return { ...state, os: newOs };
+      }
+      const list = state.dados[modulo] || [];
+      const newList = list.map((r: any) => r.id === tempid ? { ...r, ...record } : r);
+      return { ...state, dados: { ...state.dados, [modulo]: newList } };
     }
     case ACTIONS.REMOVE_RECORD: {
       const { modulo, id } = action;
