@@ -19,7 +19,7 @@ export const dbService = {
              query = query.order(orderBy, { ascending: false });
         } else {
              // Padrões por tipo de tabela
-             const sortByName = ['maquinas', 'talhoes', 'locais_monitoramento'];
+             const sortByName = ['maquinas', 'talhoes', 'estacoes_chuva', 'pontos_energia'];
              const sortByPosicao = ['safras', 'culturas', 'tipos_refeicao', 'setores', 'operacoes_agricolas', 'produtos', 'produtos_manutencao', 'tipos_documento', 'classes_agronomicas', 'centros_custos'];
              const sortByData = ['os', 'abastecimentos', 'energia', 'recomendacoes', 'refeicoes', 'chuvas', 'compras'];
              

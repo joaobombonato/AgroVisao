@@ -223,10 +223,9 @@ export const ASSET_DEFINITIONS: any = {
       { key: "estoque_minimo", label: "Alerta de Estoque Mínimo", type: "number", placeholder: "Ex: 5", showInList: true },
     ],
   },
-  // Tabela: locais_monitoramento
   locaisChuva: {
     title: "Local (Pluviômetro)",
-    table: "locais_monitoramento",
+    table: "estacoes_chuva",
     color: "cyan",
     type: "complex",
     label: "Pluviômetro",
@@ -234,12 +233,11 @@ export const ASSET_DEFINITIONS: any = {
     icon: CloudRain,
     fields: [
       { key: "nome", label: "Nome do Local", placeholder: "Ex: Sede", showInList: true, required: true },
-      { key: "tipo", label: "Tipo", hidden: true, default: "chuva" },
     ],
   },
   locaisEnergia: {
     title: "Medidores de Energia",
-    table: "locais_monitoramento",
+    table: "pontos_energia",
     color: "yellow",
     type: "complex",
     label: "Medidor",
@@ -338,8 +336,7 @@ export const ASSET_DEFINITIONS: any = {
       { key: "meta_consumo", label: "Meta Mensal de Consumo (kWh)", type: "text", mask: "metric", placeholder: "Ex: 5.000", showInList: true },
       { key: "meta_injecao", label: "Meta Mensal de Injeção (kWh)", type: "text", mask: "metric", placeholder: "Ex: 10.000", dependsOn: { key: "funcao_solar", value: "gerador" } },
       
-      { key: "observacao_antiga", label: "Obs / Numeração Antiga", placeholder: "Ex: Troca de medidor em 2025...", showInList: true },
-      { key: "tipo", label: "Tipo", hidden: true, default: "energia" },
+      { key: "observacao", label: "Observação / Notas", placeholder: "Ex: Troca de medidor em 2025...", showInList: true },
     ],
   },
 

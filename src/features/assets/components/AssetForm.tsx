@@ -75,7 +75,7 @@ export function AssetForm({
         const currentFuncao = newItemFields.funcao_solar || funcaoSolarDef;
 
         if (assetKey === 'locaisEnergia' && currentFuncao === 'consumidor_remoto' && !newItemFields.ponto_gerador_id) {
-            const geradores = (dbAssets.locais_monitoramento || []).filter((i: any) => i.tipo === 'energia' && i.funcao_solar === 'gerador');
+            const geradores = (dbAssets.pontos_energia || []).filter((i: any) => i.funcao_solar === 'gerador');
             if (geradores.length === 1) {
                 setNewItemFields((prev: any) => ({ ...prev, ponto_gerador_id: geradores[0].id }));
             }
@@ -84,7 +84,7 @@ export function AssetForm({
         if (assetKey === 'locaisEnergia' && currentFuncao === 'gerador' && newItemFields.classe_tarifaria !== 'gerador_b2') {
             setNewItemFields((prev: any) => ({ ...prev, classe_tarifaria: 'gerador_b2' }));
         }
-    }, [newItemFields.funcao_solar, dbAssets.locais_monitoramento, assetKey, fields]);
+    }, [newItemFields.funcao_solar, dbAssets.pontos_energia, assetKey, fields]);
 
     const renderComplexFields = () => {
         if (editingItem && assetKey === 'maquinas' && formTab === 'historico') {
@@ -176,11 +176,9 @@ export function AssetForm({
                              });
                          }
 
-                         if (sourceTable === 'locais_monitoramento' && f.dependsOn && !f.filter) {
+                         if (sourceTable === 'pontos_energia' && f.dependsOn && !f.filter) {
                              const parentVal = newItemFields[f.dependsOn.key];
-                             const typeMap: any = { "Medidor de Energia": "energia" };
-                             const subType = typeMap[parentVal];
-                             if (subType) sourceList = sourceList.filter((i: any) => i.tipo === subType);
+                             if (parentVal === "Medidor de Energia") sourceList = sourceList; // Já está na tabela certa
                          }
                          finalOptions = sourceList.map((i: any) => ({
                              value: i.id || i.nome || i.titulo,

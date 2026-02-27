@@ -29,7 +29,7 @@ export interface Refeicao extends BaseRecord {
 
 export interface Energia extends BaseRecord {
     data: string;
-    ponto: string; // Medidor (locais_monitoramento)
+    ponto: string; // Medidor (pontos_energia)
     leitura_ant_04: number;
     leitura_atual_04: number;
     leitura_ant_08?: number;
@@ -77,8 +77,8 @@ export interface AppState {
         talhoes: Talhao[];
         centros_custos: CentroCusto[] | string[];
         produtos: Produto[] | string[];
-        locais: any[];
-        pontosEnergia: any[];
+        locais: any[]; // Estações Chuva (estacoes_chuva)
+        pontosEnergia: any[]; // Medidores Energia (pontos_energia)
     };
     syncQueue: any[]; // Definir melhor depois
     tela: string;

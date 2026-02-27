@@ -9,6 +9,9 @@ import { dbService } from '../../services';
 import { U } from '../../utils';
 import { ACTIONS } from '../reducer';
 
+// Variável persistente fora do ciclo do React para evitar colisões em salvamentos rápidos
+let sessionMaxOS: { [fazendaId: string]: { [year: number]: number } } = {};
+
 interface UseCRUDParams {
   fazendaId: string | null;
   dispatch: React.Dispatch<any>;
@@ -51,8 +54,11 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
       const currentYear = new Date().getFullYear();
       let maxNum = 0;
 
-      if (!isOff && fazendaId) {
-        // ONLINE: consulta o MAX no banco para sequência fiel
+      // 1. Tenta recuperar do cache da sessão (mais confiável para batch/fast saves)
+      const sessionMax = sessionMaxOS[fazendaId || 'default']?.[currentYear] || 0;
+
+      if (!isOff && fazendaId && sessionMax === 0) {
+        // ONLINE: consulta o MAX no banco APENAS se não tivermos no cache da sessão
         try {
           const { dbService } = await import('../../services');
           const result = await (dbService as any).supabase
@@ -66,9 +72,11 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
           const match = String(lastNumero).match(/(\d+)$/);
           maxNum = match ? parseInt(match[0]) : 0;
         } catch { /* fallback abaixo */ }
+      } else {
+        maxNum = sessionMax;
       }
 
-      // FALLBACK (offline ou se a consulta falhou): usa state local + queue
+      // 2. FALLBACK (offline ou se a consulta falhou): usa state local + queue
       if (maxNum === 0) {
         const ordens = (state.os || []);
         maxNum = ordens.reduce((max: number, o: any) => {
@@ -81,7 +89,14 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
         maxNum = Math.max(maxNum, maxNum + osInQueue);
       }
 
-      const nextSeq = String(maxNum + 1).padStart(4, '0');
+      // 3. Incrementa e Atualiza o Cache da Sessão
+      const nextNum = Math.max(maxNum, sessionMax) + 1;
+      if (fazendaId) {
+        if (!sessionMaxOS[fazendaId]) sessionMaxOS[fazendaId] = {};
+        sessionMaxOS[fazendaId][currentYear] = nextNum;
+      }
+
+      const nextSeq = String(nextNum).padStart(4, '0');
       payload.numero = `OS-${currentYear}-${nextSeq}`;
 
       if (payload.descricao?.includes('HISTÓRICO') || payload.descricao?.includes('CONFERÊNCIA') || payload.modulo === 'Seguro') {

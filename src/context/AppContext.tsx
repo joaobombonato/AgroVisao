@@ -157,7 +157,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   // Carregar dados ao selecionar fazenda
   useEffect(() => {
     if (!fazendaId) return;
-    const assets = ['maquinas','talhoes','locais_monitoramento','centros_custos','produtos','safras','culturas','tipos_refeicao','classes_agronomicas','tipos_documento', 'colaboradores', 'fazenda_membros', 'setores', 'produtos_manutencao', 'operacoes_agricolas'];
+    const assets = ['maquinas','talhoes','estacoes_chuva','pontos_energia','centros_custos','produtos','safras','culturas','tipos_refeicao','classes_agronomicas','tipos_documento', 'colaboradores', 'fazenda_membros', 'setores', 'produtos_manutencao', 'operacoes_agricolas'];
     assets.forEach(t => fetchRecords(t));
     const data = ['abastecimentos','compras','chuvas','energia','recomendacoes','refeicoes','os'];
     data.forEach(t => fetchDados(t));

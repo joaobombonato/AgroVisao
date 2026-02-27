@@ -114,10 +114,8 @@ export function appReducer(state: State, action: any) {
         if (table === 'setores') newAtivos.setores = records;
         if (table === 'produtos_manutencao') newAtivos.produtosManutencao = records;
         
-        if (table === 'locais_monitoramento') {
-            newAtivos.locais = records.filter((r: any) => r.tipo === 'chuva');
-            newAtivos.pontosEnergia = records.filter((r: any) => r.tipo === 'energia');
-        }
+        if (table === 'estacoes_chuva') newAtivos.locais = records;
+        if (table === 'pontos_energia') newAtivos.pontosEnergia = records;
 
         return { 
             ...state, 

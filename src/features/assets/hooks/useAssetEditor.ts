@@ -30,13 +30,7 @@ export function useAssetEditor({ assetKey, table, type, label, fields, orderBy, 
 
     const list = dbAssets[table] || [];
 
-    const listToRender = list.filter((item: any) => {
-        if (table === 'locais_monitoramento') {
-            const targetType = assetKey === 'locaisChuva' ? 'chuva' : 'energia';
-            return item.tipo === targetType;
-        }
-        return true;
-    }).sort((a: any, b: any) => {
+    const listToRender = list.sort((a: any, b: any) => {
         if (orderBy === 'posicao') {
             const posA = a.posicao || 0;
             const posB = b.posicao || 0;

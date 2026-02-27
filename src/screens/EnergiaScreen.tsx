@@ -37,7 +37,13 @@ export default function EnergiaScreen() {
 
   // 1. Busca Dados do Ponto Selecionado
   const pontoSelecionado = useMemo(() => {
-    return ativos.pontosEnergia.find((l:any) => (l.nome === form.ponto) || (l === form.ponto));
+    // Busca preferencialmente por ID se disponível, ou por nome filtrando o que está na lista de energia
+    return ativos.pontosEnergia.find((l:any) => 
+        (typeof form.ponto === 'object' && (form.ponto as any)?.id === l.id) || 
+        (l.id === form.ponto) ||
+        (l.nome === form.ponto) || 
+        (l === form.ponto)
+    );
   }, [form.ponto, ativos.pontosEnergia]);
 
   // Lógica de Mapeamento Técnico 2026
