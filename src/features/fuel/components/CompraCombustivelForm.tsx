@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Fuel, X, Plus, Minus, Check, Search, ScanBarcode, CreditCard } from 'lucide-react';
+import { Fuel, X, Plus, Minus, Check, Search, ScanBarcode, CreditCard, History } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { Input } from '../../../components/ui/Shared';
 import { U, getOperationalDateLimits } from '../../../utils';
@@ -155,7 +155,7 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
         modulo: 'Compra Diesel',
         descricao: descOS,
         detalhes: { "Fornecedor": form.fornecedor || '-', "Litros": `${form.litros} L`, "Venc.": form.vencimentoDiesel || 'n/i' },
-        status: 'Confirmado',
+        status: 'Pendente',
         data_abertura: form.data,
         created_by: userProfile?.id || null
     }, { type: ACTIONS.ADD_RECORD, modulo: 'os' });
@@ -259,6 +259,43 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
                 <Check className="w-6 h-6" /> Registrar Compra
             </button>
           </form>
+          
+          {/* HISTÓRICO RECENTE */}
+          <div className="mt-6 border-t pt-4">
+            <h3 className="text-[10px] font-bold text-gray-400 uppercase flex items-center gap-1 mb-3">
+              <History className="w-3 h-3 text-green-600"/> Últimas 5 Compras
+            </h3>
+            {(() => {
+              const recentes = [...(dados?.compras || [])]
+                .filter(c => c.tipo === 'combustivel')
+                .sort((a, b) => {
+                  const da = a.data || '';
+                  const db = b.data || '';
+                  if (db !== da) return db.localeCompare(da);
+                  return String(b.id || '').localeCompare(String(a.id || ''));
+                })
+                .slice(0, 5);
+
+              if (recentes.length === 0) return <p className="text-[10px] text-gray-400 italic">Nenhuma compra recente.</p>;
+              
+              return (
+                <div className="space-y-3">
+                  {recentes.map((r: any) => (
+                    <div key={r.id} className="text-[11px] flex justify-between items-center py-2 border-b last:border-0 border-gray-100 animate-in fade-in duration-300">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-gray-800 truncate">{r.fornecedor || 'Fornecedor n/i'}</span>
+                        <span className="text-[9px] text-gray-500">{U.formatDate(r.data)} • NF: {r.nota_fiscal}</span>
+                      </div>
+                      <div className="flex flex-col items-end shrink-0">
+                        <span className="font-bold text-green-700">{U.formatInt(r.litros)} L</span>
+                        <span className="text-[9px] font-bold text-gray-500">R$ {U.formatValue(r.valor_total)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       </div>
       {showScanner && <BarcodeScanner onScanSuccess={handleScanSuccess} onClose={() => setShowScanner(false)} scanMode={scanTarget?.includes('Nfe') ? 'nfe' : 'boleto'} />}
