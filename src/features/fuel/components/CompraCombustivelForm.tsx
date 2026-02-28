@@ -79,7 +79,8 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
   const handleScanSuccess = async (code: string) => {
     setShowScanner(false);
     try {
-        const result = await processBarcode(code);
+        const hint = scanTarget?.includes('Nfe') ? 'nfe' : 'boleto';
+        const result = await processBarcode(code, hint as any);
         
         if (scanTarget?.includes('Nfe')) {
             if (result.type !== 'nfe') {

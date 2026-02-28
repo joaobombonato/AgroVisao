@@ -78,23 +78,47 @@ export type ParsedBarcode = NFeData | BoletoData | GenericData;
 
 // ===================== DETECÇÃO DE TIPO =====================
 
-export function detectType(code: string): BarcodeType {
+export function detectType(code: string, hint?: 'nfe' | 'boleto'): BarcodeType {
   const clean = code.replace(/\D/g, '');
   
-  // Se contiver uma sequência de 44 dígitos que começa com uma UF válida, é NF-e
+  // Se for uma URL que contém "chNFe=", é quase certo NF-e
+  if (code.includes('chNFe=')) return 'nfe';
+
+  // Se o usuário já selecionou um modo, tentamos validar nele primeiro
+  if (hint === 'nfe') {
+    const match = clean.match(/\d{44}/);
+    if (match) {
+        const key = match[0];
+        const firstTwo = key.substring(0, 2);
+        const modelo = key.substring(20, 22);
+        if (UF_MAP[firstTwo] && (modelo === '55' || modelo === '65')) return 'nfe';
+    }
+  }
+
+  if (hint === 'boleto') {
+    if (clean.length === 47 || clean.length === 48 || clean.length === 44) return 'boleto_bancario';
+  }
+
+  // Se não houver dica ou a dica falhou, tentamos detecção automática rigorosa
+  
+  // Detecção RIGOROSA de NF-e (44 dígitos, UF válida, Modelo 55/65)
   const nfeMatch = clean.match(/\d{44}/);
   if (nfeMatch) {
     const key = nfeMatch[0];
     const firstTwo = key.substring(0, 2);
-    if (UF_MAP[firstTwo]) return 'nfe';
+    const modelo = key.substring(20, 22);
+    const mes = parseInt(key.substring(4, 6), 10);
+    
+    // Se bater tudo (UF, Modelo e Mês válido 01-12), é NF-e
+    if (UF_MAP[firstTwo] && (modelo === '55' || modelo === '65') && mes >= 1 && mes <= 12) {
+        return 'nfe';
+    }
   }
 
-  if (clean.length === 44) return 'boleto_bancario';
-  if (clean.length === 47) return 'boleto_bancario';
-  if (clean.length === 48) return 'boleto_convenio';
-  
-  // Se for uma URL que contém "chNFe=", é NF-e
-  if (code.includes('chNFe=')) return 'nfe';
+  // Boletos
+  if (clean.length === 47) return 'boleto_bancario'; // Linha digitável bancária
+  if (clean.length === 48) return 'boleto_convenio'; // Linha digitável convênio
+  if (clean.length === 44) return 'boleto_bancario'; // Código de barras ITF
   
   return 'generico';
 }
@@ -447,8 +471,8 @@ export async function lookupCNPJ(cnpj: string): Promise<{ razaoSocial: string; f
 
 // ===================== PROCESSO PRINCIPAL =====================
 
-export async function processBarcode(rawCode: string): Promise<ParsedBarcode> {
-  const type = detectType(rawCode);
+export async function processBarcode(rawCode: string, hint?: 'nfe' | 'boleto'): Promise<ParsedBarcode> {
+  const type = detectType(rawCode, hint);
   
   switch (type) {
     case 'nfe': {

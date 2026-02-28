@@ -18,7 +18,7 @@ export function useBarcodeScanning(setForm: React.Dispatch<React.SetStateAction<
       setProcessingBarcode(true);
       
       try {
-        const result = await processBarcode(code);
+        const result = await processBarcode(code, scanMode);
         setDocumentPreview(result);
         
         if (result.type === 'nfe') {
