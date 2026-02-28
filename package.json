@@ -1,7 +1,7 @@
 {
   "name": "AgroVisao",
   "private": true,
-  "version": "4.7.90",
+  "version": "4.7.91",
   "type": "module",
   "scripts": {
     "dev": "vite",

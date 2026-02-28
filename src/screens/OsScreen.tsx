@@ -137,6 +137,7 @@ export default function OsScreen() {
                                 dispatch({
                                     type: ACTIONS.SET_MODAL,
                                     modal: {
+                                        isOpen: true,
                                         type: 'confirm',
                                         props: {
                                             title: 'Confirmação em Lote',
