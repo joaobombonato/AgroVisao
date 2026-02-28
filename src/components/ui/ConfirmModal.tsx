@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, AlertTriangle, LogOut, Tractor } from 'lucide-react';
+import { X, AlertTriangle, LogOut, Tractor, CheckCircle } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -9,8 +9,8 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: 'danger' | 'warning' | 'info';
-  icon?: 'logout' | 'tractor' | 'warning';
+  variant?: 'danger' | 'warning' | 'info' | 'success';
+  icon?: 'logout' | 'tractor' | 'warning' | 'check';
 }
 
 export function ConfirmModal({
@@ -44,16 +44,23 @@ export function ConfirmModal({
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-600',
       confirmBg: 'bg-blue-600 hover:bg-blue-700'
+    },
+    success: {
+      bg: 'bg-green-50',
+      iconBg: 'bg-green-100',
+      iconColor: 'text-green-600',
+      confirmBg: 'bg-green-600 hover:bg-green-700'
     }
   };
 
-  const styles = variantStyles[variant];
+  const styles = variantStyles[variant] || variantStyles.warning;
 
   const IconComponent = {
     logout: LogOut,
     tractor: Tractor,
-    warning: AlertTriangle
-  }[icon];
+    warning: AlertTriangle,
+    check: CheckCircle
+  }[icon] || AlertTriangle;
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
