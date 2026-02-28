@@ -61,8 +61,8 @@ export default function OsScreen() {
         if (autoA !== autoB) return autoA - autoB;
         return (a.numero || a.id || '').localeCompare(b.numero || b.id || '');
       } else {
-        // Confirmado ou Cancelado: ordem decrescente baseada no ID (mais recentes primeiro)
-        return String(b.id || '').localeCompare(String(a.id || ''));
+        // Confirmado ou Cancelado: ordem decrescente pelo número/ID (mais recentes primeiro)
+        return String(b.numero || b.id || '').localeCompare(String(a.numero || a.id || ''));
       }
     });
   }, [osPorPermissao, filtro, filtroModulo, search]);
