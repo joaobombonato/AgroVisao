@@ -81,15 +81,20 @@ export type ParsedBarcode = NFeData | BoletoData | GenericData;
 export function detectType(code: string): BarcodeType {
   const clean = code.replace(/\D/g, '');
   
-  if (clean.length === 44) {
-    // NF-e começa com UF IBGE (11-53); Boleto começa com banco (001-999)
-    const firstTwo = clean.substring(0, 2);
+  // Se contiver uma sequência de 44 dígitos que começa com uma UF válida, é NF-e
+  const nfeMatch = clean.match(/\d{44}/);
+  if (nfeMatch) {
+    const key = nfeMatch[0];
+    const firstTwo = key.substring(0, 2);
     if (UF_MAP[firstTwo]) return 'nfe';
-    return 'boleto_bancario';
   }
-  
+
+  if (clean.length === 44) return 'boleto_bancario';
   if (clean.length === 47) return 'boleto_bancario';
   if (clean.length === 48) return 'boleto_convenio';
+  
+  // Se for uma URL que contém "chNFe=", é NF-e
+  if (code.includes('chNFe=')) return 'nfe';
   
   return 'generico';
 }
@@ -97,7 +102,22 @@ export function detectType(code: string): BarcodeType {
 // ===================== NF-e =====================
 
 export function parseNFeKey(code: string): NFeData {
-  const clean = code.replace(/\D/g, '');
+  let clean = '';
+  
+  // Tenta extrair de URL (chNFe=...)
+  if (code.includes('chNFe=')) {
+    const match = code.match(/chNFe=(\d{44})/);
+    if (match) clean = match[1];
+  }
+  
+  // Se não achou na URL, tenta pegar qualquer sequência de 44 dígitos
+  if (!clean) {
+    const match = code.replace(/\D/g, '').match(/\d{44}/);
+    if (match) clean = match[0];
+  }
+
+  // Fallback
+  if (!clean) clean = code.replace(/\D/g, '');
   
   const ufCode = clean.substring(0, 2);
   const anoMes = clean.substring(2, 6);

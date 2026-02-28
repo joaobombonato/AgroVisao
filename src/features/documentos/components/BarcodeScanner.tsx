@@ -56,18 +56,8 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
     
     const digits = rawValue.replace(/\D/g, '');
     
-    // Validação por modo
-    if (scanMode === 'boleto') {
-      // Boleto ITF deve ter exatamente 44 dígitos
-      if (digits.length !== 44) {
-        return;
-      }
-    } else {
-      // NF-e deve ter 44 dígitos e começar com UF válida
-      if (digits.length !== 44) {
-        return;
-      }
-    }
+    // Validação mínima básica
+    if (digits.length < 10) return;
     
     processingRef.current = true;
     setProcessing(true);
@@ -77,7 +67,7 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
     // Delay para feedback visual
     setTimeout(() => {
       cleanup();
-      onScanSuccess(digits);
+      onScanSuccess(rawValue);
     }, 500);
   }, [onScanSuccess, playFeedback, scanMode]);
 
@@ -118,6 +108,7 @@ export const BarcodeScanner = ({ onScanSuccess, onClose, scanMode = 'nfe' }: Bar
           'ean_8',
           'qr_code',      // QR Code da DANFE
           'data_matrix',
+          'itf',          // Aditivo para garantir que leia se for detectado como tal
         ] as const;
         const wantedFormats = scanMode === 'boleto' ? boletoFormats : nfeFormats;
         type BarcodeFormat = typeof supportedFormats[number];
