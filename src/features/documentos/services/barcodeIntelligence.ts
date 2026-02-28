@@ -50,6 +50,7 @@ export interface NFeData {
   emitente?: string;
   fantasia?: string;
   municipio?: string;
+  dataEmissaoIso?: string;
 }
 
 export interface BoletoData {
@@ -166,6 +167,7 @@ export function parseNFeKey(code: string): NFeData {
     modelo,
     serie: serie.replace(/^0+/, '') || '1',
     numero,
+    dataEmissaoIso: `${ano}-${mes}-01`,
   };
 }
 

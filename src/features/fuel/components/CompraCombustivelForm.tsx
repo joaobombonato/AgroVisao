@@ -92,12 +92,13 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
             
             setForm(prev => ({
                 ...prev,
+                data: nfe.dataEmissaoIso || prev.data,
                 [isDiesel ? 'cnpjFornecedor' : 'cnpjFornecedorFrete']: nfe.cnpjFormatado,
                 [isDiesel ? 'fornecedor' : 'fornecedorFrete']: nfe.emitente || nfe.fantasia || (isDiesel ? prev.fornecedor : prev.fornecedorFrete),
                 [isDiesel ? 'notaFiscal' : 'nfFrete']: nfe.numero,
                 [isDiesel ? 'chaveNfeDiesel' : 'chaveNfeFrete']: nfe.chave
             }));
-            toast.success(`NF-e ${nfe.numero} detectada!`);
+            toast.success(`NF-e ${nfe.numero} detectada! Data: ${nfe.anoMes}`);
         } else if (scanTarget?.includes('Boleto')) {
             if (result.type !== 'boleto_bancario' && result.type !== 'boleto_convenio') {
                 toast.error('O código lido não parece ser um boleto.');
@@ -155,7 +156,8 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
         descricao: descOS,
         detalhes: { "Fornecedor": form.fornecedor || '-', "Litros": `${form.litros} L`, "Venc.": form.vencimentoDiesel || 'n/i' },
         status: 'Confirmado',
-        data_abertura: form.data
+        data_abertura: form.data,
+        created_by: userProfile?.id || null
     }, { type: ACTIONS.ADD_RECORD, modulo: 'os' });
 
     // 3. Documentos (Diesel e Frete)
@@ -167,17 +169,13 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
 
     docsToCreate.forEach(d => {
         const docId = U.id('DOC-');
+        // A tabela 'documents' usa: titulo, tipo, url, descricao
         genericSave('documents', {
             id: docId,
-            data: form.data,
+            titulo: `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
             tipo: d.type.includes('NF') ? 'Nota Fiscal' : 'Boleto',
-            nome: `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
-            codigo: d.code,
-            valor: U.parseDecimal(d.val),
-            remetente: d.for || 'Fornecedor',
-            destinatario: userProfile?.full_name || 'Escritório',
-            obs: `Vínculo Automático Compra | Venc: ${d.venc || 'n/i'}`,
-            status: 'Enviado'
+            url: 'Vínculo Automático', // Placeholder para o PDF se houver
+            descricao: `Vínculo Automático Compra | Código: ${d.code} | Venc: ${d.venc || 'n/i'}`,
         }, { type: ACTIONS.ADD_RECORD, modulo: 'documentos' });
 
         genericSave('os', {
@@ -186,7 +184,8 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
             descricao: `DOC: ${d.type} (${d.for})`,
             detalhes: { "Tipo": d.type, "Vencimento": d.venc || '-', "Valor": `R$ ${d.val}` },
             status: 'Pendente',
-            data_abertura: form.data
+            data_abertura: form.data,
+            created_by: userProfile?.id || null
         }, { type: ACTIONS.ADD_RECORD, modulo: 'os' });
     });
     
