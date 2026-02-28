@@ -60,6 +60,7 @@ export interface BoletoData {
   valor: string;
   valorFormatado: string;
   vencimento: string;
+  vencimentoIso?: string;
   banco: string;
   bancoNome: string;
   agencia?: string;
@@ -247,28 +248,34 @@ function linhaDigitavelToBarcode(linha: string): string {
  * Janela deslizante: se a data calculada for anterior a 2020, 
  * usa o ciclo de 2025+ (base = 22/02/2025 com fator 1000).
  */
-function calcVencimento(fatorStr: string): string {
+function calcVencimento(fatorStr: string): { ptBr: string; iso: string } | null {
   const fator = parseInt(fatorStr, 10);
   
-  if (fator === 0) return ''; // Sem vencimento
+  if (fator === 0) return null; // Sem vencimento
   
   // Ciclo original: base = 07/10/1997
   const baseOriginal = new Date(1997, 9, 7); // mês 0-indexed
   const dataOriginal = new Date(baseOriginal);
   dataOriginal.setDate(dataOriginal.getDate() + fator);
   
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const toIso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
   // Se a data cair antes de 2020, é provável ciclo 2025+
-  // Base do novo ciclo: 22/02/2025 = fator 10000 do ciclo antigo,
-  // que resetou para 1000
   if (dataOriginal.getFullYear() < 2020) {
-    // Novo ciclo: 22/02/2025 é quando fator 9999 vira 1000
-    const base2025 = new Date(2025, 1, 22); // 22/fev/2025
+    const base2025 = new Date(2025, 1, 22);
     const data2025 = new Date(base2025);
     data2025.setDate(data2025.getDate() + (fator - 1000));
-    return data2025.toLocaleDateString('pt-BR');
+    return {
+        ptBr: data2025.toLocaleDateString('pt-BR'),
+        iso: toIso(data2025)
+    };
   }
   
-  return dataOriginal.toLocaleDateString('pt-BR');
+  return {
+    ptBr: dataOriginal.toLocaleDateString('pt-BR'),
+    iso: toIso(dataOriginal)
+  };
 }
 
 // ===================== BOLETO — PARSER PRINCIPAL =====================
@@ -371,7 +378,9 @@ export async function parseBoleto(code: string): Promise<BoletoData> {
     : 'Não informado';
   
   // Vencimento via fator
-  const vencimento = calcVencimento(fatorStr) || 'Não informado';
+  const vencInfo = fatorStr !== '0000' ? calcVencimento(fatorStr) : null;
+  const vencimento = vencInfo?.ptBr || 'Não informado';
+  const vencimentoIso = vencInfo?.iso || '';
   
   // Nome do banco
   const bancoNome = BANCOS[bancoCode] || `Banco ${bancoCode}`;
@@ -387,6 +396,7 @@ export async function parseBoleto(code: string): Promise<BoletoData> {
     valor,
     valorFormatado: valorFmt,
     vencimento,
+    vencimentoIso,
     banco: bancoCode,
     bancoNome,
     ...extras

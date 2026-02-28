@@ -84,6 +84,21 @@ export const Input = ({ label, readOnly, numeric, mask, precision = 2, onChange,
         return;
     }
 
+    if (mask === 'cnpj') {
+        const digits = val.replace(/\D/g, '').slice(0, 14);
+        let formatted = '';
+        if (digits.length > 0) {
+            if (digits.length <= 2) formatted = digits;
+            else if (digits.length <= 5) formatted = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+            else if (digits.length <= 8) formatted = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+            else if (digits.length <= 12) formatted = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+            else formatted = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+        }
+        e.target.value = formatted;
+        if (onChange) onChange(e);
+        return;
+    }
+
     if (mask === 'phone') {
         const digits = val.replace(/\D/g, '');
         let formatted = '';

@@ -70,7 +70,7 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[2000] flex items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95">
                 <h3 className="text-lg font-black text-amber-600 flex items-center gap-2 mb-4">
                     <Wrench className="w-6 h-6" /> CONSERTO DE ESTOQUE
@@ -79,7 +79,7 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
                     <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-xs text-amber-800">
                         <AlertCircle className="w-4 h-4 inline mr-1" />
                         Use esta função para corrigir diferenças físicas ou perdas. 
-                        O valor será <strong>debitado</strong> do estoque como se fosse um consumo.
+                        O valor será <strong>SUBTRAÍDO</strong> do estoque como se fosse um consumo.
                     </div>
                     <Input 
                         label="Data do Ajuste" 
@@ -93,7 +93,7 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
                         label="Quantidade (Litros)" 
                         mask="decimal"
                         value={ajusteForm.qtd} 
-                        onChange={(e: any) => setAjusteForm({...ajusteForm, qtd: e.target.value.replace('.', ',')})} 
+                        onChange={(e: any) => setAjusteForm({ ...ajusteForm, qtd: e.target.value})} 
                         placeholder="Ex: 50"
                     />
                     <Input 

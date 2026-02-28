@@ -43,7 +43,7 @@ export default function OsScreen() {
   // Detectar se uma OS é automática (manutenção preventiva, estoque crítico, etc.)
   const isAutoOS = (o: any) => {
     const desc = (o.descricao || '').toUpperCase();
-    return desc.includes('MANUTENÇÃO PREVENTIVA') || desc.includes('COMPRA URGENTE') || desc.includes('ALERTA') || desc.includes('CONFERÊNCIA') || (o.numero || '').startsWith('AUT-');
+    return desc.includes('MANUTENÇÃO PREVENTIVA') || desc.includes('COMPRA URGENTE') || desc.includes('COMPRA DE DIESEL') || desc.includes('REESTOQUE') || desc.includes('ALERTA') || desc.includes('CONFERÊNCIA') || (o.numero || '').startsWith('AUT-');
   };
 
   const osFiltradas = useMemo(() => {

@@ -287,40 +287,7 @@ export function useAbastecimentoForm() {
       record: novaOS
     });
 
-    // Verificar estoque crítico
-    const litrosUsados = U.parseDecimal(litrosCalculados);
-    const estoqueAposAbastecimento = estoqueAtual - litrosUsados;
-
-    if (estoqueAposAbastecimento <= estoqueMinimo) {
-      const osPendentes = (os || []).filter((o: any) => o.status === 'Pendente');
-      const compraPendentes = osPendentes.some((o: any) => o.descricao.includes('COMPRA URGENTE DE DIESEL'));
-
-      if (!compraPendentes) {
-        const alertaDesc = `COMPRA URGENTE DE DIESEL - ESTOQUE CRÍTICO (${U.formatInt(estoqueAposAbastecimento)}L)`;
-        const alertaDetalhes = {
-          "Alerta": "Automático por Estoque Crítico de Combustível",
-          "Estoque Atual": `${U.formatInt(estoqueAposAbastecimento)} L`,
-          "Mínimo Configurado": `${U.formatInt(estoqueMinimo)} L`,
-          "Prioridade": "URGENTE"
-        };
-
-        const alertaOS = {
-          // id: REMOVIDO (UUID)
-          modulo: 'Estoque',
-          descricao: alertaDesc,
-          detalhes: alertaDetalhes,
-          status: 'Pendente',
-          data: new Date().toISOString()
-        };
-
-        genericSave('os', alertaOS, {
-          type: ACTIONS.ADD_RECORD,
-          modulo: 'os',
-          record: alertaOS
-        });
-        toast.success('ALERTA! OS de Compra de Diesel criada automaticamente.');
-      }
-    }
+    // Alerta de estoque removido daqui - Centralizado no useAlerts.ts (checkStockAlerts)
 
     // Reset do formulário
     setForm(prev => ({

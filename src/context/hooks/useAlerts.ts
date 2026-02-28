@@ -104,12 +104,17 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
     const { estoqueAtual, estoqueMinimo } = estoqueCalculations;
     if (estoqueAtual <= estoqueMinimo && estoqueMinimo > 0) {
       const ordens = (state.os || []);
-      const descAlerta = `REESTOQUE DE DIESEL - Nível Crítico (${U.formatInt(estoqueAtual)} L)`;
-      if (!ordens.some((o: any) => o.descricao.includes('REESTOQUE DE DIESEL') && o.status === 'Pendente')) {
+      const descAlerta = `COMPRA DE DIESEL - Nível Crítico (${U.formatInt(estoqueAtual)} L)`;
+      if (!ordens.some((o: any) => (o.descricao.includes('COMPRA DE DIESEL') || o.descricao.includes('REESTOQUE DE DIESEL') || o.descricao.includes('COMPRA URGENTE DE DIESEL')) && o.status === 'Pendente')) {
         await genericSave('os', {
           modulo: 'Abastecimento',
           descricao: descAlerta,
-          detalhes: { "Estoque Atual": `${U.formatInt(estoqueAtual)} L`, "Mínimo Configurado": `${U.formatInt(estoqueMinimo)} L` },
+          detalhes: { 
+            "Alerta": "Automático por Estoque Crítico",
+            "Estoque Atual": `${U.formatInt(estoqueAtual)} L`, 
+            "Mínimo Configurado": `${U.formatInt(estoqueMinimo)} L`,
+            "Prioridade": "URGENTE"
+          },
           status: 'Pendente',
           data_abertura: U.todayIso()
         });

@@ -17,17 +17,20 @@ export function EstoquePainel() {
   } = useEstoqueDiesel();
 
   return (
-    <div className={`rounded-xl p-4 text-white shadow-lg transition-colors ${nivelCritico ? 'bg-red-600 animate-pulse' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>
-      <div className="flex flex-col items-center justify-center mb-2">
+    <div className={`rounded-xl p-4 text-white shadow-xl transition-all duration-500 border-2 relative overflow-hidden ${nivelCritico ? 'bg-red-500 border-yellow-400 animate-pulse' : 'bg-gradient-to-r from-red-500 to-red-600 border-transparent'}`}>
+        {nivelCritico && (
+            <div className="absolute inset-0 bg-yellow-400/10 animate-pulse pointer-events-none" />
+        )}
+      <div className="flex flex-col items-center justify-center mb-2 relative z-10">
         <p className="text-xs font-bold uppercase opacity-80 mb-1">Estoque Disponível</p>
         <p className="text-4xl font-black tracking-tighter text-center">
           {U.formatInt(estoqueAtual)} <span className="text-lg font-medium">L</span>
         </p>
       </div>
       
-      <div className="w-full bg-black/20 rounded-full h-3 overflow-hidden">
+      <div className="w-full bg-black/20 rounded-full h-3 overflow-hidden relative z-10">
         <div 
-          className={`h-full transition-all duration-1000 ${nivelCritico ? 'bg-yellow-300' : 'bg-white'}`} 
+          className={`h-full transition-all duration-1000 ${nivelCritico ? 'bg-yellow-400' : 'bg-white'}`} 
           style={{ width: `${percentualTanque.toFixed(0)}%` }}
         />
       </div>
