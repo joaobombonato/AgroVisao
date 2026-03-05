@@ -84,7 +84,18 @@ export function appReducer(state: State, action: any) {
         
     case ACTIONS.SET_FAZENDA: {
         const farmConfig = action.config || (state.ativos || {});
-        const params = farmConfig.parametros || ATIVOS_INICIAIS.parametros;
+        // Tenta pegar de action.parametros (normalizado pelo hook) ou normaliza aqui se vier direto do config
+        let params = action.parametros;
+        
+        if (!params) {
+            params = farmConfig.parametros || {
+                estoque: farmConfig.estoque || ATIVOS_INICIAIS.parametros.estoque,
+                financeiro: farmConfig.financeiro || ATIVOS_INICIAIS.parametros.financeiro,
+                energia: farmConfig.energia || ATIVOS_INICIAIS.parametros.energia,
+                manutencao: farmConfig.manutencao || ATIVOS_INICIAIS.parametros.manutencao
+            };
+        }
+
         return { 
             ...state, 
             fazendaId: action.fazendaId, 

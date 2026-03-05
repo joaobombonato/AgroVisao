@@ -60,6 +60,15 @@ export function useSession({ dispatch, setTela, setFazendaSelecionada }: UseSess
           }
         });
 
+        // Normalização das configurações (Suporte a versões sem wrapper 'parametros')
+        const config = data.config || {};
+        const parametros = config.parametros || {
+          estoque: config.estoque || ATIVOS_INICIAIS.parametros.estoque,
+          financeiro: config.financeiro || ATIVOS_INICIAIS.parametros.financeiro,
+          energia: config.energia || ATIVOS_INICIAIS.parametros.energia,
+          manutencao: config.manutencao || ATIVOS_INICIAIS.parametros.manutencao
+        };
+
         dispatch({ type: ACTIONS.SET_PERMISSIONS, payload: merged });
         dispatch({ 
           type: ACTIONS.SET_FAZENDA, 
@@ -67,7 +76,7 @@ export function useSession({ dispatch, setTela, setFazendaSelecionada }: UseSess
           fazendaNome: data.nome, 
           userRole: mb?.role || 'Proprietário',
           config: data.config,
-          parametros: data.config?.parametros || ATIVOS_INICIAIS.parametros
+          parametros: parametros
         });
         if (data.user_id === session.user.id) ensureMembroOwner(data.id, session.user);
         
