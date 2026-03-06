@@ -136,19 +136,84 @@ export function useAbastecimentoForm() {
 
 
   const precoInfo = useMemo(() => {
-    const compras = dados.compras || [];
-    const pFinanceiro = ativos.parametros?.financeiro?.precoDiesel;
-    const pSafe = pFinanceiro ? String(pFinanceiro).replace('.', ',') : '';
-    const precoBase = pSafe !== '' ? U.parseDecimal(pSafe) : 0;
+    // 1. Configurações Iniciais da Fazenda
+    const estoque = ativos?.parametros?.estoque || {};
+    const financeiro = ativos?.parametros?.financeiro || {};
+    
+    const qtdInicial = U.parseDecimal(estoque.ajusteManual || 0);
+    const precoInicial = U.parseDecimal(financeiro.precoDiesel || 0);
 
-    if (compras.length > 0) {
-      const ultimaCompra = compras[compras.length - 1];
-      const valSafe = ultimaCompra.valorUnitario ? String(ultimaCompra.valorUnitario).replace('.', ',') : '0';
-      const val = U.parseDecimal(valSafe);
-      return { val, source: 'Última Compra' };
+    // 2. Compras (Ordenadas por data e criação)
+    const compras = [...(dados.compras || [])]
+      .filter(c => c.tipo === 'combustivel')
+      .sort((a, b) => (a.data || '').localeCompare(b.data || '') || (a.id || '').localeCompare(b.id || ''));
+
+    // 3. Consumo Total (Abastecimentos já realizados)
+    const abastecimentos = dados.abastecimentos || [];
+    const totalConsumido = abastecimentos.reduce((acc: number, cur: any) => acc + U.parseDecimal(cur.litros || cur.qtd || 0), 0);
+
+    // 4. Montar Fila FIFO de Inventário
+    const filaEstoque = [
+      { qtd: qtdInicial, preco: precoInicial, label: 'Estoque Inicial' },
+      ...compras.map(c => ({ 
+        qtd: U.parseDecimal(c.litros || 0), 
+        preco: U.parseDecimal(c.valor_unitario || (c.valor_total / U.parseDecimal(c.litros || 1)) || 0), 
+        label: `Compra NF ${c.nota_fiscal}` 
+      }))
+    ].filter(lote => lote.qtd > 0);
+
+    // 5. Cálculo de Preço Médio Ponderado para o Abastecimento Atual (FIFO Real)
+    const litrosAbastecimento = U.parseDecimal(litrosCalculados);
+    
+    // Se não estiver digitando litros, mostrar o preço do "próximo litro" disponível
+    if (litrosAbastecimento <= 0) {
+      let acumulado = 0;
+      for (const lote of filaEstoque) {
+        acumulado += lote.qtd;
+        if (totalConsumido < acumulado) return { val: lote.preco, source: lote.label };
+      }
+      return filaEstoque.length > 0 
+        ? { val: filaEstoque[filaEstoque.length - 1].preco, source: filaEstoque[filaEstoque.length - 1].label }
+        : { val: precoInicial, source: 'Parâmetro Base' };
     }
-    return { val: precoBase, source: 'Parâmetro Base' };
-  }, [dados.compras, ativos.parametros]);
+
+    // Calcular custo total para estes X litros
+    let custoTotalAbastecimento = 0;
+    let litrosPendentes = litrosAbastecimento;
+    let consumoVirtual = totalConsumido;
+    let sourcetext = '';
+
+    for (const lote of filaEstoque) {
+        if (litrosPendentes <= 0) break;
+
+        const litrosJaConsumidosDesteLote = Math.max(0, Math.min(lote.qtd, consumoVirtual));
+        const litrosDisponiveisDesteLote = lote.qtd - litrosJaConsumidosDesteLote;
+
+        if (litrosDisponiveisDesteLote > 0) {
+            const consumoDesteLote = Math.min(litrosPendentes, litrosDisponiveisDesteLote);
+            custoTotalAbastecimento += consumoDesteLote * lote.preco;
+            litrosPendentes -= consumoDesteLote;
+            
+            if (!sourcetext) sourcetext = lote.label;
+            else if (!sourcetext.includes('vários')) sourcetext += ' + Próximo Lote';
+        }
+        consumoVirtual = Math.max(0, consumoVirtual - lote.qtd);
+    }
+
+    // Se acabaram os lotes e ainda tem litros, usar o preço do último lote conhecido
+    if (litrosPendentes > 0 && filaEstoque.length > 0) {
+        const ultimoPreco = filaEstoque[filaEstoque.length - 1].preco;
+        custoTotalAbastecimento += litrosPendentes * ultimoPreco;
+        if (!sourcetext) sourcetext = 'Fim de Estoque';
+    }
+
+    const precoMedio = custoTotalAbastecimento / litrosAbastecimento;
+
+    return { 
+        val: precoMedio, 
+        source: sourcetext || 'Parâmetro Base' 
+    };
+  }, [dados.compras, dados.abastecimentos, ativos.parametros, litrosCalculados]);
 
   const custoEstimado = U.parseDecimal(litrosCalculados) * precoInfo.val;
 

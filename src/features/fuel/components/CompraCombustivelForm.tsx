@@ -171,6 +171,7 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
       produto: 'Diesel S10',
       litros: U.parseDecimal(form.litros),
       valor_total: valorTotalGeral(), // VALOR TOTAL (DIESEL + FRETE)
+      valor_unitario: valorUnitarioFinal(), // PREÇO UNITÁRIO COM FRETE DILUÍDO
       fornecedor: form.fornecedor,
       nota_fiscal: form.notaFiscal,
       cnpj_fornecedor: form.cnpjFornecedor,

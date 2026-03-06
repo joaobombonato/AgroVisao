@@ -40,7 +40,6 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
             litros: U.parseDecimal(ajusteForm.qtd), // Campo obrigatório no banco (SaaS)
             media: 0,
             custo: 0,
-            id: U.id('AJUSTE-'),
             obs: ajusteForm.motivo
         };
 
@@ -51,7 +50,6 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
         
         // Salva OS para registro
         const novaOS = {
-          id: U.id('OS-AJUSTE-'),
           modulo: 'Estoque',
           descricao: `AJUSTE ESTOQUE: ${ajusteForm.qtd}L`,
           detalhes: {
