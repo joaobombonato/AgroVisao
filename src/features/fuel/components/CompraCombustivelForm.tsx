@@ -212,14 +212,11 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
     const fluxo = `${userProfile?.full_name || 'Usuário Atual'} > ${form.destinatario}`;
 
     docsToCreate.forEach(d => {
-        const docId = U.id('DOC-');
-        
         genericSave('documents', {
-            id: docId,
             titulo: d.isAtt ? `Ticket de Balança (Diesel ${d.code})` : `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
+            nome: d.isAtt ? `Ticket de Balança (Diesel ${d.code})` : `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
             tipo: d.isAtt ? 'Ticket/Recibo' : (d.type.includes('NF') ? 'Nota Fiscal' : 'Boleto'),
             url: d.isAtt ? fileUrls : 'Vínculo Automático (Diesel)', 
-            arquivo: d.isAtt ? fileUrls : null,
             nome_arquivo: d.isAtt ? fileNames : null,
             descricao: `Vínculo Automático Compra Diesel | Info: ${d.code}`,
             data: form.data,
@@ -229,7 +226,6 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
         }, { type: ACTIONS.ADD_RECORD, modulo: 'documentos' });
 
         genericSave('os', {
-            id: U.id('OS-DOC-'),
             modulo: 'Documentos',
             descricao: `DOC: ${d.type} (${d.for || 'Diesel'})`,
             detalhes: { "Tipo": d.type, "Fluxo": fluxo, "Vencimento": d.venc || '-', "Valor": `R$ ${d.val}` },

@@ -140,9 +140,11 @@ export default function DocumentosScreen() {
     const fileUrls = attachments.map(a => a.url).join(',');
     const fileNames = attachments.map(a => a.name).join(', ');
 
+    const { id, parentId, ...restForm } = form; // Remove id manual e separa parentId
+
     const novo = { 
-        ...form, 
-        id: U.id('DOC-'), 
+        ...restForm, 
+        parent_id: parentId || null,
         arquivo: fileUrls || 'Sem anexo', 
         nome_arquivo: fileNames, 
         status: 'Enviado'
@@ -155,7 +157,6 @@ export default function DocumentosScreen() {
     
     // Vincula à OS
     genericSave('os', {
-        id: U.id('OS-DOC-'),
         modulo: 'Documentos',
         descricao: descOS,
         detalhes: { 
