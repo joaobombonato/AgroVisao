@@ -1,442 +1,26 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Zap, Search, ChevronDown, Check, X, History, Calculator } from 'lucide-react';
-import { useAppContext, ACTIONS } from '../context/AppContext';
-import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../components/ui/Shared';
-
-import { U, validateOperationalDate, getOperationalDateLimits } from '../utils';
-import { toast } from 'react-hot-toast';
-
-// ==========================================
-// Componente: SELECT PESQUISÁVEL (Reutilizado)
-// ==========================================
-// ==========================================
-// SEARCHABLE SELECT: IMPORTADO DO SHARED
-// ==========================================
+import React from 'react';
+import { Zap, Search, Check, Calculator } from 'lucide-react';
+import { PageHeader, Input, TableWithShowMore, SearchableSelect } from '../../../components/ui/Shared';
+import { U } from '../../../utils';
+import useEnergia from '../hooks/useEnergia';
 
 // ==========================================
 // TELA PRINCIPAL: ENERGIA
+// (Lógica de negócio em useEnergia.ts)
 // ==========================================
 export default function EnergiaScreen() {
-  const { dados, dispatch, setTela, ativos, buscarUltimaLeitura, genericSave } = useAppContext();
-  
-  const [form, setForm] = useState({ 
-      data_leitura: U.todayIso(), 
-      ponto: '', 
-      medidor: '', 
-      leitura_ant_04: '', 
-      leitura_atual_04: '',
-      leitura_ant_08: '', 
-      leitura_atual_08: '',
-      leitura_ant_103: '',
-      leitura_atual_103: '',
-      centroCusto: ''
-  });
-  
-  const [filterData, setFilterData] = useState(U.todayIso());
-  const [filterText, setFilterText] = useState('');
-
-  // 1. Busca Dados do Ponto Selecionado
-  const pontoSelecionado = useMemo(() => {
-    // Busca preferencialmente por ID se disponível, ou por nome filtrando o que está na lista de energia
-    return ativos.pontosEnergia.find((l:any) => 
-        (typeof form.ponto === 'object' && (form.ponto as any)?.id === l.id) || 
-        (l.id === form.ponto) ||
-        (l.nome === form.ponto) || 
-        (l === form.ponto)
-    );
-  }, [form.ponto, ativos.pontosEnergia]);
-
-  // Lógica de Mapeamento Técnico 2026
-  const mapping = useMemo(() => {
-    if (!pontoSelecionado) return { constant: 1, label: 'Rural' };
-
-    // Constantes Automáticas conforme regras anteriores
-    let autoConstant = 1;
-    if (pontoSelecionado.classe_tarifaria === 'comercial') autoConstant = 80;
-    if (pontoSelecionado.classe_tarifaria === 'irrigante') autoConstant = 40;
-    if (pontoSelecionado.classe_tarifaria === 'gerador_b2' || pontoSelecionado.funcao_solar === 'gerador') autoConstant = 40;
-
-    // Busca o label amigável da classe tarifária
-    const labelsClasses: Record<string, string> = {
-        rural: "Rural (B2)",
-        comercial: "Comercial (B3)",
-        irrigante: "Irrigante Noturno",
-        residencial: "Residencial (B1)",
-        gerador_b2: "Gerador (B2)"
-    };
-
-    return { 
-        id: pontoSelecionado.id,
-        nome: pontoSelecionado.nome,
-        constant: autoConstant,
-        label: pontoSelecionado.nome,
-        classe_label: labelsClasses[pontoSelecionado.classe_tarifaria] || 'Rural (B2)',
-        classe_tarifaria: pontoSelecionado.classe_tarifaria || 'rural',
-        funcao_solar: pontoSelecionado.funcao_solar || 'nenhum',
-        ponto_gerador_id: pontoSelecionado.ponto_gerador_id,
-        percentual_recebido: U.parseDecimal(pontoSelecionado.percentual_recebido || '0'),
-        saldo_inicial_solar_kwh: pontoSelecionado.saldo_inicial_solar_kwh
-    };
-  }, [pontoSelecionado]);
-
-  const isHorario = mapping.classe_tarifaria === 'irrigante';
-  const constante = mapping.constant;
-
-  // Cálculos Automáticos
-  const consumo_04 = useMemo(() => {
-      const atual = U.parseDecimal(form.leitura_atual_04);
-      const ant = U.parseDecimal(form.leitura_ant_04);
-      return atual > ant ? (atual - ant) * constante : 0;
-  }, [form.leitura_atual_04, form.leitura_ant_04, constante]);
-
-  const consumo_08 = useMemo(() => {
-      if (!isHorario) return 0;
-      const atual = U.parseDecimal(form.leitura_atual_08);
-      const ant = U.parseDecimal(form.leitura_ant_08);
-      return atual > ant ? (atual - ant) * constante : 0;
-  }, [form.leitura_atual_08, form.leitura_ant_08, isHorario, constante]);
-
-  const consumo_103 = useMemo(() => {
-      if (mapping.funcao_solar !== 'gerador') return 0;
-      const atual = U.parseDecimal(form.leitura_atual_103);
-      const ant = U.parseDecimal(form.leitura_ant_103);
-      return atual > ant ? (atual - ant) * constante : 0;
-  }, [form.leitura_atual_103, form.leitura_ant_103, mapping.funcao_solar, constante]);
-
-  const consumo = (consumo_04 + consumo_08).toFixed(0);
-
-  const valorEstimadoInfo = useMemo(() => {
-    const params = ativos.parametros?.energia || {};
-    const valConsumo = U.parseDecimal(consumo);
-    
-    // 1. Configurações Dinâmicas (Lidas dos Parâmetros Gerais)
-    const tarifaComercial = U.parseDecimal(params.tarifaComercial || ''); 
-    const tusdLiquida = U.parseDecimal(params.tusdSolar || ''); 
-    const tusdGD = U.parseDecimal(params.tusdGD || ''); // Novo: Usado para o Ajuste de Disponibilidade
-    const tarifaMinimaFixa = U.parseDecimal(params.tarifaMinima || '0');
-    const taxaIluminacao = U.parseDecimal(params.taxaIluminacao || '0');
-    
-    // 2. Definição de Taxa Mínima (Custo de Disponibilidade)
-    let minKwh = 30;
-    if (mapping.classe_tarifaria === 'comercial' || mapping.classe_tarifaria === 'irrigante') minKwh = 100;
-    const custoMinimoCalculado = minKwh * tarifaComercial;
-    const custoMinimoFinal = tarifaMinimaFixa > 0 ? tarifaMinimaFixa : custoMinimoCalculado;
-
-    // 3. Busca Saldo Anterior no Histórico
-    const historicoPonto = (dados.energia || [])
-        .filter((r: any) => r.local_id === mapping.id || r.ponto === mapping.nome)
-        .sort((a: any, b: any) => new Date(b.data_leitura || b.data).getTime() - new Date(a.data_leitura || a.data).getTime());
-
-    const ultimoRegistro = historicoPonto[0];
-    const saldoAnterior = ultimoRegistro?.info_solar 
-        ? U.parseDecimal(ultimoRegistro.info_solar.saldo_restante) 
-        : U.parseDecimal(mapping.saldo_inicial_solar_kwh || '0');
-
-    if (!form.leitura_atual_04 && mapping.funcao_solar !== 'gerador') {
-        return { total: "0.00", totalBruto: "0.00", credito: 0, faturado: 0, saldoRestante: 0, saldoAnterior, isEstimativo: false };
-    }
-
-    // 4. Crédito Solar do Mês
-    let creditoDoMes = 0;
-    let injeçaoMesRegistrada = false;
-    if (mapping.funcao_solar === 'consumidor_remoto' && mapping.ponto_gerador_id) {
-        const mesAtual = form.data_leitura.substring(0, 7);
-        const leiturasGerador = (dados.energia || []).filter((r: any) => 
-            (r.local_id === mapping.ponto_gerador_id) && 
-            (r.data_leitura || r.data || '').startsWith(mesAtual)
-        );
-
-        if (leiturasGerador.length > 0) {
-            const l = leiturasGerador[0];
-            const injeçaoTotal = (U.parseDecimal(l.leitura_atual_103) - U.parseDecimal(l.leitura_ant_103)) * (U.parseDecimal(l.constante_medidor) || 1);
-            creditoDoMes = (injeçaoTotal * (U.parseDecimal(mapping.percentual_recebido || '0') / 100));
-            injeçaoMesRegistrada = true;
-        }
-    }
-
-    const saldoDisponivel = saldoAnterior + creditoDoMes;
-    const consumoBruto = valConsumo;
-    const consumoCompensado = Math.min(consumoBruto, saldoDisponivel);
-    const consumoExtra = Math.max(consumoBruto - consumoCompensado, 0);
-    const saldoRestante = Math.max(saldoDisponivel - consumoBruto, 0);
-
-    // 5. Cálculo Financeiro Preciso (Modelo CEMIG GD II)
-    let total = 0;
-    
-    // Custo base do consumo que ultrapassou o saldo (Minimo respeitado)
-    const custoConsumoExtra = Math.max(consumoExtra, minKwh) * tarifaComercial; 
-    
-    // Custo do uso da rede (TUSD) sobre o que foi compensado
-    const custoTusdCompensado = consumoCompensado * tusdLiquida;
-    
-    // Ajuste de Disponibilidade: Reembolso da TUSD já paga no mínimo para não cobrar dobrado
-    // Se extra < min, parte do compensado está "dentro" do mínimo já pago. Ajustamos essa parte.
-    const kwhParaAjuste = Math.max(Math.min(minKwh - consumoExtra, consumoCompensado), 0);
-    const ajusteDisponibilidade = kwhParaAjuste * 2 * tusdGD;
-
-    if (mapping.classe_tarifaria === 'irrigante') {
-        const proporçaoFP = consumo_08 / (valConsumo || 1);
-        const extraPonta = consumoExtra * (1 - proporçaoFP);
-        const extraFora = consumoExtra * proporçaoFP;
-        // Irrigante: 60% de desconto no consumo extra fora de ponta
-        const custoExtraIrrigante = (extraPonta * tarifaComercial) + (extraFora * tarifaComercial * 0.4);
-        total = Math.max(custoExtraIrrigante, custoMinimoFinal) + custoTusdCompensado - ajusteDisponibilidade;
-    } else {
-        total = custoConsumoExtra + custoTusdCompensado - ajusteDisponibilidade;
-    }
-
-    // Adiciona Taxa de Iluminação se for Comercial/Tri
-    if (mapping.classe_tarifaria === 'comercial') total += taxaIluminacao;
-
-    // Custo Bruto (Sem Compensação Solar)
-    let custoBrutoBase = 0;
-    if (mapping.classe_tarifaria === 'irrigante') {
-        custoBrutoBase = (consumo_04 * tarifaComercial) + (consumo_08 * tarifaComercial * 0.4);
-    } else {
-        custoBrutoBase = valConsumo * tarifaComercial;
-    }
-
-    return { 
-        total: total.toFixed(2), 
-        totalBruto: custoBrutoBase.toFixed(2),
-        credito: consumoCompensado, 
-        faturado: consumoExtra, 
-        saldoRestante,
-        saldoAnterior,
-        creditoDoMes,
-        injeçaoMesRegistrada,
-        isEstimativo: mapping.funcao_solar === 'consumidor_remoto' && !injeçaoMesRegistrada
-    };
-  }, [form.leitura_atual_04, form.leitura_atual_08, form.data_leitura, consumo, mapping, dados.energia, ativos.parametros, consumo_08, consumo_04]);
-
-  const valorEstimado = valorEstimadoInfo.total;
-
-  const handlePontoChange = (e: any) => {
-      const nomePonto = e.target.value;
-      
-      // 1. Busca o Medidor nas Configurações
-      const pontoObj = ativos.pontosEnergia.find((l:any) => (l.nome === nomePonto) || (l === nomePonto));
-      const medidorAuto = (pontoObj && typeof pontoObj === 'object') ? pontoObj.identificador_externo : '';
-
-      // 2. Busca a Última Leitura no Histórico
-      const ultimoRegistro = buscarUltimaLeitura('energia', 'ponto', nomePonto);
-      
-      let leituraAnt04 = '0';
-      let leituraAnt08 = '0';
-      let leituraAnt103 = '0';
-
-      if (ultimoRegistro) {
-          leituraAnt04 = ultimoRegistro.leitura_atual_04 || '0';
-          leituraAnt08 = ultimoRegistro.leitura_atual_08 || '0';
-          leituraAnt103 = ultimoRegistro.leitura_atual_103 || '0';
-      } else if (pontoObj && typeof pontoObj === 'object') {
-          // Fallback para leitura inicial do cadastro
-          leituraAnt04 = pontoObj.leitura_inicial_04 || '0';
-          leituraAnt08 = pontoObj.leitura_inicial_08 || '0';
-          leituraAnt103 = pontoObj.leitura_inicial_103 || '0';
-      }
-
-      setForm(prev => {
-          // Busca Centro de Custo vinculado a este medidor/ponto
-          const ccVinculado = (ativos.centros_custos || []).find((cc: any) => 
-            cc.tipo_vinculo === 'Medidor de Energia' && cc.vinculo_id === nomePonto
-          );
-
-          return { 
-              ...prev, 
-              ponto: nomePonto, 
-              medidor: medidorAuto || prev.medidor, 
-              leitura_ant_04: leituraAnt04,
-              leitura_ant_08: leituraAnt08,
-              leitura_ant_103: leituraAnt103,
-              leitura_atual_103: '',
-              centroCusto: ccVinculado ? ccVinculado.nome : prev.centroCusto
-          };
-      });
-  };
-
-  const enviar = (e: any) => {
-    e.preventDefault();
-    try {
-        const valConsumo = U.parseDecimal(consumo);
-        
-        const dateCheck = validateOperationalDate(form.data_leitura);
-        if (!dateCheck.valid) { 
-            toast.error(dateCheck.error || 'Data Inválida'); 
-            return; 
-        }
-        
-        const atual04 = U.parseDecimal(form.leitura_atual_04);
-        const ant04 = U.parseDecimal(form.leitura_ant_04);
-        
-        // Se houver leitura de consumo (04), valida
-        if (form.leitura_atual_04 && atual04 < ant04) {
-            toast.error(`Leitura Atual 04 (${atual04}) não pode ser menor que a anterior (${ant04}).`);
-            return;
-        }
-
-        // Se for gerador e não preencheu nem consumo nem injeção, bloqueia
-        if (mapping.funcao_solar === 'gerador' && !form.leitura_atual_04 && !form.leitura_atual_103) {
-            toast.error("Informe ao menos uma leitura (04 ou 103).");
-            return;
-        }
-
-        if (isHorario) {
-            const atual08 = U.parseDecimal(form.leitura_atual_08);
-            const ant08 = U.parseDecimal(form.leitura_ant_08);
-            if (atual08 < ant08) {
-                toast.error(`Leitura Atual 08 (${atual08}) não pode ser menor que a anterior (${ant08}).`);
-                return;
-            }
-        }
-
-        const mesAtual = form.data_leitura.substring(0, 7); 
-        const jaExisteMes = (dados.energia || []).some((r: any) => 
-            (r.ponto === form.ponto || r.medidor === form.medidor) && 
-            (r.data_leitura || r.data).startsWith(mesAtual)
-        );
-
-        if (jaExisteMes) {
-            toast.error(`Já existe uma leitura registrada para este medidor em ${mesAtual}.`);
-            return;
-        }
-
-        const proceed = () => {
-            const dbPayload = {
-                id: U.id('temp-EN-'), 
-                local_id: pontoSelecionado?.id,
-                data_leitura: form.data_leitura,
-                leitura_ant_04: U.parseDecimal(form.leitura_ant_04),
-                leitura_atual_04: U.parseDecimal(form.leitura_atual_04),
-                leitura_ant_08: U.parseDecimal(form.leitura_ant_08),
-                leitura_atual_08: U.parseDecimal(form.leitura_atual_08),
-                leitura_ant_103: U.parseDecimal(form.leitura_ant_103),
-                leitura_atual_103: U.parseDecimal(form.leitura_atual_103),
-                consumo_04: U.parseDecimal(consumo_04),
-                consumo_08: U.parseDecimal(consumo_08),
-                consumo_103: U.parseDecimal(consumo_103),
-                valor_estimado: U.parseDecimal(valorEstimado),
-                info_solar: {
-                    credito_kwh: valorEstimadoInfo.credito,
-                    faturado_kwh: valorEstimadoInfo.faturado,
-                    saldo_restante: valorEstimadoInfo.saldoRestante
-                },
-                safra_id: ativos.parametros?.safraAtiva || null
-            };
-
-            const uiRecord = { 
-                ...dbPayload, 
-                ponto: form.ponto, 
-                medidor: form.medidor 
-            };
-
-            const descOS = `Energia: ${form.ponto} (${consumo} kWh)`;
-            
-            genericSave('energia', dbPayload, { 
-                type: ACTIONS.ADD_RECORD, 
-                modulo: 'energia', 
-                record: uiRecord 
-            });
-
-            const novaOS = {
-                id: U.id('temp-OS-'),
-                modulo: 'Energia',
-                descricao: descOS,
-                detalhes: { 
-                    "Ponto": form.ponto, 
-                    "Consumo": `${consumo} kWh`,
-                    "Estimativa": `R$ ${valorEstimado}`,
-                    "Ponta (04)": `${consumo_04} kWh`,
-                    "Fora Ponta (08)": isHorario ? `${consumo_08} kWh` : 'N/A'
-                },
-                status: 'Pendente',
-                data_abertura: form.data_leitura
-            };
-
-            genericSave('os', novaOS, {
-                type: ACTIONS.ADD_RECORD,
-                modulo: 'os',
-                record: novaOS
-            });
-            
-            setForm({ 
-                data_leitura: U.todayIso(), 
-                ponto: '', 
-                medidor: '', 
-                leitura_ant_04: '', 
-                leitura_atual_04: '', 
-                leitura_ant_08: '', 
-                leitura_atual_08: '', 
-                leitura_ant_103: '',
-                leitura_atual_103: '',
-                centroCusto: '' 
-            });
-            toast.success('Leitura de energia registrada!');
-        };
-
-        if (valConsumo === 0) {
-            dispatch({
-                type: ACTIONS.SET_MODAL,
-                modal: {
-                    isOpen: true,
-                    type: 'confirm',
-                    props: {
-                        title: 'Atenção',
-                        message: `Consumo zero detectado para ${form.ponto}. Deseja registrar assim mesmo?`,
-                        onConfirm: () => proceed()
-                    }
-                }
-            });
-        } else {
-            proceed();
-        }
-    } catch (err: any) {
-        toast.error("Erro ao registrar. Verifique os dados.");
-    }
-  };
-
-  const excluir = (id: string) => { 
-    dispatch({ 
-      type: ACTIONS.SET_MODAL, 
-      modal: { 
-        isOpen: true, 
-        type: 'confirm',
-        props: {
-          title: 'Excluir Registro',
-          message: 'Tem certeza que deseja excluir esta leitura de energia?',
-          onConfirm: () => {
-            dispatch({ type: ACTIONS.REMOVE_RECORD, modulo: 'energia', id });
-            toast.error('Registro excluído.');
-          }
-        }
-      } 
-    }); 
-  };
-  
-  // Memo para enriquecer os dados com nomes dos pontos (evita IDs esquisitos na UI)
-  const leiturasProcessadas = useMemo(() => {
-    const raw = dados?.energia || [];
-    return raw.map((r: any) => {
-      const pontoObj = ativos.pontosEnergia.find((p: any) => p.id === r.local_id || p.nome === r.ponto);
-      return {
-        ...r,
-        ponto: pontoObj?.nome || r.ponto || 'Desconhecido',
-        medidor: pontoObj?.identificador_externo || r.medidor || '-'
-      };
-    });
-  }, [dados.energia, ativos.pontosEnergia]);
-
-  const listFilter = useMemo(() => {
-    const lista = leiturasProcessadas.filter((i: any) => {
-      const txt = filterText.toLowerCase();
-      const matchText = (i.ponto || '').toLowerCase().includes(txt) || 
-                        (i.medidor || '').toLowerCase().includes(txt) || 
-                        (i.id || '').toLowerCase().includes(txt);
-      const matchData = !filterData || (i.data_leitura || i.data) === filterData;
-      return matchText && matchData;
-    });
-    return [...lista].reverse();
-  }, [leiturasProcessadas, filterData, filterText]);
+  const {
+    form, setForm,
+    filterData, setFilterData,
+    filterText, setFilterText,
+    setTela, ativos,
+    mapping, isHorario, constante,
+    consumo, consumo_04, consumo_08, consumo_103,
+    valorEstimado, valorEstimadoInfo,
+    leiturasProcessadas, listFilter,
+    handlePontoChange, enviar, excluir,
+    getOperationalDateLimits
+  } = useEnergia();
 
   return (
     <div className="space-y-4 p-4 pb-24">
@@ -449,7 +33,7 @@ export default function EnergiaScreen() {
         
         <form onSubmit={enviar} className="space-y-3">
 		
-          {/* Campo Data Manual (Para manter o padrão visual) */}
+          {/* Campo Data Manual */}
             <Input 
                 label="Data da Leitura" 
                 type="date" 
@@ -470,7 +54,7 @@ export default function EnergiaScreen() {
               color="yellow"
           />
           
-          {/* MEDIDOR AUTOMÁTICO (AMARELO RESTAURADO) */}
+          {/* MEDIDOR AUTOMÁTICO */}
           <div className="space-y-1">
              <div className="flex gap-1">
                 <p className="text-xs font-bold text-gray-500">Numeração CEMIG</p>
@@ -522,13 +106,12 @@ export default function EnergiaScreen() {
             </div>
           )}
 
-          {/* Aviso de Pendência de Gerador (VERMELHO) */}
+          {/* Aviso de Pendência de Gerador */}
           {valorEstimadoInfo.isEstimativo && (
               <div className="bg-red-50 text-red-600 text-[10px] p-2 rounded-lg border border-red-100 font-bold flex items-center gap-2 animate-pulse">
                   <span>⚠️</span> Aguardando leitura do gerador para crédito do mês (usando saldo acumulado).
               </div>
           )}
-
 
               <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -686,15 +269,11 @@ export default function EnergiaScreen() {
           <Check className="w-3 h-3 text-yellow-500"/> Últimas 5 Leituras
         </h2>
         {(() => {
-          // Ordenação rigorosa por inserção (id temp tem timestamp ou created_at)
           const recentes = [...leiturasProcessadas]
             .sort((a, b) => {
-              // Primeiro por data de leitura
               const da = a.data_leitura || a.data || '';
               const db = b.data_leitura || b.data || '';
               if (db !== da) return db.localeCompare(da);
-              
-              // Empate na data: Usa o created_at ou ID (timestamp) para garantir a ordem exata do banco
               const ta = a.created_at || a.id || '';
               const tb = b.created_at || b.id || '';
               return String(tb).localeCompare(String(ta));

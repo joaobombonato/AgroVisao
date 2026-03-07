@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Satellite, Layers, Loader2, Scan, Download } from 'lucide-react';
-import { useAppContext } from '../../../context/AppContext';
-import { toast } from 'react-hot-toast';
-import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { calculateAreaHectares, pointsToGeoJSON } from '../utils/mapHelpers';
-import { handleExportPNG } from '../utils/mapExportPNG';
 import { MapLegend } from '../components/SatelliteLegend';
 import { SatelliteCalendar } from '../components/SatelliteCalendar';
 import { MapHeader } from '../components/MapHeader';
@@ -16,386 +11,40 @@ import { DrawingToolbar } from '../components/DrawingToolbar';
 import { MapEditCards } from '../components/MapEditCards';
 import { MapControls } from '../components/MapControls';
 import { AgronomicIntelligenceCard } from '../../../components/agronomic/AgronomicIntelligenceCard';
-import { fetchAgronomicData, type AgronomicResult } from '../../../services/agronomicService';
-import { defaultIcon, editIcon, TILE_LAYERS } from '../config/mapConfig';
-import { useSatelliteOverlay } from '../hooks/useSatelliteOverlay';
+import useMapScreen from '../hooks/useMapScreen';
 
-
+// ==========================================
+// TELA PRINCIPAL: MAPA
+// (Lógica de negócio em useMapScreen.ts)
+// ==========================================
 export default function MapScreen() {
-  const { state, setTela, fazendaSelecionada, genericUpdate } = useAppContext();
-  const { userRole, permissions } = state;
-  const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador'];
-  
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const polygonLayerRef = useRef<L.Polygon | null>(null);
-  const markersRef = useRef<L.Marker[]>([]);
-  const mainMarkerRef = useRef<L.Marker | null>(null);
-  const polylineRef = useRef<L.Polyline | null>(null);
-  const maskLayerRef = useRef<L.Polygon | null>(null);
-  
-  const isDrawingRef = useRef(false);
-  const drawPointsRef = useRef<L.LatLng[]>([]);
-  
-  const [mapType, setMapType] = useState<'street' | 'satellite'>('satellite');
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [drawPoints, setDrawPoints] = useState<L.LatLng[]>([]);
-  const [areaHectares, setAreaHectares] = useState<number | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [geojsonData, setGeojsonData] = useState<any>(null);
-  
-  const [activeTab, setActiveTab] = useState<'map' | 'analysis'>(fazendaSelecionada?.geojson ? 'analysis' : 'map');
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(new Date());
-
-  // Hook de Satellite Overlay com cache inteligente
   const {
-    overlayType,
-    setOverlayType,
-    availableImages,
-    selectedImageIndex,
-    setSelectedImageIndex,
-    loadingImages,
-    setLoadingImages,
-    currentOverlayUrl,
-    showOverlay,
-    dateError,
-    loadDates,
-    imageOverlayRef
-  } = useSatelliteOverlay({
-    mapInstanceRef,
-    polygonLayerRef,
-    geojsonData,
-    activeTab,
-    fazendaId: fazendaSelecionada?.id
-  });
-
-  // Estado para dados agronômicos (Solo)
-  const [agronomic, setAgronomic] = useState<AgronomicResult | null>(null);
-
-  const latitude = fazendaSelecionada?.latitude;
-  const longitude = fazendaSelecionada?.longitude;
-  const existingGeojson = fazendaSelecionada?.geojson;
-
-  // Buscar dados agronômicos quando tiver coordenadas
-  useEffect(() => {
-    if (!latitude || !longitude) return;
-    fetchAgronomicData(latitude, longitude).then(setAgronomic).catch(console.error);
-  }, [latitude, longitude]);
-
-  // Initialize map
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
-
-    const defaultCenter: L.LatLngExpression = latitude && longitude 
-      ? [latitude, longitude] 
-      : [-15.7801, -47.9292];
-
-    const defaultZoom = latitude && longitude ? 14 : 4;
-
-    const map = L.map(mapRef.current, {
-      zoomControl: false,
-      doubleClickZoom: false,
-      attributionControl: false,
-      zoomSnap: 0.1
-    }).setView(defaultCenter, defaultZoom);
-
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-    const layer = TILE_LAYERS[mapType];
-    tileLayerRef.current = L.tileLayer(layer.url, {
-      attribution: layer.attribution,
-      maxZoom: 19
-    }).addTo(map);
-
-    if (existingGeojson) {
-      try {
-        const geoLayer = L.geoJSON(existingGeojson, {
-          style: {
-            color: '#16a34a',
-            fillColor: 'transparent', 
-            fillOpacity: 0,
-            weight: 3
-          }
-        });
-        
-        geoLayer.eachLayer((layer) => {
-          if (layer instanceof L.Polygon) {
-            polygonLayerRef.current = layer;
-            map.addLayer(layer);
-            
-            // @ts-ignore
-             const farmCoords = layer.getLatLngs()[0].map((p: any) => [p.lat, p.lng]);
-            const worldCoords = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
-            
-            const maskEffect = L.polygon([worldCoords, farmCoords] as any, {
-              color: 'transparent',
-              fillColor: '#000000',
-              fillOpacity: 0.7,
-              interactive: false
-            }).addTo(map);
-            
-            maskLayerRef.current = maskEffect;
-          }
-        });
-
-        const geom = existingGeojson.geometry || existingGeojson;
-        if (geom?.type === 'Polygon' && geom.coordinates?.[0]) {
-          const latlngs = geom.coordinates[0].slice(0, -1).map((c: number[]) => L.latLng(c[1], c[0]));
-          setAreaHectares(calculateAreaHectares(latlngs));
-        }
-        
-        const bounds = geoLayer.getBounds();
-        if (bounds.isValid()) {
-             map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-        }
-        
-        setGeojsonData(existingGeojson);
-      } catch (e) {
-        console.error('Error loading GeoJSON:', e);
-      }
-    }
-
-    if (latitude && longitude) {
-      mainMarkerRef.current = L.marker([latitude, longitude], { icon: defaultIcon })
-        .addTo(map)
-        .bindPopup(`📍 ${fazendaSelecionada?.nome || 'Fazenda'}`);
-    }
-
-    mapInstanceRef.current = map;
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-      tileLayerRef.current = null;
-      polygonLayerRef.current = null;
-      markersRef.current = [];
-      polylineRef.current = null;
-    };
-  }, []);
-
-  // Sync Tabs/MapType
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
-    let syncHandler: any = null;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    if (activeTab === 'analysis') {
-      if (mainMarkerRef.current) map.removeLayer(mainMarkerRef.current);
-      if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-      const layer = TILE_LAYERS['satellite'];
-      tileLayerRef.current = L.tileLayer(layer.url, { attribution: layer.attribution }).addTo(map);
-      tileLayerRef.current.bringToBack();
-      
-      if (overlayType === 'none') setOverlayType('ndvi'); 
-      if (maskLayerRef.current) maskLayerRef.current.setStyle({ fillOpacity: 1, fillColor: '#000000' }); 
-      
-      if (polygonLayerRef.current) {
-        const bounds = polygonLayerRef.current.getBounds();
-        // Enquadra a fazenda respeitando o espaço da legenda (40px na base)
-        map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-        
-        // Define o zoom mínimo e o comportamento de sincronização (re-centralizar sempre no zoom out)
-        timeoutId = setTimeout(() => {
-          if (!mapInstanceRef.current) return;
-          
-          const minZ = map.getZoom();
-          map.setMinZoom(minZ);
-          
-          let debounceTimeout: ReturnType<typeof setTimeout> | null = null;
-          let isAnimating = false;
-          
-          // Handler com debounce: espera o zoom estabilizar antes de centralizar
-          syncHandler = () => {
-             if (isAnimating) return;
-             
-             // Limpa timeout anterior para criar um debounce
-             if (debounceTimeout) clearTimeout(debounceTimeout);
-             
-             // Espera 300ms sem novos eventos antes de verificar
-             debounceTimeout = setTimeout(() => {
-                // Se zoom está no mínimo (ou muito próximo), força centralização
-                if (map.getZoom() <= minZ + 0.2) {
-                   isAnimating = true;
-                   map.fitBounds(bounds, { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40], animate: true });
-                   setTimeout(() => { isAnimating = false; }, 800);
-                }
-             }, 300);
-          };
-          
-          // Usar APENAS zoomend para evitar conflitos com o hook de overlay
-          map.on('zoomend', syncHandler);
-        }, 800);
-      }
-
-    } else {
-      if (mainMarkerRef.current) map.addLayer(mainMarkerRef.current);
-      // Libera o zoom na aba de mapa e edição
-      map.setMinZoom(0);
-      
-      if (tileLayerRef.current) map.removeLayer(tileLayerRef.current);
-      const layer = TILE_LAYERS[mapType];
-      tileLayerRef.current = L.tileLayer(layer.url, { attribution: layer.attribution }).addTo(map);
-      tileLayerRef.current.bringToBack();
-
-      if (maskLayerRef.current) maskLayerRef.current.setStyle({ fillOpacity: 0.7, fillColor: '#000000' });
-      if (polygonLayerRef.current) map.fitBounds(polygonLayerRef.current.getBounds(), { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-    }
-
-    return () => {
-      // Cancela o timeout se ainda estiver pendente
-      if (timeoutId) clearTimeout(timeoutId);
-      // Remove os handlers se existirem
-      if (syncHandler) {
-         map.off('zoomend', syncHandler);
-         map.off('moveend', syncHandler);
-      }
-    };
-  }, [mapType, activeTab]);
-
-
-  useEffect(() => { isDrawingRef.current = isDrawing; }, [isDrawing]);
-  useEffect(() => { drawPointsRef.current = drawPoints; }, [drawPoints]);
-
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-    const map = mapInstanceRef.current;
-    const handleClick = (e: L.LeafletMouseEvent) => {
-      if (!isDrawingRef.current) return;
-      const newPoint = e.latlng;
-      const currentPoints = drawPointsRef.current;
-      const newPoints = [...currentPoints, newPoint];
-      drawPointsRef.current = newPoints;
-      setDrawPoints(newPoints);
-      createDraggableMarker(newPoint, newPoints.length - 1, map);
-      updatePreview(newPoints, map);
-    };
-    map.on('click', handleClick);
-    return () => { map.off('click', handleClick); };
-  }, []);
-
-  const createDraggableMarker = (latlng: L.LatLng, index: number, map: L.Map) => {
-    const marker = L.marker(latlng, { icon: editIcon, draggable: true }).addTo(map);
-    marker.on('drag', (e) => {
-      const newPos = (e.target as L.Marker).getLatLng();
-      const currentPts = [...drawPointsRef.current];
-      currentPts[index] = newPos;
-      drawPointsRef.current = currentPts;
-      setDrawPoints(currentPts);
-      updatePreview(currentPts, map);
-    });
-    markersRef.current.push(marker);
-  };
-
-  const updatePreview = (points: L.LatLng[], map: L.Map) => {
-    if (polylineRef.current) map.removeLayer(polylineRef.current);
-    if (polygonLayerRef.current) map.removeLayer(polygonLayerRef.current);
-    if (maskLayerRef.current) map.removeLayer(maskLayerRef.current);
-    if (points.length > 1) {
-      polylineRef.current = L.polyline(points, { color: '#ffffff', weight: 3, dashArray: '10, 10' }).addTo(map);
-      const tempPolygon = L.polygon(points, { color: '#16a34a', fillColor: '#16a34a', fillOpacity: 0.25, weight: 2 }).addTo(map);
-      polygonLayerRef.current = tempPolygon;
-    }
-  };
-
-  // Actions
-  const startDrawing = () => { if (mapInstanceRef.current) { handleClear(); setIsDrawing(true); setDrawPoints([]); drawPointsRef.current = []; toast('Clique no mapa para marcar pontos', { icon: '📍' }); } };
-  const startEditing = () => {
-    const map = mapInstanceRef.current;
-    if (!map || !geojsonData) return;
-    // Remove overlay de satélite para evitar quadrado verde visível
-    if (imageOverlayRef.current) { map.removeLayer(imageOverlayRef.current); imageOverlayRef.current = null; }
-    if (polygonLayerRef.current) map.removeLayer(polygonLayerRef.current);
-    if (maskLayerRef.current) map.removeLayer(maskLayerRef.current);
-    markersRef.current.forEach(m => map.removeLayer(m)); markersRef.current = [];
-    const coords = geojsonData.geometry.coordinates[0].slice(0, -1);
-    const points = coords.map((c: number[]) => L.latLng(c[1], c[0]));
-    drawPointsRef.current = points; setDrawPoints(points); setIsDrawing(true); isDrawingRef.current = true;
-    points.forEach((p: L.LatLng, i: number) => createDraggableMarker(p, i, map));
-    updatePreview(points, map);
-    map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-    toast('Modo de edição: arraste os pontos', { icon: '✏️' });
-  };
-
-  const finishDrawing = () => {
-    if (drawPoints.length < 3) return toast.error('Marque pelo menos 3 pontos');
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    markersRef.current.forEach(m => map.removeLayer(m)); markersRef.current = [];
-    if (polylineRef.current) { map.removeLayer(polylineRef.current); polylineRef.current = null; }
-    const polygon = L.polygon(drawPoints, { color: '#16a34a', fillColor: 'transparent', fillOpacity: 0, weight: 4 }).addTo(map);
-    // @ts-ignore
-    const farmCoords = drawPoints.map(p => [p.lat, p.lng]);
-    const worldCoords = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
-    const mask = L.polygon([worldCoords, farmCoords] as any, { color: 'transparent', fillColor: '#000000', fillOpacity: 0.7, interactive: false }).addTo(map);
-    maskLayerRef.current = mask; polygonLayerRef.current = polygon;
-    const area = calculateAreaHectares(drawPoints);
-    setAreaHectares(area); setGeojsonData(pointsToGeoJSON(drawPoints)); setHasChanges(true); setIsDrawing(false); isDrawingRef.current = false;
-    map.fitBounds(polygon.getBounds(), { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-    toast.success('Área definida com sucesso!');
-  };
-
-  const cancelDrawing = () => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    markersRef.current.forEach(m => map.removeLayer(m));
-    if (polylineRef.current) map.removeLayer(polylineRef.current);
-    setIsDrawing(false); isDrawingRef.current = false; setDrawPoints([]);
-    if (geojsonData) {
-        const geoLayer = L.geoJSON(geojsonData, { style: { color: '#16a34a', fillOpacity: 0, weight: 4 } });
-        const layer = geoLayer.getLayers()[0] as L.Polygon;
-        if(layer) { polygonLayerRef.current = layer; map.addLayer(layer); 
-             // @ts-ignore
-             const farmCoords = layer.getLatLngs()[0].map((p: any) => [p.lat, p.lng]);
-             const worldCoords = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
-             const mask = L.polygon([worldCoords, farmCoords] as any, { color: 'transparent', fillColor: '#000000', fillOpacity: 0.7, interactive: false }).addTo(map);
-             maskLayerRef.current = mask;
-        }
-    } else { setGeojsonData(null); }
-    toast('Edição cancelada');
-  };
-
-  const handleClear = () => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    // Remove overlay de satélite
-    if (imageOverlayRef.current) { map.removeLayer(imageOverlayRef.current); imageOverlayRef.current = null; }
-    if (polygonLayerRef.current) { map.removeLayer(polygonLayerRef.current); polygonLayerRef.current = null; }
-    if (maskLayerRef.current) { map.removeLayer(maskLayerRef.current); maskLayerRef.current = null; }
-    setAreaHectares(null); setGeojsonData(null); setHasChanges(false);
-  };
-
-  const handleSave = async () => {
-    if (!fazendaSelecionada?.id || !geojsonData) return;
-    setSaving(true);
-    try { await genericUpdate('fazendas', fazendaSelecionada.id, { geojson: geojsonData }); setHasChanges(false); toast.success('Mapa da fazenda salvo!'); } 
-    catch (e) { console.error(e); toast.error('Erro ao salvar'); } finally { setSaving(false); }
-  };
-
-  const handleLocateMe = () => {
-     if (!mapInstanceRef.current) return;
-     mapInstanceRef.current.locate({ setView: true, maxZoom: 16 });
-     toast('Buscando sua localização...', { icon: '📍' });
-  };
-
-  const onExportPNG = () => handleExportPNG({
-    currentOverlayUrl,
-    geojsonData,
-    overlayType,
+    mapRef,
+    mapType, setMapType,
+    isDrawing,
+    drawPoints,
     areaHectares,
-    availableImages,
-    selectedImageIndex,
-    fazendaNome: fazendaSelecionada?.nome || 'Fazenda',
-    setLoadingImages,
-  });
-
-  const handleFocusArea = () => {
-    if (!mapInstanceRef.current || !polygonLayerRef.current) return toast('Nenhuma área demarcada');
-    mapInstanceRef.current.fitBounds(polygonLayerRef.current.getBounds(), { paddingTopLeft: [20, 0], paddingBottomRight: [20, 40] });
-  };
+    hasChanges,
+    saving,
+    geojsonData,
+    activeTab, setActiveTab,
+    showCalendar, setShowCalendar,
+    calendarMonth, setCalendarMonth,
+    satellite,
+    agronomic,
+    rolePermissions,
+    setTela,
+    fazendaSelecionada,
+    startDrawing,
+    startEditing,
+    finishDrawing,
+    cancelDrawing,
+    handleSave,
+    handleLocateMe,
+    onExportPNG,
+    handleFocusArea,
+    handleUndo
+  } = useMapScreen();
 
   return (
     <div className="space-y-4 p-4 pb-24 font-inter min-h-screen relative">
@@ -412,9 +61,9 @@ export default function MapScreen() {
         <SatelliteCalendar
           calendarMonth={calendarMonth}
           setCalendarMonth={setCalendarMonth}
-          availableImages={availableImages}
-          selectedImageIndex={selectedImageIndex}
-          setSelectedImageIndex={setSelectedImageIndex}
+          availableImages={satellite.availableImages}
+          selectedImageIndex={satellite.selectedImageIndex}
+          setSelectedImageIndex={satellite.setSelectedImageIndex}
           setShowCalendar={setShowCalendar}
         />
       )}
@@ -432,12 +81,12 @@ export default function MapScreen() {
         <div className="space-y-3 animate-in slide-in-from-top-2">
             <MapInfoCards
                 areaHectares={areaHectares}
-                availableImages={availableImages}
-                selectedImageIndex={selectedImageIndex}
-                loadingImages={loadingImages}
-                dateError={dateError}
+                availableImages={satellite.availableImages}
+                selectedImageIndex={satellite.selectedImageIndex}
+                loadingImages={satellite.loadingImages}
+                dateError={satellite.dateError}
                 onOpenCalendar={() => setShowCalendar(true)}
-                onLoadDates={loadDates}
+                onLoadDates={satellite.loadDates}
             />
         </div>
       )}
@@ -452,9 +101,6 @@ export default function MapScreen() {
             onStartEditing={startEditing}
           />
         )}
- 
-
- 
 
       <div className="w-full flex flex-col">
         <div className="bg-white rounded-t-xl border-t border-x border-gray-200 px-3 sm:px-6 py-4 flex items-center justify-between z-10 relative">
@@ -467,8 +113,8 @@ export default function MapScreen() {
                     />
                 ) : (
                     <AnalysisControlBar 
-                        overlayType={overlayType} 
-                        setOverlayType={setOverlayType} 
+                        overlayType={satellite.overlayType} 
+                        setOverlayType={satellite.setOverlayType} 
                     />
                 )}
             </div>
@@ -480,14 +126,14 @@ export default function MapScreen() {
             {/* Focus Area Button */}
             {geojsonData && (
                 <div className="absolute bottom-20 right-2.5 flex flex-col gap-2 z-[900]">
-                    {activeTab === 'analysis' && currentOverlayUrl && (
+                    {activeTab === 'analysis' && satellite.currentOverlayUrl && (
                         <button 
                           onClick={onExportPNG}
-                          disabled={loadingImages}
+                          disabled={satellite.loadingImages}
                           className="bg-green-600 p-2 rounded-md shadow-md hover:bg-green-700 text-white transition-colors disabled:opacity-50"
                           title="Exportar PNG (Área Demarcada)"
                         >
-                          {loadingImages ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                          {satellite.loadingImages ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
                         </button>
                     )}
                     <button 
@@ -504,37 +150,26 @@ export default function MapScreen() {
                 <DrawingToolbar
                   drawPoints={drawPoints}
                   onFinish={finishDrawing}
-                  onUndo={() => { 
-                    const pts = [...drawPoints]; 
-                    pts.pop(); 
-                    markersRef.current.pop()?.remove(); 
-                    setDrawPoints(pts); 
-                    drawPointsRef.current = pts; 
-                    updatePreview(pts, mapInstanceRef.current!); 
-                  }}
+                  onUndo={handleUndo}
                   onCancel={cancelDrawing}
                 />
             )}
-            {activeTab === 'analysis' && showOverlay && <MapLegend type={overlayType} />}
-            {loadingImages && <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-lg flex items-center gap-3 z-[1000] border border-gray-100"><Loader2 className="w-4 h-4 animate-spin text-green-600" /><span className="text-xs font-bold text-gray-600">Processando...</span></div>}
+            {activeTab === 'analysis' && satellite.showOverlay && <MapLegend type={satellite.overlayType} />}
+            {satellite.loadingImages && <div className="absolute bottom-6 right-6 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-lg flex items-center gap-3 z-[1000] border border-gray-100"><Loader2 className="w-4 h-4 animate-spin text-green-600" /><span className="text-xs font-bold text-gray-600">Processando...</span></div>}
         </div>
-
-
-
 
       </div>
 
-      {/* 3. TELEMETRY CARD - Dicionário de Índices */}
+      {/* TELEMETRY CARD */}
       <TelemetryCard activeTab={activeTab} />
 
-      {/* 4. AGRONOMIC INTELLIGENCE CARD - Inteligência Agronômica */}
+      {/* AGRONOMIC INTELLIGENCE CARD */}
       {activeTab === 'analysis' && (
         <AgronomicIntelligenceCard 
           agronomic={agronomic} 
           loading={false} 
         />
       )}
-
 
        <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }

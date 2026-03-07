@@ -1,244 +1,47 @@
-import React, { useState, useEffect } from 'react';
-import { Fuel, X, Plus, Minus, Check, Search, ScanBarcode, CreditCard, History, ArrowRight, Camera, FileText, ChevronRight, ChevronLeft, Send } from 'lucide-react';
-import { useAppContext, ACTIONS } from '../../../context/AppContext';
+import React from 'react';
+import { Fuel, X, Check, ScanBarcode, History, ArrowRight, Camera, FileText, ChevronRight, ChevronLeft, Send } from 'lucide-react';
 import { Input, SearchableSelect } from '../../../components/ui/Shared';
 import { U } from '../../../utils';
 import { toast } from 'react-hot-toast';
-import { lookupCNPJ, processBarcode, type NFeData, type BoletoData } from '../../documentos/services/barcodeIntelligence';
 import { BarcodeScanner } from '../../documentos/components/BarcodeScanner';
 import { CameraCapture } from '../../documentos/components/CameraCapture';
 import { AttachmentList } from '../../documentos/components/AttachmentList';
-import { useAttachments } from '../../documentos/hooks/useAttachments';
+import useCompraDiesel, { type ScanTarget } from '../hooks/useCompraDiesel';
 
 interface CompraCombustivelFormProps {
   onClose: () => void;
 }
 
-type ScanTarget = 'dieselNfe' | 'dieselBoleto' | 'freteNfe' | 'freteBoleto';
-
+// ==========================================
+// COMPONENTE: FORMULÁRIO DE COMPRA DE DIESEL
+// (Lógica de negócio em useCompraDiesel.ts)
+// ==========================================
 export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
-  const { dados, dispatch, genericSave, userProfile, ativos } = useAppContext();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [form, setForm] = useState({ 
-    data: U.todayIso(), 
-    fornecedor: '',
-    cnpjFornecedor: '',
-    notaFiscal: '', 
-    vencimentoDiesel: '',
-    chaveNfeDiesel: '',
-    codigoBoletoDiesel: '',
-    litros: '', 
-    valorUnitario: '', 
-    fornecedorFrete: '',
-    cnpjFornecedorFrete: '',
-    nfFrete: '',
-    valorFrete: '',
-    vencimentoFrete: '',
-    chaveNfeFrete: '',
-    codigoBoletoFrete: '',
-    valorTotal: '',
-    destinatario: ''
-  });
-  
-  const [showFrete, setShowFrete] = useState(false);
-  const [loadingCNPJ, setLoadingCNPJ] = useState({ fuel: false, frete: false });
-  const [showScanner, setShowScanner] = useState(false);
-  const [scanTarget, setScanTarget] = useState<ScanTarget | null>(null);
-  const [showCamera, setShowCamera] = useState(false);
-
-  const { 
-    attachments, 
-    handleFileSelect, 
-    addCameraAttachment, 
+  const {
+    currentStep, setCurrentStep,
+    form, setForm,
+    showFrete, setShowFrete,
+    showScanner, setShowScanner,
+    scanTarget,
+    showCamera, setShowCamera,
+    attachments,
+    handleFileSelect,
     removeAttachment,
     uploading,
-    fileInputRef
-  } = useAttachments();
-
-  useEffect(() => {
-    const l = U.parseDecimal(form.litros) || 0;
-    const v = U.parseDecimal(form.valorUnitario) || 0;
-    const total = l * v;
-    setForm(prev => ({ ...prev, valorTotal: total.toFixed(2) }));
-  }, [form.litros, form.valorUnitario]);
-
-  // Rateio do Frete
-  const valorUnitarioFinal = () => {
-      const l = U.parseDecimal(form.litros) || 0;
-      const v = U.parseDecimal(form.valorUnitario) || 0;
-      const f = showFrete ? (U.parseDecimal(form.valorFrete) || 0) : 0;
-      if (l === 0) return v;
-      return v + (f / l);
-  };
-
-  const valorTotalGeral = () => {
-      const l = U.parseDecimal(form.litros) || 0;
-      const uf = valorUnitarioFinal();
-      return l * uf;
-  };
-
-  const setDadosManuais = (dados: any) => setForm(prev => ({...prev, ...dados}));
-
-  const nextStep = () => setCurrentStep(p => p + 1);
-  const prevStep = () => setCurrentStep(p => p - 1);
-
-  const handleLookup = async (type: 'fuel' | 'frete') => {
-    const cnpj = type === 'fuel' ? form.cnpjFornecedor : form.cnpjFornecedorFrete;
-    const clean = cnpj ? cnpj.replace(/\D/g, '') : '';
-    if (clean.length !== 14) return;
-    
-    setLoadingCNPJ(prev => ({ ...prev, [type]: true }));
-    try {
-        const result = await lookupCNPJ(clean);
-        if (result) {
-            setForm(prev => ({
-                ...prev,
-                [type === 'fuel' ? 'fornecedor' : 'fornecedorFrete']: result.razaoSocial || result.fantasia
-            }));
-            toast.success('Fornecedor localizado!');
-        }
-    } catch (e) {
-        toast.error('Erro ao consultar CNPJ');
-    } finally {
-        setLoadingCNPJ(prev => ({ ...prev, [type]: false }));
-    }
-  };
-
-  const openScanner = (target: ScanTarget) => {
-    setScanTarget(target);
-    setShowScanner(true);
-  };
-
-  const handleScanSuccess = async (code: string) => {
-    setShowScanner(false);
-    try {
-        const hint = scanTarget?.includes('Nfe') ? 'nfe' : 'boleto';
-        const result = await processBarcode(code, hint as any);
-        
-        if (scanTarget?.includes('Nfe')) {
-            if (result.type !== 'nfe') {
-                toast.error('O código lido não parece ser uma NF-e.');
-                return;
-            }
-            const nfe = result as NFeData;
-            const isDiesel = scanTarget === 'dieselNfe';
-            
-            setForm(prev => ({
-                ...prev,
-                data: nfe.dataEmissaoIso || prev.data,
-                [isDiesel ? 'cnpjFornecedor' : 'cnpjFornecedorFrete']: nfe.cnpjFormatado,
-                [isDiesel ? 'fornecedor' : 'fornecedorFrete']: nfe.emitente || nfe.fantasia || (isDiesel ? prev.fornecedor : prev.fornecedorFrete),
-                [isDiesel ? 'notaFiscal' : 'nfFrete']: nfe.numero,
-                [isDiesel ? 'chaveNfeDiesel' : 'chaveNfeFrete']: nfe.chave
-            }));
-            toast.success(`NF-e ${nfe.numero} detectada! Data: ${nfe.anoMes}`);
-        } else if (scanTarget?.includes('Boleto')) {
-            if (result.type !== 'boleto_bancario' && result.type !== 'boleto_convenio') {
-                toast.error('O código lido não parece ser um boleto.');
-                return;
-            }
-            const boleto = result as BoletoData;
-            const isDiesel = scanTarget === 'dieselBoleto';
-
-            setForm(prev => ({
-                ...prev,
-                [isDiesel ? 'vencimentoDiesel' : 'vencimentoFrete']: boleto.vencimentoIso || prev[isDiesel ? 'vencimentoDiesel' : 'vencimentoFrete'],
-                [isDiesel ? 'codigoBoletoDiesel' : 'codigoBoletoFrete']: boleto.codigoBarras,
-                [isDiesel ? 'valorTotal' : 'valorFrete']: (isDiesel && boleto.valor !== '0.00') ? boleto.valor : prev[isDiesel ? 'valorTotal' : 'valorFrete']
-            }));
-            toast.success(`Boleto detectado! Venc: ${boleto.vencimento}`);
-        }
-    } catch (e) {
-        toast.error('Erro ao processar código');
-    }
-  };
-
-  const handlePhotoSuccess = async (file: File) => {
-    setShowCamera(false);
-    await addCameraAttachment(file);
-  };
-
-  const enviar = (e?: React.FormEvent) => {
-    if(e) e.preventDefault();
-    if (!form.litros || !form.valorUnitario || !form.notaFiscal) {
-      toast.error("Preencha Nota Fiscal, Litros e Valor");
-      return;
-    }
-    
-    // 1. Salva a Compra (Estoque com Valor Rateado)
-    genericSave('compras', { 
-      data: form.data,
-      produto: 'Diesel S10',
-      litros: U.parseDecimal(form.litros),
-      valor_total: valorTotalGeral(), // VALOR TOTAL (DIESEL + FRETE)
-      valor_unitario: valorUnitarioFinal(), // PREÇO UNITÁRIO COM FRETE DILUÍDO
-      fornecedor: form.fornecedor,
-      nota_fiscal: form.notaFiscal,
-      cnpj_fornecedor: form.cnpjFornecedor,
-      vencimento_diesel: form.vencimentoDiesel || null,
-      chave_nfe_diesel: form.chaveNfeDiesel || null,
-      codigo_boleto_diesel: form.codigoBoletoDiesel || null,
-      fornecedor_frete: form.fornecedorFrete,
-      cnpj_fornecedor_frete: form.cnpjFornecedorFrete,
-      nf_frete: form.nfFrete,
-      valor_frete: U.parseDecimal(form.valorFrete),
-      vencimento_frete: form.vencimentoFrete || null,
-      chave_nfe_frete: form.chaveNfeFrete || null,
-      codigo_boleto_frete: form.codigoBoletoFrete || null,
-      tipo: 'combustivel'
-    }, { type: ACTIONS.ADD_RECORD, modulo: 'compras' });
-    
-    // 2. Cria OS Compra (Mural de Compras - Independente do destinatario de PDF)
-    const descOS = `Compra Diesel: ${form.litros}L (NF: ${form.notaFiscal})`;
-    genericSave('os', {
-        modulo: 'Compra Diesel',
-        descricao: descOS,
-        detalhes: { "Fornecedor": form.fornecedor || '-', "Litros": `${form.litros} L`, "Venc.": form.vencimentoDiesel || 'n/i' },
-        status: 'Pendente',
-        data_abertura: form.data,
-        created_by: userProfile?.id || null
-    }, { type: ACTIONS.ADD_RECORD, modulo: 'os' });
-
-    // 3. Tramita Documentos (NF, Boletos e Ticket) para a lista "Documentos" do usuário selecionado no passo 5
-    const fileUrls = attachments.map(a => a.url).join(',');
-    const fileNames = attachments.map(a => a.name).join(', ');
-
-    const docsToCreate = [];
-    if (form.notaFiscal) docsToCreate.push({ type: 'NF Diesel', code: form.chaveNfeDiesel || form.notaFiscal, val: U.parseDecimal(form.valorTotal), for: form.fornecedor, venc: form.vencimentoDiesel, isAtt: false });
-    if (form.codigoBoletoDiesel) docsToCreate.push({ type: 'Boleto Diesel', code: form.codigoBoletoDiesel, val: U.parseDecimal(form.valorTotal), for: form.fornecedor, venc: form.vencimentoDiesel, isAtt: false });
-    if (showFrete && form.nfFrete) docsToCreate.push({ type: 'NF Frete', code: form.chaveNfeFrete || form.nfFrete, val: U.parseDecimal(form.valorFrete), for: form.fornecedorFrete, venc: form.vencimentoFrete, isAtt: false });
-    if (showFrete && form.codigoBoletoFrete) docsToCreate.push({ type: 'Boleto Frete', code: form.codigoBoletoFrete, val: U.parseDecimal(form.valorFrete), for: form.fornecedorFrete, venc: form.vencimentoFrete, isAtt: false });
-    if (attachments.length > 0) docsToCreate.push({ type: 'Ticket Balança', code: form.notaFiscal, val: 0, for: form.fornecedor, venc: '', isAtt: true });
-
-    const fluxo = `${userProfile?.full_name || 'Usuário Atual'} > ${form.destinatario}`;
-
-    docsToCreate.forEach(d => {
-        genericSave('documents', {
-            titulo: d.isAtt ? `Ticket de Balança (Diesel ${d.code})` : `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
-            nome: d.isAtt ? `Ticket de Balança (Diesel ${d.code})` : `${d.type}: ${d.code.substring(0, 10)} - ${d.for}`,
-            tipo: d.isAtt ? 'Ticket/Recibo' : (d.type.includes('NF') ? 'Nota Fiscal' : 'Boleto'),
-            url: d.isAtt ? fileUrls : 'Vínculo Automático (Diesel)', 
-            nome_arquivo: d.isAtt ? fileNames : null,
-            descricao: `Vínculo Automático Compra Diesel | Info: ${d.code}`,
-            data: form.data,
-            remetente: userProfile?.full_name || 'Usuário Atual',
-            destinatario: form.destinatario,
-            status: 'Enviado'
-        }, { type: ACTIONS.ADD_RECORD, modulo: 'documentos' });
-
-        genericSave('os', {
-            modulo: 'Documentos',
-            descricao: `DOC: ${d.type} (${d.for || 'Diesel'})`,
-            detalhes: { "Tipo": d.type, "Fluxo": fluxo, "Vencimento": d.venc || '-', "Valor": `R$ ${d.val}` },
-            status: 'Pendente',
-            data_abertura: form.data,
-            created_by: userProfile?.id || null 
-        }, { type: ACTIONS.ADD_RECORD, modulo: 'os' });
-    });
-    
-    toast.success('Compra e todos os Documentos processados!');
-    onClose();
-  };
+    fileInputRef,
+    dados,
+    userProfile,
+    ativos,
+    valorUnitarioFinal,
+    valorTotalGeral,
+    nextStep,
+    prevStep,
+    handleLookup,
+    openScanner,
+    handleScanSuccess,
+    handlePhotoSuccess,
+    enviar
+  } = useCompraDiesel(onClose);
 
   const ScanButton = ({ label, target, colorClass }: { label: string, target: ScanTarget, colorClass: string }) => (
     <button type="button" onClick={() => openScanner(target)} className={`flex-1 w-full flex font-bold text-sm items-center justify-center gap-2 py-3 px-3 rounded-xl transition-all active:scale-95 ${colorClass} shadow-md border hover:-translate-y-0.5`}>
@@ -563,7 +366,7 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
             </div>
           )}
 
-          {/* Ticker Inferior (Últimas compras - Exibe sempre nos passos seletivos) */}
+          {/* Últimas compras */}
           {[1,2,3].includes(currentStep) && (
               <div className="mt-8 pt-4">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase flex items-center justify-center gap-1 mb-3">
