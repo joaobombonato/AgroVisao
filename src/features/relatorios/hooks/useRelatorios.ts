@@ -277,9 +277,22 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
   });
   const maquinas = ativos?.maquinas || [];
 
-  // Estoque Inicial
+  // 1. Cálculo do Saldo Retroativo (até o dia anterior ao início do filtro)
   const pEstoque = ativos.parametros?.estoque || {};
-  const estoqueInicial = U.parseDecimal(pEstoque.ajusteManual || 0);
+  const saldoGlobalInicial = U.parseDecimal(pEstoque.ajusteManual || 0);
+
+  const totalCompradoAnterior = (dados.compras || [])
+    .filter((c: any) => (c.data || '').slice(0, 10) < dateStart)
+    .reduce((s: number, c: any) => s + U.parseDecimal(c.litros || 0), 0);
+
+  const totalSaidasAnterior = (dados.abastecimentos || [])
+    .filter((a: any) => {
+      const d = (a.data_operacao || a.data || '').slice(0, 10);
+      return d < dateStart;
+    })
+    .reduce((s: number, a: any) => s + U.parseDecimal(a.litros || a.qtd || 0), 0);
+
+  const estoqueInicial = saldoGlobalInicial + totalCompradoAnterior - totalSaidasAnterior;
 
   // Timeline unificada
   type TimelineEvent = { date: string; type: 'entrada' | 'saida'; qtd: number; ref: any };

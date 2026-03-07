@@ -166,7 +166,7 @@ export const fuelExportService = {
       alternateRowStyles: {
         fillColor: [249, 250, 255] as [number, number, number]
       },
-      margin: { top: 40, bottom: 20 }
+      margin: { top: 15, bottom: 20 }
     };
 
     // 3. Renderiza a tabela principal
