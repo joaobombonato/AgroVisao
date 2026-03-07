@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Save, Sliders, Zap, Fuel, AlertTriangle, Home } from 'lucide-react';
 import { PageHeader, Input } from '../../../components/ui/Shared';
+import { useAppContext, ACTIONS } from '../../../context/AppContext';
+import { toast } from 'react-hot-toast';
 import { U } from '../../../utils';
 
 export default function ParametrosEditor({ currentParams, onSave, onBack }: any) {
-    // Inicialização Defensiva do Estado para evitar crash de undefined
     const [form, setForm] = useState(() => {
         const safeParams = currentParams || {};
-        // Se currentParams vier vazio ou incompleto, garantimos a estrutura
         return {
             energia: safeParams.energia || { 
                 custoKwhPadrao: '', 
@@ -15,12 +15,51 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 custoKwhForaPonta: '', 
                 diaLeitura: '' 
             },
-            estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '', ajusteManual: '' },
+            estoque: safeParams.estoque || { capacidadeTanque: '', estoqueMinimo: '', ajusteManual: '', bombaInicial: '' },
             financeiro: safeParams.financeiro || { precoDiesel: '' },
             manutencao: safeParams.manutencao || { alertaPreventiva: '' },
             ...safeParams
         };
     });
+    const { genericSave } = useAppContext();
+    const [isLocked, setIsLocked] = useState(true);
+
+    const handleTrocarBomba = () => {
+        const novaBomba = window.prompt("Digite a nova leitura inicial da BOMBA (Reset):", "0");
+        if (novaBomba === null || novaBomba === "") return;
+
+        const val = U.parseDecimal(novaBomba);
+        if (window.confirm(`Isso irá resetar as futuras leituras para começar em ${U.formatValue(val)}. Confirma?`)) {
+            // 1. Atualiza o estado local
+            handleChange('estoque', 'bombaInicial', novaBomba);
+            
+            // 2. Cria registro de reset no abastecimento (para busca da última leitura)
+            const registroReset = {
+                data_operacao: U.todayIso(),
+                maquina: "TROCA DE BOMBA",
+                bombaFinal: val,
+                litros: 0,
+                horimetroAtual: 0,
+                obs: "Reset manual via Parâmetros Gerais"
+            };
+
+            genericSave('abastecimentos', registroReset, { 
+                type: ACTIONS.ADD_RECORD, 
+                modulo: 'abastecimentos' 
+            });
+
+            // 3. Força o salvamento dos parâmetros com o novo valor
+            const novosParams = {
+                ...form,
+                estoque: {
+                    ...form.estoque,
+                    bombaInicial: novaBomba
+                }
+            };
+            onSave(novosParams);
+            toast.success("Bomba Resetada com Sucesso!");
+        }
+    };
 
     const handleChange = (section: string, field: string, value: string) => {
         if (section === 'root') {
@@ -132,22 +171,49 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     mask="metric"
                     placeholder="Ex: 1.000"
                 />
-                <Input 
-                    label="Ajuste Manual / Saldo Inicial (L)" 
-                    value={getVal('estoque', 'ajusteManual')} 
-                    onChange={(e: any) => handleChange('estoque', 'ajusteManual', e.target.value)}
-                    type="text"
-                    mask="metric"
-                    placeholder="Ex: 500"
-                />
-                <Input 
-                    label="Bomba Inicial (Leitura)" 
-                    value={getVal('estoque', 'bombaInicial')} 
-                    onChange={(e: any) => handleChange('estoque', 'bombaInicial', e.target.value)}
-                    type="text"
-                    mask="decimal"
-                    placeholder="Ex: 12500,0"
-                />
+                <div className="relative">
+                    <Input 
+                        label="Ajuste Manual / Saldo Inicial (L)" 
+                        value={getVal('estoque', 'ajusteManual')} 
+                        onChange={(e: any) => handleChange('estoque', 'ajusteManual', e.target.value)}
+                        type="text"
+                        mask="metric"
+                        placeholder="Ex: 500"
+                        readOnly={isLocked}
+                        className={isLocked ? "bg-gray-50 text-gray-400" : ""}
+                    />
+                    {isLocked && (
+                        <button 
+                            onClick={() => window.confirm("Alterar o Saldo Inicial quebra a lógica FIFO. Use 'Ajuste de Estoque' no menu de Diesel para correções normais. Deseja realmente habilitar a edição?") && setIsLocked(false)}
+                            className="absolute right-2 top-8 text-[10px] font-bold text-amber-600 hover:underline"
+                        >
+                            Destravar
+                        </button>
+                    )}
+                </div>
+
+                <div className="relative">
+                    <Input 
+                        label="Bomba Inicial (Leitura)" 
+                        value={getVal('estoque', 'bombaInicial')} 
+                        onChange={(e: any) => handleChange('estoque', 'bombaInicial', e.target.value)}
+                        type="text"
+                        mask="decimal"
+                        placeholder="Ex: 12500,0"
+                        readOnly={isLocked}
+                        className={isLocked ? "bg-gray-50 text-gray-400" : ""}
+                    />
+                    <button 
+                        onClick={handleTrocarBomba}
+                        className="absolute right-2 top-8 text-[10px] font-bold text-blue-600 hover:underline"
+                    >
+                        Trocar Bomba (Reset)
+                    </button>
+                    <p className="text-[9px] text-gray-400 px-1 mt-1">
+                        Use 'Trocar Bomba' se substituiu o equipamento físico. 
+                    </p>
+                </div>
+
                 <Input 
                     label="Preço de Referência Diesel (R$)" 
                     value={getVal('financeiro', 'precoDiesel')} 
