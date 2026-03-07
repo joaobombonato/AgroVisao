@@ -308,14 +308,21 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
   timeline.forEach(event => {
     if (event.type === 'entrada') {
       saldoAtual += event.qtd;
+      // Adiciona a entrada como um registro no relatório
+      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: true });
     } else {
       saldoAtual -= event.qtd;
-      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual });
+      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: false });
     }
   });
 
-  // Ordenação final (descendente por bomba)
+  // Ordenação final (descendente cronológica + bomba)
   const registros = [...registrosComSaldo].sort((a, b) => {
+    const da = a.data_operacao || a.data || '';
+    const db = b.data_operacao || b.data || '';
+    const dateCmp = db.localeCompare(da);
+    if (dateCmp !== 0) return dateCmp;
+
     const ba = U.parseDecimal(a.bomba_inicial || a.bombaInicial || 0);
     const bb = U.parseDecimal(b.bomba_inicial || b.bombaInicial || 0);
     return bb - ba;
@@ -324,6 +331,20 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
   const columns = ['Data', 'Bomba Inicial', 'Bomba Final', 'Estoque Final', 'Máquina (Marca/Modelo)', 'Litros', 'Início (KM/H)', 'Final (KM/H)', 'Média', 'Custo R$'];
 
   const data = registros.map((r: any) => {
+    if (r.isEntrada) {
+      return [
+        U.formatDate(r.data),
+        '-', '-', // Bomba
+        U.formatInt(r.saldoCalculado),
+        `ENTRADA: NF ${r.nota_fiscal || r.nf_numero || '-'} (${r.fornecedor || 'Fornecedor'})`,
+        U.formatHorimetro(r.litros),
+        '-', '-', '-', // Horimetros/Media
+        `R$ ${U.formatValue(r.valor_total || 0)}`
+      ];
+    }
+
+    const isAjuste = r.maquina === "AJUSTE DE ESTOQUE" || r.maquina === "TROCA DE BOMBA";
+
     const maq = maquinas.find((m: any) => m.nome === r.maquina || m.identificacao === r.maquina);
     const brand = maq?.fabricante || '';
     const model = maq?.descricao || '';
@@ -331,23 +352,38 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
     const isKM = maq?.unidade_medida?.toLowerCase().includes('km');
     const suffix = isKM ? ' KM/L' : ' L/HR';
     const formattedMedia = U.formatMedia(r.media);
-    const mediaStr = formattedMedia === '-' ? '-' : `${formattedMedia}${suffix}`;
+    const mediaStr = (formattedMedia === '-' || isAjuste) ? '-' : `${formattedMedia}${suffix}`;
 
     return [
       U.formatDate(r.data_operacao || r.data),
       U.formatInt(r.bomba_inicial || r.bombaInicial || 0),
       U.formatInt(r.bomba_final || r.bombaFinal || 0),
       U.formatInt(r.saldoCalculado),
-      maqFull,
+      isAjuste ? `** ${r.maquina} **` : maqFull,
       U.formatHorimetro(r.litros || r.qtd || 0),
-      U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
-      U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
+      isAjuste ? '-' : U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
+      isAjuste ? '-' : U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
       mediaStr,
-      `R$ ${U.formatValue(r.custo || 0)}`
+      isAjuste ? '-' : `R$ ${U.formatValue(r.custo || 0)}`
     ];
   });
 
   const rawData = registros.map((r: any) => {
+    if (r.isEntrada) {
+        return {
+          'Data': U.formatDate(r.data),
+          'Bomba Inicial': '-',
+          'Bomba Final': '-',
+          'Saldo Estoque': U.formatHorimetro(r.saldoCalculado),
+          'Máquina (Marca/Modelo)': `ENTRADA: NF ${r.nota_fiscal || r.nf_numero || '-'}`,
+          'Litros': U.formatHorimetro(r.litros),
+          'KM/H Inicial': '-',
+          'KM/H Final': '-',
+          'Média': '-',
+          'Custo R$': `R$ ${U.formatValue(r.valor_total || 0)}`
+        };
+    }
+
     const maq = maquinas.find((m: any) => m.nome === r.maquina || m.identificacao === r.maquina);
     const isKM = maq?.unidade_medida?.toLowerCase().includes('km');
     const suffix = isKM ? ' KM/L' : ' L/HR';
@@ -365,7 +401,7 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
       'Litros': U.formatHorimetro(r.litros || r.qtd),
       'KM/H Inicial': U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
       'KM/H Final': U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
-      'Média': formattedMedia === '-' ? '-' : `${formattedMedia}${suffix}`,
+      'Média': (formattedMedia === '-' || r.maquina === "AJUSTE") ? '-' : `${formattedMedia}${suffix}`,
       'Custo R$': `R$ ${U.formatValue(U.parseDecimal(r.custo || 0))}`
     };
   });
@@ -375,11 +411,11 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
   const dEnd = new Date(dateEnd + 'T00:00:00');
   const diffMs = dEnd.getTime() - dStart.getTime();
   const totalDias = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
-  const totalLitros = registros.reduce((s: number, r: any) => s + U.parseDecimal(r.litros || r.qtd || 0), 0);
-  const totalCusto = registros.reduce((s: number, r: any) => s + U.parseDecimal(r.custo || 0), 0);
+  const totalLitros = registros.filter(r => !r.isEntrada).reduce((s: number, r: any) => s + U.parseDecimal(r.litros || r.qtd || 0), 0);
+  const totalCusto = registros.filter(r => !r.isEntrada).reduce((s: number, r: any) => s + U.parseDecimal(r.custo || 0), 0);
 
   const totalsRow = [
-    `${totalDias} dias com ${registros.length} registros de abastecimento no período`,
+    `${totalDias} dias com ${registros.filter(r => !r.isEntrada).length} registros de abastecimento no período`,
     'TOTAIS',
     `${U.formatHorimetro(totalLitros)} Litros`, '', '', '', '', '', '',
     `R$ ${U.formatValue(totalCusto)}`
@@ -388,6 +424,7 @@ function buildAbastData(dados: any, ativos: any, dateStart: string, dateEnd: str
   // Resumo por Máquina
   const maquinaMap: Record<string, { litros: number; custo: number; horimInicial: number; horimFinal: number; isKM: boolean }> = {};
   registros.forEach((r: any) => {
+    if (r.isEntrada) return;
     const maq = maquinas.find((m: any) => m.nome === r.maquina || m.identificacao === r.maquina);
     const brand = maq?.fabricante || '';
     const model = maq?.descricao || '';
