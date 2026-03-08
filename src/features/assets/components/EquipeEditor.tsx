@@ -126,17 +126,28 @@ export default function EquipeEditor() {
 
     const confirmarRemocao = async () => {
         if (!membroParaRemover) return;
+        const idParaRemover = membroParaRemover.id;
+        
         try {
+            // Feedback visual imediato (Opcional, mas ajuda muito na percepção de velocidade)
+            setMembros(prev => prev.filter(m => m.id !== idParaRemover));
+            
             const { error } = await supabase
                 .from('fazenda_membros')
                 .delete()
-                .eq('id', membroParaRemover.id);
+                .eq('id', idParaRemover);
             
-            if (error) throw error;
-            toast.success("Membro removido.");
-            loadMembros();
+            if (error) {
+                // Se der erro, volta o membro para a lista
+                loadMembros();
+                throw error;
+            }
+            
+            toast.success("Membro removido com sucesso!");
+            // loadMembros(); // Opcional, já removemos localmente
         } catch (err: any) {
-            toast.error("Erro ao remover: " + err.message);
+            console.error("Erro ao remover:", err);
+            toast.error("Não foi possível remover: " + err.message);
         } finally {
             setMembroParaRemover(null);
         }
