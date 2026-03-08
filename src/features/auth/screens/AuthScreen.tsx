@@ -14,6 +14,8 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'login' | 'register' | 'forgot' | 'set-password'>('login');
     const [showPassword, setShowPassword] = useState(false);
+    const [fullName, setFullName] = useState('');
+    const { session, userProfile } = useAppContext();
 
     useEffect(() => {
         // Verificar parâmetros tanto na query string quanto no fragmento (#)
@@ -78,15 +80,29 @@ export default function AuthScreen() {
             return;
         }
 
-        const { error } = await supabase.auth.updateUser({ password });
+        const { error } = await supabase.auth.updateUser({ 
+            password,
+            data: { full_name: fullName } // Atualiza na metadata do Auth também
+        });
+        
+        if (!error) {
+            // Atualiza na tabela pública profiles
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({ full_name: fullName })
+                .eq('id', session?.user?.id);
+            
+            if (profileError) console.warn("Erro ao atualizar nome no perfil:", profileError);
+        }
 
         if (error) {
             toast.error(`Erro ao definir senha: ${U.translateAuthError(error.message)}`);
             setLoading(false);
         } else {
-            toast.success("Senha definida com sucesso!");
+            toast.success("Cadastro finalizado com sucesso!");
             window.location.hash = ''; // Limpa o hash da URL
             window.location.search = ''; 
+            window.location.reload(); // Recarrega para garantir que o perfil atualizado seja carregado no contexto
         }
     };
 
@@ -126,12 +142,29 @@ export default function AuthScreen() {
                             <CheckCircle2 className="w-8 h-8" />
                         </div>
                         <h2 className="text-2xl font-bold text-gray-900">Finalizar Cadastro</h2>
-                        <p className="mt-2 text-sm text-gray-500">Defina uma senha segura para acessar sua conta no AgroVisão.</p>
+                        <p className="mt-2 text-sm text-gray-500">Complete seus dados para acessar o AgroVisão.</p>
                     </div>
 
-                    <form onSubmit={handleUpdatePassword} className="space-y-6">
+                    <form onSubmit={handleUpdatePassword} className="space-y-5">
                         <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Sua Nova Senha</label>
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Seu Nome Completo</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Sprout className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                </div>
+                                <input
+                                    type="text"
+                                    required
+                                    className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
+                                    placeholder="Como você gostaria de ser chamado?"
+                                    value={fullName}
+                                    onChange={(e) => setFullName(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Crie sua Senha</label>
                             <div className="relative group">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />

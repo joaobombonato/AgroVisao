@@ -298,6 +298,12 @@ const AppContent = () => {
         }
     };
 
+    // Interceptação Global de Convites/Recuperação/Cadastro
+    const hash = window.location.hash;
+    const params = new URLSearchParams(window.location.search);
+    const isAuthAction = hash.includes('type=invite') || hash.includes('type=recovery') || hash.includes('type=signup');
+    const isRegisterMode = params.get('mode') === 'register';
+
     if (tela === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
@@ -307,7 +313,7 @@ const AppContent = () => {
         );
     }
 
-    if (!session || tela === 'auth') {
+    if (!session || tela === 'auth' || isAuthAction || isRegisterMode) {
         return (
             <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
                 <AuthScreen />

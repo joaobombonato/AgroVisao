@@ -74,13 +74,21 @@ export function useSession({ dispatch, setTela, setFazendaSelecionada }: UseSess
           type: ACTIONS.SET_FAZENDA, 
           fazendaId: data.id, 
           fazendaNome: data.nome, 
-          userRole: mb?.role || 'Proprietário',
+          userRole: mb?.role || (data.user_id === session.user.id ? 'Proprietário' : 'Operador'),
           config: data.config,
           parametros: parametros
         });
-        if (data.user_id === session.user.id) ensureMembroOwner(data.id, session.user);
+        if (data.user_id === session.user.id) await ensureMembroOwner(data.id, session.user);
         
-        setTela(prev => (prev === 'loading' || prev === 'auth' || prev === 'fazenda_selection') ? 'principal' : prev);
+        // Bloqueio de redirecionamento se for convite, recuperação ou modo de registro
+        const isAuthAction = window.location.hash.includes('type=invite') || 
+                            window.location.hash.includes('type=recovery') || 
+                            window.location.search.includes('type=invite') ||
+                            window.location.search.includes('mode=register');
+        
+        if (!isAuthAction) {
+            setTela(prev => (prev === 'loading' || prev === 'auth' || prev === 'fazenda_selection') ? 'principal' : prev);
+        }
         dispatch({ type: ACTIONS.SET_LOADING, loading: false });
         return;
       }
@@ -103,12 +111,15 @@ export function useSession({ dispatch, setTela, setFazendaSelecionada }: UseSess
         type: ACTIONS.SET_FAZENDA, 
         fazendaId: f.id, 
         fazendaNome: f.nome, 
-        userRole: mb?.role || 'Proprietário',
+        userRole: mb?.role || (f.user_id === session.user.id ? 'Proprietário' : 'Operador'),
         config: f.config 
       });
       localStorage.setItem('last_fazenda_id', f.id);
       
-      setTela(prev => (prev === 'loading' || prev === 'auth' || prev === 'fazenda_selection') ? 'principal' : prev);
+      const isAuthAction = window.location.hash.includes('type=invite') || window.location.hash.includes('type=recovery') || window.location.search.includes('type=invite');
+      if (!isAuthAction) {
+          setTela(prev => (prev === 'loading' || prev === 'auth' || prev === 'fazenda_selection') ? 'principal' : prev);
+      }
     } else {
       setTela(prev => (prev === 'loading' || prev === 'auth') ? 'fazenda_selection' : prev);
     }

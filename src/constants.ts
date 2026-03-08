@@ -54,6 +54,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: true,
       chuvas: true,
       mapa: true,
+      relatorios: true,
     },
     actions: {
       abastecimento_compra: true,
@@ -112,6 +113,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: true,
       chuvas: true,
       mapa: false,
+      relatorios: false,
     },
     actions: {
       abastecimento_compra: true,
@@ -170,6 +172,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: false,
       chuvas: true,
       mapa: true,
+      relatorios: true,
     },
     actions: {
       abastecimento_compra: false,

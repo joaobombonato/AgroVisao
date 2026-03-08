@@ -34,7 +34,7 @@ export const INITIAL_STATE: State = {
   userProfile: null,
   fazendaId: null,
   fazendaNome: 'Fazenda SC (Demo)',
-  userRole: null,
+  userRole: 'Indefinido',
   permissions: {},
   fazendasDisponiveis: [],
   dbAssets: {},

@@ -34,8 +34,8 @@ export default function PrincipalScreen() {
         <h1 className="text-2xl font-bold text-gray-800">Módulos Operacionais</h1>
       </div>
 
-      {/* Sistema de Passos de Boas-vindas (Checklist Dinâmico) */}
-      {(isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.financeiro?.precoDiesel || !state.userProfile?.full_name || !state.ativos?.locais?.length || !state.ativos?.pontosEnergia?.length) && (
+      {/* Sistema de Passos de Boas-vindas (Checklist Dinâmico) - APENAS PARA DONOS/ADMINS */}
+      {(userRole === 'Proprietário' || userRole === 'Administrador' || !userRole) && (isNovaFazenda || !ativos?.talhoes?.length || !ativos?.parametros?.financeiro?.precoDiesel || !state.userProfile?.full_name || !state.ativos?.locais?.length || !state.ativos?.pontosEnergia?.length) && (
         <div className="bg-gradient-to-br from-green-700 to-green-900 rounded-2xl p-6 shadow-xl animate-in zoom-in duration-500 overflow-hidden relative">
            {/* Detalhe de luz suave no fundo */}
            <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl"></div>
