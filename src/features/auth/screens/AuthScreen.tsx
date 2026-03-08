@@ -1,6 +1,5 @@
-
-import React, { useState } from 'react';
-import { Mail, Lock, LogIn, Loader2, Sprout, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mail, Lock, LogIn, Loader2, Sprout, ArrowRight, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../../supabaseClient';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
@@ -11,9 +10,37 @@ import AuthCadastroScreen from './AuthCadastroScreen';
 export default function AuthScreen() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [view, setView] = useState<'login' | 'register' | 'forgot'>('login');
+    const [view, setView] = useState<'login' | 'register' | 'forgot' | 'set-password'>('login');
     const [showPassword, setShowPassword] = useState(false);
+
+    useEffect(() => {
+        // Verificar parâmetros tanto na query string quanto no fragmento (#)
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash.substring(1);
+        const hashParams = new URLSearchParams(hash);
+        
+        const type = hashParams.get('type') || params.get('type');
+        const isRegisterMode = params.get('mode') === 'register' || hashParams.get('mode') === 'register';
+        const hasInviteError = hashParams.has('error') || params.has('error');
+
+        // Se for um link de convite, recuperação ou signup direto
+        if (type === 'invite' || type === 'recovery' || type === 'signup') {
+            setView('set-password');
+            return;
+        }
+
+        if (isRegisterMode || hasInviteError) {
+            setView('register');
+            
+            if (hasInviteError) {
+                const errorDesc = hashParams.get('error_description') || params.get('error_description') || 'Erro no link de convite';
+                console.error('Erro de autenticação/convite:', errorDesc);
+                toast.error('O link de convite expirou ou é inválido, mas você pode criar sua conta manualmente aqui.');
+            }
+        }
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,13 +54,39 @@ export default function AuthScreen() {
 
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         
-        // Se der erro, mostra toast. Se sucesso, o App.tsx detecta mudança de sessão automaticamente.
         if (error) {
             toast.error(`Erro: ${U.translateAuthError(error.message)}`);
             setLoading(false);
         } else {
             toast.success("Login realizado. Entrando...", { duration: 2000 });
-            // Loading fica true até o componente desmontar
+        }
+    };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        if (!password || password.length < 6) {
+            toast.error("A senha deve ter pelo menos 6 caracteres.");
+            setLoading(false);
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            toast.error("As senhas não coincidem.");
+            setLoading(false);
+            return;
+        }
+
+        const { error } = await supabase.auth.updateUser({ password });
+
+        if (error) {
+            toast.error(`Erro ao definir senha: ${U.translateAuthError(error.message)}`);
+            setLoading(false);
+        } else {
+            toast.success("Senha definida com sucesso!");
+            window.location.hash = ''; // Limpa o hash da URL
+            window.location.search = ''; 
         }
     };
 
@@ -60,9 +113,75 @@ export default function AuthScreen() {
         setLoading(false);
     };
 
-    // Sub-rota para cadastro
     if (view === 'register') {
         return <AuthCadastroScreen onBack={() => setView('login')} />;
+    }
+
+    if (view === 'set-password') {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center p-8">
+                <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
+                    <div className="text-center">
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 text-green-600 rounded-full mb-6">
+                            <CheckCircle2 className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-gray-900">Finalizar Cadastro</h2>
+                        <p className="mt-2 text-sm text-gray-500">Defina uma senha segura para acessar sua conta no AgroVisão.</p>
+                    </div>
+
+                    <form onSubmit={handleUpdatePassword} className="space-y-6">
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Sua Nova Senha</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                </div>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
+                                    placeholder="No mínimo 6 caracteres"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Confirme a Senha</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <CheckCircle2 className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                                </div>
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
+                                    placeholder="Digite novamente"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Concluir e Acessar"}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
     }
 
     if (view === 'forgot') {

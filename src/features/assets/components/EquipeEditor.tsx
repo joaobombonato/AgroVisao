@@ -84,8 +84,9 @@ export default function EquipeEditor() {
             if (!profile) {
                 setPendingInviteData({ email: email.trim().toLowerCase(), role });
                 
-                const appLink = window.location.origin;
-                const inviteMsg = `Olá! Pré-autorizei seu acesso como *${role}* na equipe da *${fazendaNome || 'nossa propriedade'}* no AgroVisão.\n\nCrie sua conta agora para acessar os dados: ${appLink}\n(Use o e-mail: ${email.trim().toLowerCase()})`;
+                const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+                const appLink = siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`;
+                const inviteMsg = `Olá! Pré-autorizei seu acesso como *${role}* na equipe da *${fazendaNome || 'nossa propriedade'}* no AgroVisão.\n\nCrie sua conta agora para acessar os dados: ${appLink}?mode=register\n(Use o e-mail: ${email.trim().toLowerCase()})`;
 
                 setPendingInviteMsg(inviteMsg);
                 setShowInviteModal(true);
@@ -176,8 +177,11 @@ export default function EquipeEditor() {
             if (dbError) throw dbError;
 
             try {
+                const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+                const redirectTo = `${siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`}?mode=register`;
+                
                 const { error: funcError } = await supabase.functions.invoke('invite-staff', {
-                    body: { email: pendingInviteData.email, redirectTo: window.location.origin }
+                    body: { email: pendingInviteData.email, redirectTo }
                 });
                 if (funcError) console.warn("Erro ao disparar e-mail:", funcError);
                 else toast.success("E-mail de convite enviado!");
