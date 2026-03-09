@@ -19,6 +19,8 @@ export default function AuthScreen() {
     const [phone, setPhone] = useState('');
     const [birthDate, setBirthDate] = useState('');
     const [cnhNumber, setCnhNumber] = useState('');
+    const [cnhExpiry, setCnhExpiry] = useState('');
+    const [authError, setAuthError] = useState<string | null>(null);
     const { session, userProfile } = useAppContext();
 
     const formatPhone = (val: string) => {
@@ -45,6 +47,15 @@ export default function AuthScreen() {
         const isRegisterMode = params.get('mode') === 'register' || hashParams.get('mode') === 'register';
         const isInviteMode = params.get('mode') === 'invite' || hashParams.get('mode') === 'invite';
         const hasInviteError = hashParams.has('error') || params.has('error');
+
+        const errorCode = params.get('error_code') || hashParams.get('error_code');
+        const errorDesc = params.get('error_description') || hashParams.get('error_description');
+
+        if (errorCode === 'otp_expired' || (errorDesc && errorDesc.toLowerCase().includes('expired'))) {
+            setAuthError('O seu link de convite expirou. Por favor, peça ao proprietário para reenviar o convite ou tente redefinir sua senha.');
+            setView('set-password');
+            return;
+        }
 
         // Se for um link de convite, recuperação ou signup direto
         if (type === 'invite' || type === 'recovery' || type === 'signup' || isInviteMode) {
@@ -116,7 +127,8 @@ export default function AuthScreen() {
                     full_name: fullName,
                     phone: phone,
                     data_nascimento: birthDate,
-                    cnh_numero: cnhNumber
+                    cnh_numero: cnhNumber,
+                    cnh_vencimento: cnhExpiry || null
                 })
                 .eq('id', session?.user?.id);
             
@@ -174,112 +186,142 @@ export default function AuthScreen() {
                     </div>
 
                     <form onSubmit={handleUpdatePassword} className="space-y-5">
-                        <div className="space-y-4">
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nome Completo *</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
-                                        <Sprout className="w-5 h-5" />
+                        {authError ? (
+                            <div className="bg-red-50 border border-red-100 p-4 rounded-xl text-center">
+                                <p className="text-sm text-red-600 font-medium">{authError}</p>
+                                <button 
+                                    type="button"
+                                    onClick={() => {
+                                        window.location.search = '';
+                                        window.location.hash = '';
+                                        setView('login');
+                                    }}
+                                    className="mt-3 text-xs font-bold text-red-700 underline"
+                                >
+                                    VOLTAR PARA O LOGIN
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nome Completo *</label>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
+                                                <Sprout className="w-5 h-5" />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required
+                                                className="block w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                placeholder="Seu nome completo"
+                                                value={fullName}
+                                                onChange={(e) => setFullName(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                    <input
-                                        type="text"
-                                        required
-                                        className="block w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                        placeholder="Seu nome completo"
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-700 uppercase ml-1">Telefone *</label>
-                                    <input
-                                        type="tel"
-                                        required
-                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                        placeholder="(00) 00000-0000"
-                                        value={phone}
-                                        onChange={(e) => setPhone(formatPhone(e.target.value))}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nascimento *</label>
-                                    <input
-                                        type="date"
-                                        required
-                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                        value={birthDate}
-                                        onChange={(e) => setBirthDate(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Número da CNH (Opcional)</label>
-                                <input
-                                    type="text"
-                                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                    placeholder="000000000-00"
-                                    value={cnhNumber}
-                                    onChange={(e) => setCnhNumber(formatCNH(e.target.value))}
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Definir Senha de Acesso *</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
-                                        <Lock className="w-5 h-5" />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-700 uppercase ml-1">Telefone *</label>
+                                            <input
+                                                type="tel"
+                                                required
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                placeholder="(00) 00000-0000"
+                                                value={phone}
+                                                onChange={(e) => setPhone(formatPhone(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nascimento *</label>
+                                            <input
+                                                type="date"
+                                                required
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                value={birthDate}
+                                                onChange={(e) => setBirthDate(e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        required
-                                        className="block w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                        placeholder="No mínimo 6 caracteres"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                    >
-                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Confirmar Senha *</label>
-                                <div className="relative group">
-                                    <input
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        required
-                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                        placeholder="Repita a senha"
-                                        value={confirmPassword}
-                                        onChange={(e) => setConfirmPassword(e.target.value)}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                    >
-                                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-700 uppercase ml-1">Número da CNH (Opcional)</label>
+                                            <input
+                                                type="text"
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                placeholder="000000000-00"
+                                                value={cnhNumber}
+                                                onChange={(e) => setCnhNumber(formatCNH(e.target.value))}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-xs font-bold text-gray-700 uppercase ml-1">Vencimento CNH</label>
+                                            <input
+                                                type="date"
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                value={cnhExpiry}
+                                                onChange={(e) => setCnhExpiry(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
 
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Concluir e Acessar"}
-                        </button>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-700 uppercase ml-1">Definir Senha de Acesso *</label>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
+                                                <Lock className="w-5 h-5" />
+                                            </div>
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                required
+                                                className="block w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                placeholder="No mínimo 6 caracteres"
+                                                value={password}
+                                                onChange={(e) => setPassword(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword(!showPassword)}
+                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-gray-700 uppercase ml-1">Confirmar Senha *</label>
+                                        <div className="relative group">
+                                            <input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                required
+                                                className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                                placeholder="Repita a senha"
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                            >
+                                                {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white bg-green-600 hover:bg-green-700 hover:shadow-xl hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                >
+                                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Concluir e Acessar"}
+                                </button>
+                            </>
+                        )}
                     </form>
                 </div>
             </div>
