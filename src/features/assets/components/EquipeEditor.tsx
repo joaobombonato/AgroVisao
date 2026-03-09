@@ -189,7 +189,7 @@ export default function EquipeEditor() {
 
             try {
                 const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
-                const redirectTo = `${siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`}?mode=register`;
+                const redirectTo = `${siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`}?mode=invite`;
                 
                 const { error: funcError } = await supabase.functions.invoke('invite-staff', {
                     body: { email: pendingInviteData.email, redirectTo }
