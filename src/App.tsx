@@ -1,3 +1,4 @@
+```
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { Home, Settings, FileCog, ChartNoAxesCombined, Loader2, Bell, CloudRain, Tractor, LogOut, Check, RefreshCw } from 'lucide-react';
@@ -276,7 +277,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
 
 // -- [AppContent: Gerenciador de Rotas Globais] --
 const AppContent = () => {
-    const { session, tela, setTela } = useAppContext();
+    const { session, tela, setTela, userProfile } = useAppContext();
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
     // PWA Install Prompt - Captura Global
@@ -307,6 +308,9 @@ const AppContent = () => {
     const isInviteMode = params.get('mode') === 'invite' || hashParams.get('mode') === 'invite';
     const isAuthAction = type === 'invite' || type === 'recovery' || type === 'signup';
 
+    // Trava de Perfil Incompleto: Se logado mas sem nome/telefone, forçar finalização
+    const isIncompleteProfile = !!session && (!userProfile?.full_name || !userProfile?.phone);
+
     if (tela === 'loading') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
@@ -316,7 +320,7 @@ const AppContent = () => {
         );
     }
 
-    if (!session || tela === 'auth' || isAuthAction || isRegisterMode || isInviteMode) {
+    if (!session || tela === 'auth' || isAuthAction || isRegisterMode || isInviteMode || isIncompleteProfile) {
         return (
             <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
                 <AuthScreen />

@@ -15,6 +15,9 @@ export default function AuthScreen() {
     const [view, setView] = useState<'login' | 'register' | 'forgot' | 'set-password'>('login');
     const [showPassword, setShowPassword] = useState(false);
     const [fullName, setFullName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [birthDate, setBirthDate] = useState('');
+    const [cnhNumber, setCnhNumber] = useState('');
     const { session, userProfile } = useAppContext();
 
     useEffect(() => {
@@ -25,10 +28,11 @@ export default function AuthScreen() {
         
         const type = hashParams.get('type') || params.get('type');
         const isRegisterMode = params.get('mode') === 'register' || hashParams.get('mode') === 'register';
+        const isInviteMode = params.get('mode') === 'invite' || hashParams.get('mode') === 'invite';
         const hasInviteError = hashParams.has('error') || params.has('error');
 
         // Se for um link de convite, recuperação ou signup direto
-        if (type === 'invite' || type === 'recovery' || type === 'signup') {
+        if (type === 'invite' || type === 'recovery' || type === 'signup' || isInviteMode) {
             setView('set-password');
             return;
         }
@@ -82,24 +86,33 @@ export default function AuthScreen() {
 
         const { error } = await supabase.auth.updateUser({ 
             password,
-            data: { full_name: fullName } // Atualiza na metadata do Auth também
+            data: { 
+                full_name: fullName,
+                phone: phone,
+                data_nascimento: birthDate
+            }
         });
         
         if (!error) {
             // Atualiza na tabela pública profiles
             const { error: profileError } = await supabase
                 .from('profiles')
-                .update({ full_name: fullName })
+                .update({ 
+                    full_name: fullName,
+                    phone: phone,
+                    data_nascimento: birthDate,
+                    cnh_numero: cnhNumber
+                })
                 .eq('id', session?.user?.id);
             
-            if (profileError) console.warn("Erro ao atualizar nome no perfil:", profileError);
+            if (profileError) console.warn("Erro ao atualizar dados no perfil:", profileError);
         }
 
         if (error) {
-            toast.error(`Erro ao definir senha: ${U.translateAuthError(error.message)}`);
+            toast.error(`Erro ao definir senha e perfil: ${U.translateAuthError(error.message)}`);
             setLoading(false);
         } else {
-            toast.success("Cadastro finalizado com sucesso!");
+            toast.success("Perfil e senha configurados com sucesso!");
             window.location.hash = ''; // Limpa o hash da URL
             window.location.search = ''; 
             window.location.reload(); // Recarrega para garantir que o perfil atualizado seja carregado no contexto
@@ -146,58 +159,90 @@ export default function AuthScreen() {
                     </div>
 
                     <form onSubmit={handleUpdatePassword} className="space-y-5">
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Seu Nome Completo</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Sprout className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                        <div className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nome Completo *</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
+                                        <Sprout className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        required
+                                        className="block w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                        placeholder="Seu nome completo"
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                    />
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-700 uppercase ml-1">Telefone *</label>
+                                    <input
+                                        type="tel"
+                                        required
+                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                        placeholder="(00) 00000-0000"
+                                        value={phone}
+                                        onChange={(e) => setPhone(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-700 uppercase ml-1">Nascimento *</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                        value={birthDate}
+                                        onChange={(e) => setBirthDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Número da CNH (Opcional)</label>
                                 <input
                                     type="text"
-                                    required
-                                    className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
-                                    placeholder="Como você gostaria de ser chamado?"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
+                                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                    placeholder="Número do documento"
+                                    value={cnhNumber}
+                                    onChange={(e) => setCnhNumber(e.target.value)}
                                 />
                             </div>
-                        </div>
 
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Crie sua Senha</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Definir Senha de Acesso *</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-600 transition-colors">
+                                        <Lock className="w-5 h-5" />
+                                    </div>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        required
+                                        className="block w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                        placeholder="No mínimo 6 caracteres"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
                                 </div>
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-700 uppercase ml-1">Confirmar Senha *</label>
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     required
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
-                                    placeholder="No mínimo 6 caracteres"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                                >
-                                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-xs font-bold text-gray-600 uppercase ml-1">Confirme a Senha</label>
-                            <div className="relative group">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <CheckCircle2 className="h-5 w-5 text-gray-400 group-focus-within:text-green-600 transition-colors" />
-                                </div>
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all sm:text-sm"
-                                    placeholder="Digite novamente"
+                                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                    placeholder="Repita a senha"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
                                 />
