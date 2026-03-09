@@ -1,3 +1,4 @@
+```
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { Home, Settings, FileCog, ChartNoAxesCombined, Loader2, Bell, CloudRain, Tractor, LogOut, Check, RefreshCw } from 'lucide-react';
@@ -305,18 +306,7 @@ const AppContent = () => {
     const type = hashParams.get('type') || params.get('type');
     const isRegisterMode = params.get('mode') === 'register' || hashParams.get('mode') === 'register';
     const isInviteMode = params.get('mode') === 'invite' || hashParams.get('mode') === 'invite';
-    const hasInviteError = hashParams.has('error') || params.has('error');
-
-    // Se for um link de convite, recuperação ou signup direto
-    if (type === 'invite' || type === 'recovery' || type === 'signup' || isInviteMode) {
-        // AuthScreen precisa ser capaz de lidar com esses estados
-        // Passamos os parâmetros para que AuthScreen possa decidir qual sub-tela mostrar
-        return (
-            <React.Suspense fallback={<div className="min-h-screen bg-white" />}>
-                <AuthScreen initialView="set-password" inviteParams={{ type, isInviteMode, hasInviteError }} />
-            </React.Suspense>
-        );
-    }
+    const isAuthAction = type === 'invite' || type === 'recovery' || type === 'signup';
 
     if (tela === 'loading') {
         return (
