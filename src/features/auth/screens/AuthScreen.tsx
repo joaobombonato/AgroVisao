@@ -14,11 +14,26 @@ export default function AuthScreen() {
     const [loading, setLoading] = useState(false);
     const [view, setView] = useState<'login' | 'register' | 'forgot' | 'set-password'>('login');
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [birthDate, setBirthDate] = useState('');
     const [cnhNumber, setCnhNumber] = useState('');
     const { session, userProfile } = useAppContext();
+
+    const formatPhone = (val: string) => {
+        const digits = val.replace(/\D/g, '');
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+        if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+        return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+    };
+
+    const formatCNH = (val: string) => {
+        const digits = val.replace(/\D/g, '').slice(0, 11);
+        if (digits.length <= 9) return digits;
+        return `${digits.slice(0, 9)}-${digits.slice(9)}`;
+    };
 
     useEffect(() => {
         // Verificar parâmetros tanto na query string quanto no fragmento (#)
@@ -186,7 +201,7 @@ export default function AuthScreen() {
                                         className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
                                         placeholder="(00) 00000-0000"
                                         value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
+                                        onChange={(e) => setPhone(formatPhone(e.target.value))}
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -206,9 +221,9 @@ export default function AuthScreen() {
                                 <input
                                     type="text"
                                     className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                    placeholder="Número do documento"
+                                    placeholder="000000000-00"
                                     value={cnhNumber}
-                                    onChange={(e) => setCnhNumber(e.target.value)}
+                                    onChange={(e) => setCnhNumber(formatCNH(e.target.value))}
                                 />
                             </div>
 
@@ -238,14 +253,23 @@ export default function AuthScreen() {
 
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-700 uppercase ml-1">Confirmar Senha *</label>
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    required
-                                    className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
-                                    placeholder="Repita a senha"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                />
+                                <div className="relative group">
+                                    <input
+                                        type={showConfirmPassword ? "text" : "password"}
+                                        required
+                                        className="block w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all text-gray-900"
+                                        placeholder="Repita a senha"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    >
+                                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
