@@ -140,9 +140,8 @@ export default function AuthScreen() {
             setLoading(false);
         } else {
             toast.success("Perfil e senha configurados com sucesso!");
-            window.location.hash = ''; // Limpa o hash da URL
-            window.location.search = ''; 
-            window.location.reload(); // Recarrega para garantir que o perfil atualizado seja carregado no contexto
+            // Limpa a URL completamente e entra no app
+            window.location.href = window.location.origin;
         }
     };
 
