@@ -96,11 +96,16 @@ export function appReducer(state: State, action: any) {
             };
         }
 
+        // Calcula permissões do papel atual
+        const role = action.userRole || state.userRole;
+        const rolePermissions = state.permissions?.[role] || {};
+
         return { 
             ...state, 
             fazendaId: action.fazendaId, 
             fazendaNome: action.fazendaNome,
-            userRole: action.userRole || state.userRole,
+            userRole: role,
+            rolePermissions, // Expõe para toda a app
             fazendasDisponiveis: action.fazendas || state.fazendasDisponiveis, 
             ativos: { ...state.ativos, parametros: params },
             loading: false
