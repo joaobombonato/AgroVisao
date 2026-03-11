@@ -17,7 +17,8 @@ const ROLES = [
 ];
 
 export default function EquipeEditor() {
-    const { fazendaId, session, fazendaNome } = useAppContext();
+    const { fazendaId, session, fazendaNome, rolePermissions } = useAppContext();
+    const canManage = rolePermissions?.actions?.config_equipe !== false;
     const [loading, setLoading] = useState(false);
     const [membros, setMembros] = useState<any[]>([]);
     const [convites, setConvites] = useState<any[]>([]);
@@ -40,7 +41,7 @@ export default function EquipeEditor() {
             
             const { data: membrosDb, error: errMembros } = await supabase
                 .from('fazenda_membros')
-                .select('id, user_id, fazenda_id, role, profiles(email)')
+                .select('id, user_id, fazenda_id, role, profiles(email, full_name)')
                 .eq('fazenda_id', fazendaId);
             
             if (errMembros) throw errMembros;
@@ -69,7 +70,7 @@ export default function EquipeEditor() {
 
     const handleAutorizar = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!email) return;
+        if (!email || !canManage) return;
 
         setLoading(true);
         try {
@@ -125,7 +126,7 @@ export default function EquipeEditor() {
     };
 
     const confirmarRemocao = async () => {
-        if (!membroParaRemover) return;
+        if (!membroParaRemover || !canManage) return;
         const idParaRemover = membroParaRemover.id;
         
         try {
@@ -154,7 +155,7 @@ export default function EquipeEditor() {
     };
 
     const confirmarCancelamentoConvite = async () => {
-        if (!conviteParaCancelar) return;
+        if (!conviteParaCancelar || !canManage) return;
         try {
             const { error } = await supabase
                 .from('fazenda_convites')
@@ -172,7 +173,7 @@ export default function EquipeEditor() {
     };
 
     const confirmarConvitePendente = async () => {
-        if (!pendingInviteData) return;
+        if (!pendingInviteData || !canManage) return;
         try {
             setLoading(true);
             
@@ -216,77 +217,81 @@ export default function EquipeEditor() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             
             {/* Alerta de Permissões */}
-            <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex gap-3 shadow-sm border-dashed">
+            <div className={`border rounded-3xl p-4 flex gap-3 shadow-sm border-dashed ${canManage ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
                 <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
-                    <Shield className="w-6 h-6 text-amber-600" />
+                    <Shield className={`w-6 h-6 ${canManage ? 'text-amber-600' : 'text-blue-600'}`} />
                 </div>
                 <div className="space-y-0.5">
-                    <p className="text-[11px] font-black text-amber-900 uppercase tracking-widest">Atenção Administrativa</p>
-                    <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
-                        Antes de autorizar novos acessos, recomendamos revisar as <b>Permissões</b> nas configurações para conferir o que cada cargo poderá visualizar no sistema.
+                    <p className={`text-[11px] font-black uppercase tracking-widest ${canManage ? 'text-amber-900' : 'text-blue-900'}`}>{canManage ? 'Atenção Administrativa' : 'Modo de Visualização'}</p>
+                    <p className={`text-[10px] leading-relaxed font-medium ${canManage ? 'text-amber-800' : 'text-blue-800'}`}>
+                        {canManage 
+                            ? "Antes de autorizar novos acessos, recomendamos revisar as Permissões para conferir o que cada cargo poderá visualizar." 
+                            : "Você tem acesso para visualizar a equipe da fazenda, mas não possui permissão para convidar ou remover membros."}
                     </p>
                 </div>
             </div>
 
             {/* Form de Autorização */}
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <div className="mb-6">
-                    <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-indigo-600" />
-                        Autorizar Acesso
-                    </h3>
-                    <p className="text-[10px] text-gray-500 font-medium ml-7 mt-0.5">Informe o e-mail de um colaborador já cadastrado no sistema.</p>
+            {canManage && (
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                    <div className="mb-6">
+                        <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-indigo-600" />
+                            Autorizar Acesso
+                        </h3>
+                        <p className="text-[10px] text-gray-500 font-medium ml-7 mt-0.5">Informe o e-mail de um colaborador já cadastrado no sistema.</p>
+                    </div>
+                    
+                    <form onSubmit={handleAutorizar} className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">E-mail do Colaborador</label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                                <input 
+                                    type="email" 
+                                    required
+                                    placeholder="exemplo@fazenda.com.br"
+                                    className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-semibold"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Nível de Acesso</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {ROLES.map(r => (
+                                    <button
+                                        key={r.name}
+                                        type="button"
+                                        onClick={() => setRole(r.name)}
+                                        className={`p-3 rounded-2xl border-2 text-left transition-all relative overflow-hidden ${role === r.name ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-gray-50 bg-gray-50 text-gray-500 opacity-60'}`}
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <span className={`text-[11px] font-black uppercase ${role === r.name ? 'text-indigo-700' : 'text-gray-500'}`}>
+                                                {r.name}
+                                            </span>
+                                            {r.name === 'Proprietário' && <Crown className={`w-3 h-3 ${role === r.name ? 'text-indigo-600' : 'text-gray-400'}`} />}
+                                        </div>
+                                        <p className="text-[9px] leading-tight font-medium">{r.desc}</p>
+                                        {role === r.name && <div className="absolute top-0 right-0 p-1"><UserCheck className="w-3 h-3 text-indigo-600" /></div>}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading || !email}
+                            className="w-full bg-indigo-600 text-white font-bold py-4 rounded-3xl shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5" />}
+                            Autorizar Acesso Agora
+                        </button>
+                    </form>
                 </div>
-                
-                <form onSubmit={handleAutorizar} className="space-y-4">
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">E-mail do Colaborador</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                            <input 
-                                type="email" 
-                                required
-                                placeholder="exemplo@fazenda.com.br"
-                                className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm font-semibold"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1.5 ml-1">Nível de Acesso</label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {ROLES.map(r => (
-                                <button
-                                    key={r.name}
-                                    type="button"
-                                    onClick={() => setRole(r.name)}
-                                    className={`p-3 rounded-2xl border-2 text-left transition-all relative overflow-hidden ${role === r.name ? 'border-indigo-600 bg-indigo-50 shadow-sm' : 'border-gray-50 bg-gray-50 text-gray-500 opacity-60'}`}
-                                >
-                                    <div className="flex items-center justify-between mb-1">
-                                        <span className={`text-[11px] font-black uppercase ${role === r.name ? 'text-indigo-700' : 'text-gray-500'}`}>
-                                            {r.name}
-                                        </span>
-                                        {r.name === 'Proprietário' && <Crown className={`w-3 h-3 ${role === r.name ? 'text-indigo-600' : 'text-gray-400'}`} />}
-                                    </div>
-                                    <p className="text-[9px] leading-tight font-medium">{r.desc}</p>
-                                    {role === r.name && <div className="absolute top-0 right-0 p-1"><UserCheck className="w-3 h-3 text-indigo-600" /></div>}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading || !email}
-                        className="w-full bg-indigo-600 text-white font-bold py-4 rounded-3xl shadow-lg hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 active:scale-95"
-                    >
-                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5" />}
-                        Autorizar Acesso Agora
-                    </button>
-                </form>
-            </div>
+            )}
 
             {/* Lista de Equipe */}
             <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -308,6 +313,7 @@ export default function EquipeEditor() {
                         <MemberCard 
                             key={m.id}
                             membro={m}
+                            canManage={canManage}
                             isCurrentUser={m.user_id === session?.user?.id}
                             onRemove={() => setMembroParaRemover({ id: m.id, email: m.profiles?.email || 'membro' })}
                         />
@@ -318,6 +324,7 @@ export default function EquipeEditor() {
                         <PendingInviteCard 
                             key={c.id}
                             convite={c}
+                            canManage={canManage}
                             onCancel={() => setConviteParaCancelar({ id: c.id, email: c.email })}
                         />
                     ))}

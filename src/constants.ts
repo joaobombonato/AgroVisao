@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.110";
+export const APP_VERSION = "v4.7.111";
 
 export const DADOS_INICIAIS = {
   chuvas: [],
@@ -71,9 +71,7 @@ export const DEFAULT_PERMISSIONS: any = {
   },
   Gerente: {
     screens: {
-      dashboard: true,
-      graficos: true,
-      config: false,
+      config: true,
       os: true,
       refeicoes: true,
       abastecimento: true,
@@ -84,6 +82,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: true,
       chuvas: true,
       mapa: true,
+      relatorios: true,
     },
     actions: {
       abastecimento_compra: true,
@@ -113,7 +112,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: true,
       chuvas: true,
       mapa: false,
-      relatorios: false,
+      relatorios: true,
     },
     actions: {
       abastecimento_compra: true,
@@ -132,7 +131,7 @@ export const DEFAULT_PERMISSIONS: any = {
     screens: {
       dashboard: false,
       graficos: false,
-      config: false,
+      config: true,
       os: true,
       refeicoes: true,
       abastecimento: true,
@@ -143,6 +142,7 @@ export const DEFAULT_PERMISSIONS: any = {
       energia: true,
       chuvas: true,
       mapa: true,
+      relatorios: true,
     },
     actions: {
       abastecimento_compra: false,

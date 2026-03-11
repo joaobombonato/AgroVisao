@@ -15,6 +15,7 @@ import type { LucideIcon } from "lucide-react";
 
 export interface ReportDef {
   id: string;
+  modulo: string;
   titulo: string;
   desc: string;
   categoria: string;
@@ -150,6 +151,7 @@ export const CADASTROS_TOTAL_COLS = 9;
 export const RELATORIOS: ReportDef[] = [
   {
     id: "os",
+    modulo: "documentos", // Ordems de Serviço estão ligadas a Documentos/Geral
     titulo: "Relatório de Ordens de Serviço",
     desc: "Listagem e detalhes das Ordens de Serviço.",
     categoria: "O.S",
@@ -161,6 +163,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: 'cadastros',
+    modulo: 'config',
     titulo: 'Cadastros e Listas',
     desc: 'Exportação massiva de configurações, itens e ativos.',
     categoria: 'Geral',
@@ -172,6 +175,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: "fat_refeicoes",
+    modulo: "refeicoes",
     titulo: "Faturamento de Refeições",
     desc: "Resumo mensal por fornecedor e cozinha.",
     categoria: "Refeições",
@@ -183,6 +187,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: "custo_abast",
+    modulo: "abastecimentos",
     titulo: "Relatório de Abastecimentos",
     desc: "Histórico cronológico com saldo de estoque e médias.",
     categoria: "Abastecimentos",
@@ -194,6 +199,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: "extrato_chuvas",
+    modulo: "chuvas",
     titulo: "Extrato de Chuvas",
     desc: "Acumulado mensal por safra e estação.",
     categoria: "Clima",
@@ -205,6 +211,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: "uso_insumos",
+    modulo: "abastecimentos", // Pode ser vinculado a abastecimentos/estoque
     titulo: "Uso de Insumos",
     desc: "Relatório de saídas de estoque por talhão.",
     categoria: "Estoque",

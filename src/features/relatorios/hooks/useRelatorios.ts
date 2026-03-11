@@ -46,11 +46,21 @@ export default function useRelatorios() {
     exportType: 'pdf' | 'excel';
   } | null>(null);
 
-  // Filtro de busca
-  const filtrados = RELATORIOS.filter(r =>
-      r.titulo.toLowerCase().includes(search.toLowerCase()) ||
-    r.desc.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filtro de busca + Permissões
+  const filtrados = RELATORIOS.filter(r => {
+    // 1. Check de Busca
+    const matchesSearch = r.titulo.toLowerCase().includes(search.toLowerCase()) || 
+                          r.desc.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // 2. Check de Permissão Dinâmica
+    const { rolePermissions } = state;
+    if (rolePermissions?.screens && rolePermissions.screens[r.modulo] === false) {
+      return false;
+    }
+
+    return true;
+  });
 
   // Abre modal ao invés de exportar direto
   const openExportModal = (type: 'pdf' | 'excel', relId: string, titulo: string) => {

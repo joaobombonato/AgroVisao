@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Save, Sliders, Zap, Fuel, AlertTriangle, Home } from 'lucide-react';
+import { Save, Sliders, Zap, Fuel, AlertTriangle, Home, Shield } from 'lucide-react';
 import { PageHeader, Input } from '../../../components/ui/Shared';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { toast } from 'react-hot-toast';
 import { U } from '../../../utils';
 
 export default function ParametrosEditor({ currentParams, onSave, onBack }: any) {
+    const { genericSave, rolePermissions } = useAppContext();
+    const canEdit = rolePermissions?.actions?.config_sistema !== false;
+    
     const [form, setForm] = useState(() => {
         const safeParams = currentParams || {};
         return {
@@ -21,19 +24,18 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
             ...safeParams
         };
     });
-    const { genericSave } = useAppContext();
     const [isLocked, setIsLocked] = useState(true);
 
     const handleTrocarBomba = () => {
+        if (!canEdit) return;
         const novaBomba = window.prompt("Digite a nova leitura inicial da BOMBA (Reset):", "0");
         if (novaBomba === null || novaBomba === "") return;
 
         const val = U.parseDecimal(novaBomba);
         if (window.confirm(`Isso irá resetar as futuras leituras para começar em ${U.formatValue(val)}. Confirma?`)) {
-            // 1. Atualiza o estado local
+            // ... (resto da lógica mantido)
             handleChange('estoque', 'bombaInicial', novaBomba);
             
-            // 2. Cria registro de reset no abastecimento (para busca da última leitura)
             const registroReset = {
                 data_operacao: U.todayIso(),
                 maquina: "TROCA DE BOMBA",
@@ -48,7 +50,6 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 modulo: 'abastecimentos' 
             });
 
-            // 3. Força o salvamento dos parâmetros com o novo valor
             const novosParams = {
                 ...form,
                 estoque: {
@@ -62,6 +63,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
     };
 
     const handleChange = (section: string, field: string, value: string) => {
+        if (!canEdit) return;
         if (section === 'root') {
              setForm((prev: any) => ({ ...prev, [field]: value }));
              return;
@@ -70,14 +72,12 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
         setForm((prev: any) => ({
             ...prev,
             [section]: {
-                ...(prev[section] || {}), // Garante que prev[section] existe
-                [field]: value // Mantemos como string durante a edição para melhor UX (limpar campo, etc)
-                               // A conversão para Number pode ser feita no onSave se necessário, mas o Input type="number" já ajuda
+                ...(prev[section] || {}),
+                [field]: value
             }
         }));
     };
     
-    // Função auxiliar para evitar NaN ou Undefined nos values
     const getVal = (section: string, field: string) => {
         if (section === 'root') return form[field] ?? '';
         return form[section]?.[field] ?? '';
@@ -86,6 +86,17 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
     return (
         <div className="space-y-6">
             
+            {!canEdit && (
+                <div className="bg-blue-50 border-2 border-blue-100 p-4 rounded-xl flex gap-3 animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-white p-2 rounded-lg h-fit shadow-sm">
+                        <Shield className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-blue-900 text-xs uppercase tracking-wider">Modo de Visualização</h4>
+                        <p className="text-[10px] text-blue-700 mt-0.5 leading-tight font-medium">Você pode conferir as tarifas e configurações de estoque, mas apenas o Proprietário ou Gestor podem realizar alterações.</p>
+                    </div>
+                </div>
+            )}
 
             {/* SAFRA ATIVA (GLOBAL) */}
             <div className="bg-white p-4 rounded-xl shadow-md border-l-4 border-blue-600 space-y-3">
@@ -95,24 +106,26 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 <div className="space-y-1">
                     <label className="block text-xs font-bold text-gray-700">Safra Ativa (Contexto Principal)</label>
                     <select 
+                        disabled={!canEdit}
                         value={form.safraAtiva || ''} 
                         onChange={(e) => setForm({...form, safraAtiva: e.target.value})}
-                        className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-bold focus:border-blue-500 outline-none"
+                        className={`w-full px-3 py-2 border-2 rounded-lg text-sm font-bold outline-none transition-all ${!canEdit ? 'bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed' : 'border-gray-300 focus:border-blue-500'}`}
                     >
                         <option value="">Nenhuma Safra Selecionada</option>
                         {(currentParams?.safras_lista || []).map((s: any) => (
                             <option key={s.id} value={s.id}>{s.nome || s.titulo}</option>
                         ))}
                     </select>
-                    <p className="text-[10px] text-gray-400 leading-tight">Todos os lançamentos de hoje em diante serão vinculados a esta Safra.</p>
                 </div>
             </div>
+
             <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500 space-y-3">
                 <h3 className="font-bold text-gray-700 flex items-center gap-2">
                     <Zap className="w-5 h-5 text-yellow-500"/> Parâmetros de Energia (CEMIG 2025)
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                     <Input 
+                        readOnly={!canEdit}
                         label="Tarifa Mínima Fixa (R$)" 
                         value={getVal('energia', 'tarifaMinima')} 
                         onChange={(e: any) => handleChange('energia', 'tarifaMinima', e.target.value)}
@@ -120,6 +133,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                         legend="Valor mínimo cobrado pela CEMIG."
                     />
                     <Input 
+                        readOnly={!canEdit}
                         label="Diferença TUSD Solar (R$)" 
                         value={getVal('energia', 'tusdSolar')} 
                         onChange={(e: any) => handleChange('energia', 'tusdSolar', e.target.value)}
@@ -128,6 +142,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <Input 
+                        readOnly={!canEdit}
                         label="Tarifa Comercial (R$)" 
                         value={getVal('energia', 'tarifaComercial')} 
                         onChange={(e: any) => handleChange('energia', 'tarifaComercial', e.target.value)}
@@ -135,6 +150,7 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                         legend="Valor integral do kWh (Energia + Impostos)."
                     />
                     <Input 
+                        readOnly={!canEdit}
                         label="Tarifa GD / Reembolso (R$)" 
                         value={getVal('energia', 'tusdGD')} 
                         onChange={(e: any) => handleChange('energia', 'tusdGD', e.target.value)}
@@ -142,12 +158,6 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                         legend="Valor GD II para ajuste de disponibilidade."
                     />
                 </div>
-                <Input 
-                    label="Dia do Fechamento (Leitura)" 
-                    value={getVal('energia', 'diaLeitura')} 
-                    onChange={(e: any) => handleChange('energia', 'diaLeitura', e.target.value)}
-                    type="text" mask="day" placeholder="Ex: 15"
-                />
             </div>
 
             {/* DIESEL / ESTOQUE */}
@@ -156,33 +166,29 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     <Fuel className="w-5 h-5 text-red-500"/> Estoque Diesel
                 </h3>
                 <Input 
+                    readOnly={!canEdit}
                     label="Capacidade do Tanque (Litros)" 
                     value={getVal('estoque', 'capacidadeTanque')} 
                     onChange={(e: any) => handleChange('estoque', 'capacidadeTanque', e.target.value)}
-                    type="text"
-                    mask="metric"
-                    placeholder="Ex: 15.000"
+                    type="text" mask="metric" placeholder="Ex: 15.000"
                 />
                 <Input 
+                    readOnly={!canEdit}
                     label="Estoque Mínimo (Alerta)" 
                     value={getVal('estoque', 'estoqueMinimo')} 
                     onChange={(e: any) => handleChange('estoque', 'estoqueMinimo', e.target.value)}
-                    type="text"
-                    mask="metric"
-                    placeholder="Ex: 1.000"
+                    type="text" mask="metric" placeholder="Ex: 1.000"
                 />
                 <div className="relative">
                     <Input 
                         label="Ajuste Manual / Saldo Inicial (L)" 
                         value={getVal('estoque', 'ajusteManual')} 
                         onChange={(e: any) => handleChange('estoque', 'ajusteManual', e.target.value)}
-                        type="text"
-                        mask="metric"
-                        placeholder="Ex: 500"
-                        readOnly={isLocked}
-                        className={isLocked ? "bg-gray-50 text-gray-400" : ""}
+                        type="text" mask="metric" placeholder="Ex: 500"
+                        readOnly={isLocked || !canEdit}
+                        className={(isLocked || !canEdit) ? "bg-gray-50 text-gray-400" : ""}
                     />
-                    {isLocked && (
+                    {(isLocked && canEdit) && (
                         <button 
                             onClick={() => window.confirm("Alterar o Saldo Inicial quebra a lógica FIFO. Use 'Ajuste de Estoque' no menu de Diesel para correções normais. Deseja realmente habilitar a edição?") && setIsLocked(false)}
                             className="absolute right-2 top-8 text-[10px] font-bold text-amber-600 hover:underline"
@@ -197,30 +203,26 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                         label="Bomba Inicial (Leitura)" 
                         value={getVal('estoque', 'bombaInicial')} 
                         onChange={(e: any) => handleChange('estoque', 'bombaInicial', e.target.value)}
-                        type="text"
-                        mask="decimal"
-                        placeholder="Ex: 12500,0"
-                        readOnly={isLocked}
-                        className={isLocked ? "bg-gray-50 text-gray-400" : ""}
+                        type="text" mask="decimal" placeholder="Ex: 12500,0"
+                        readOnly={isLocked || !canEdit}
+                        className={(isLocked || !canEdit) ? "bg-gray-50 text-gray-400" : ""}
                     />
-                    <button 
-                        onClick={handleTrocarBomba}
-                        className="absolute right-2 top-8 text-[10px] font-bold text-blue-600 hover:underline"
-                    >
-                        Trocar Bomba (Reset)
-                    </button>
-                    <p className="text-[9px] text-gray-400 px-1 mt-1">
-                        Use 'Trocar Bomba' se substituiu o equipamento físico. 
-                    </p>
+                    {canEdit && (
+                        <button 
+                            onClick={handleTrocarBomba}
+                            className="absolute right-2 top-8 text-[10px] font-bold text-blue-600 hover:underline"
+                        >
+                            Trocar Bomba (Reset)
+                        </button>
+                    )}
                 </div>
 
                 <Input 
+                    readOnly={!canEdit}
                     label="Preço de Referência Diesel (R$)" 
                     value={getVal('financeiro', 'precoDiesel')} 
                     onChange={(e: any) => handleChange('financeiro', 'precoDiesel', e.target.value)}
-                    type="text"
-                    mask="decimal"
-                    placeholder="Ex: 6,45"
+                    type="text" mask="decimal" placeholder="Ex: 6,45"
                 />
             </div>
 
@@ -230,21 +232,22 @@ export default function ParametrosEditor({ currentParams, onSave, onBack }: any)
                     <AlertTriangle className="w-5 h-5 text-orange-500"/> Manutenção
                 </h3>
                 <Input 
+                    readOnly={!canEdit}
                     label="Alerta Preventivo (Horas Antes)" 
                     value={getVal('manutencao', 'alertaPreventiva')} 
                     onChange={(e: any) => handleChange('manutencao', 'alertaPreventiva', e.target.value)}
-                    type="text"
-                    numeric={true}
-                    placeholder="Ex: 50"
+                    type="text" numeric={true} placeholder="Ex: 50"
                 />
             </div>
 
-            <button 
-                onClick={() => onSave(form)} 
-                className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg"
-            >
-                <Save className="w-5 h-5"/> Salvar Alterações
-            </button>
+            {canEdit && (
+                <button 
+                    onClick={() => onSave(form)} 
+                    className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                >
+                    <Save className="w-5 h-5"/> Salvar Alterações
+                </button>
+            )}
         </div>
     );
 }

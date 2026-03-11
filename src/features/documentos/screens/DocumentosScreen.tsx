@@ -142,16 +142,18 @@ export default function DocumentosScreen() {
 
     const { id, parentId, ...restForm } = form; // Remove id manual e separa parentId
 
+    const remetenteNome = userProfile?.full_name || userProfile?.email?.split('@')[0] || 'Eu (Usuário)';
+    const fluxo = `${remetenteNome} > ${form.destinatario}`;
+    const descOS = isResponseMode ? `Resposta Doc (${fluxo}): ${form.nome}` : `Envio Doc (${fluxo}): ${form.nome}`;
+
     const novo = { 
         ...restForm, 
+        remetente: remetenteNome,
         parent_id: parentId || null,
         arquivo: fileUrls || 'Sem anexo', 
         nome_arquivo: fileNames, 
         status: 'Enviado'
     };
-    
-    const fluxo = `${form.remetente} > ${form.destinatario}`;
-    const descOS = isResponseMode ? `Resposta Doc (${fluxo}): ${form.nome}` : `Envio Doc (${fluxo}): ${form.nome}`;
 
     genericSave('documents', novo, { type: ACTIONS.ADD_RECORD, modulo: 'documentos', osDescricao: descOS });
     
@@ -174,7 +176,7 @@ export default function DocumentosScreen() {
         data_abertura: new Date().toISOString()
     });
     
-    setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', valor: '', remetente: userProfile?.full_name || 'Usuário Atual', destinatario: '', obs: '', parentId: '' });
+    setForm({ id: '', data: U.todayIso(), tipo: '', nome: '', codigo: '', valor: '', remetente: userProfile?.full_name || '', destinatario: '', obs: '', parentId: '' });
     clearAttachments();
     setIsResponseMode(false);
     toast.success('Documento tramitado com sucesso!');
@@ -280,13 +282,26 @@ export default function DocumentosScreen() {
               <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 flex items-center gap-1"><Send className="w-3 h-3"/> Fluxo de Tramitação</p>
               <div className="flex items-center gap-2">
                   <div className="flex-1">
-                      <Input label="De" value={form.remetente} readOnly={true} className="bg-gray-200 text-gray-700 cursor-not-allowed border-gray-300 pointer-events-none text-[12px]" />
+                      <Input 
+                        label="De" 
+                        value={userProfile?.full_name || userProfile?.email?.split('@')[0] || 'Eu (Usuário)'} 
+                        readOnly={true} 
+                        className="bg-gray-200 text-gray-700 cursor-not-allowed border-gray-300 pointer-events-none text-[12px] font-bold" 
+                      />
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 mt-5" />
                   <div className="flex-1">
                       <SearchableSelect 
                         label="Para" 
-                        options={Array.from(new Set([...(ativos?.colaboradores?.map((c:any) => c.nome) || [])])).filter(name => name !== form.remetente)} 
+                        options={Array.from(new Set([
+                            ...(ativos?.fazenda_membros?.map((m:any) => m.profiles?.full_name).filter(Boolean) || []),
+                            ...(ativos?.colaboradores?.map((c:any) => c.nome) || [])
+                        ]))
+                        .filter(name => {
+                            const myName = userProfile?.full_name || '';
+                            const myEmailPre = userProfile?.email?.split('@')[0] || '';
+                            return name !== myName && name !== myEmailPre && name !== 'Eu (Usuário)';
+                        })} 
                         value={form.destinatario} 
                         onChange={(e:any) => setForm({...form, destinatario: e.target.value})} 
                         required 

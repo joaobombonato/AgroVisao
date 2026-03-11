@@ -3,10 +3,11 @@ import { Clock, X } from 'lucide-react';
 
 interface PendingInviteCardProps {
     convite: any;
+    canManage?: boolean;
     onCancel: () => void;
 }
 
-export function PendingInviteCard({ convite, onCancel }: PendingInviteCardProps) {
+export function PendingInviteCard({ convite, canManage = true, onCancel }: PendingInviteCardProps) {
     return (
         <div className="p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors bg-amber-50/10">
             <div className="flex items-center gap-4">
@@ -24,12 +25,14 @@ export function PendingInviteCard({ convite, onCancel }: PendingInviteCardProps)
                 </div>
             </div>
 
-            <button 
-                onClick={onCancel}
-                className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
-            >
-                <X className="w-5 h-5" />
-            </button>
+            {canManage && (
+                <button 
+                    onClick={onCancel}
+                    className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+            )}
         </div>
     );
 }

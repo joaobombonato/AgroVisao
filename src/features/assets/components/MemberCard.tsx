@@ -4,10 +4,11 @@ import { Shield, Crown, X } from 'lucide-react';
 interface MemberCardProps {
     membro: any;
     isCurrentUser: boolean;
+    canManage?: boolean;
     onRemove: () => void;
 }
 
-export function MemberCard({ membro, isCurrentUser, onRemove }: MemberCardProps) {
+export function MemberCard({ membro, isCurrentUser, canManage = true, onRemove }: MemberCardProps) {
     return (
         <div className={`p-5 flex items-center justify-between group hover:bg-gray-50 transition-colors ${isCurrentUser ? 'bg-indigo-50/20' : ''}`}>
             <div className="flex items-center gap-4">
@@ -27,10 +28,10 @@ export function MemberCard({ membro, isCurrentUser, onRemove }: MemberCardProps)
                 </div>
             </div>
 
-            {membro.role !== 'Proprietário' && (
+            {membro.role !== 'Proprietário' && canManage && (
                 <button 
                     onClick={onRemove}
-                    className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                    className="p-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all font-black"
                 >
                     <X className="w-5 h-5" />
                 </button>
