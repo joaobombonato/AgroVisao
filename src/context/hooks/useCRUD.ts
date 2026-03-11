@@ -24,9 +24,9 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
   // ========================================================
   // FETCH (SELECT)
   // ========================================================
-  const fetchRecords = useCallback(async (table: string) => {
+  const fetchRecords = useCallback(async (table: string, selectString: string = '*') => {
     if (!fazendaId) return [];
-    const { data, error } = await dbService.select(table, fazendaId);
+    const { data, error } = await dbService.select(table, fazendaId, undefined, selectString);
     if (error) return [];
     dispatch({ type: ACTIONS.SET_DB_ASSETS, table, records: data || [] });
     return data || [];

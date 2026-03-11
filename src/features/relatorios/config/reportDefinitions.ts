@@ -211,7 +211,7 @@ export const RELATORIOS: ReportDef[] = [
   },
   {
     id: "uso_insumos",
-    modulo: "abastecimentos", // Pode ser vinculado a abastecimentos/estoque
+    modulo: "recomendacoes", // Vinculado a recomendações (estoque de insumos)
     titulo: "Uso de Insumos",
     desc: "Relatório de saídas de estoque por talhão.",
     categoria: "Estoque",

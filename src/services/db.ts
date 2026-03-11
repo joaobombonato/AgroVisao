@@ -8,10 +8,10 @@ import { toast } from 'react-hot-toast';
 export const dbService = {
     // Busca genérica com ISOLAMENTO DE FAZENDA (SaaS)
     // Busca genérica com ISOLAMENTO DE FAZENDA (SaaS)
-    async select(table: string, fazendaId: string, orderBy?: string) {
+    async select(table: string, fazendaId: string, orderBy?: string, selectString: string = '*') {
         let query = supabase
             .from(table)
-            .select('*')
+            .select(selectString)
             .eq('fazenda_id', fazendaId); // 🔒 Enforce Tenancy
         
         // Mapa de Ordenação Inteligente
