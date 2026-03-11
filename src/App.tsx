@@ -101,7 +101,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
   const { permissions } = state;
   const rolePermissions = permissions?.[userRole || ''] || permissions?.['Operador']; // Fallback seguro
   
-  const isRestrito = rolePermissions?.screens?.[screenId] === false;
+  const isRestrito = (screenId !== 'config' && screenId !== 'relatorios') && rolePermissions?.screens?.[screenId] === false;
   
   const ScreenComponent = isRestrito ? () => <RestrictedScreen onBackHome={() => setTela('principal')} /> : (Screens[screenId] || PrincipalScreen);
   
@@ -112,6 +112,7 @@ const MainLayout = ({ deferredPrompt, handleInstallClick }: { deferredPrompt: an
     { id: 'config', nome: 'Config.', icon: Settings, activeColor: 'text-gray-700', activeBg: 'bg-gray-700', iconColor: 'text-white' }
   ].filter(m => {
     const screenBaseId = m.id.split(':')[0];
+    if (screenBaseId === 'config' || screenBaseId === 'relatorios') return true;
     if (rolePermissions?.screens?.[screenBaseId] === false) return false;
     return true;
   });

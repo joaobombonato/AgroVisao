@@ -21,7 +21,6 @@ export default function PrincipalScreen() {
     { id: 'chuvas:previsao', nome: 'Chuvas e Previsão', icon: CloudRain, cor: 'bg-cyan-500', descricao: 'Registro de Chuvas e Previsão Multi-Fonte' }, 
     { id: 'mapa', nome: 'Mapas e Satélite', icon: MapPinned, cor: 'bg-green-700', descricao: 'Satélite & Área' },
     { id: 'relatorios', nome: 'Relatórios', icon: FileText, cor: 'bg-indigo-700', descricao: 'Relatórios Diversos' },
-    { id: 'config', nome: 'Configurações', icon: Settings, cor: 'bg-zinc-600', descricao: 'Ajustes e Parâmetros' },
   ].filter(m => {
     const screenId = m.id.split(':')[0];
     // Força visibilidade de telas que entraram em modo leitura/público

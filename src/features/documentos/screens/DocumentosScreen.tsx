@@ -142,7 +142,7 @@ export default function DocumentosScreen() {
 
     const { id, parentId, ...restForm } = form; // Remove id manual e separa parentId
 
-    const remetenteNome = userProfile?.full_name || userProfile?.email?.split('@')[0] || 'Eu (Usuário)';
+    const remetenteNome = userProfile?.full_name || userProfile?.user_metadata?.full_name || userProfile?.email?.split('@')[0] || 'Eu (Usuário)';
     const fluxo = `${remetenteNome} > ${form.destinatario}`;
     const descOS = isResponseMode ? `Resposta Doc (${fluxo}): ${form.nome}` : `Envio Doc (${fluxo}): ${form.nome}`;
 
