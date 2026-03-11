@@ -295,12 +295,12 @@ export default function DocumentosScreen() {
                         label="Para" 
                         options={Array.from(new Set([
                             ...(ativos?.fazenda_membros?.map((m:any) => m.profiles?.full_name).filter(Boolean) || []),
-                            ...(ativos?.colaboradores?.map((c:any) => c.nome) || [])
+                            ...(ativos?.colaboradores?.map((c:any) => c.nome).filter(Boolean) || [])
                         ]))
                         .filter(name => {
                             const myName = userProfile?.full_name || '';
                             const myEmailPre = userProfile?.email?.split('@')[0] || '';
-                            return name !== myName && name !== myEmailPre && name !== 'Eu (Usuário)';
+                            return name && name !== myName && name !== myEmailPre && name !== 'Eu (Usuário)';
                         })} 
                         value={form.destinatario} 
                         onChange={(e:any) => setForm({...form, destinatario: e.target.value})} 

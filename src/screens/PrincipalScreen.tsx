@@ -24,6 +24,8 @@ export default function PrincipalScreen() {
     { id: 'config', nome: 'Configurações', icon: Settings, cor: 'bg-zinc-600', descricao: 'Ajustes e Parâmetros' },
   ].filter(m => {
     const screenId = m.id.split(':')[0];
+    // Força visibilidade de telas que entraram em modo leitura/público
+    if (screenId === 'config' || screenId === 'relatorios') return true;
     if (rolePermissions?.screens?.[screenId] === false) return false;
     return true;
   });
