@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.121";
+export const APP_VERSION = "v4.7.122";
 
 export const DADOS_INICIAIS = {
   chuvas: [],
@@ -67,6 +67,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: true,
       config_propriedade: true,
       config_sistema: true,
+      os_gestao: true,
     },
   },
   Gerente: {
@@ -95,6 +96,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: true,
       config_propriedade: true,
       config_sistema: true,
+      os_gestao: true,
     },
   },
   Administrativo: {
@@ -125,6 +127,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: false,
       config_propriedade: true,
       config_sistema: false,
+      os_gestao: true,
     },
   },
   Operador: {
@@ -155,6 +158,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: false,
       config_propriedade: false,
       config_sistema: false,
+      os_gestao: false,
     },
   },
   "Consultor Agrícola": {
@@ -185,6 +189,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: false,
       config_propriedade: true,
       config_sistema: false,
+      os_gestao: false,
     },
   },
   Cozinha: {
@@ -215,6 +220,7 @@ export const DEFAULT_PERMISSIONS: any = {
       config_equipe: false,
       config_propriedade: false,
       config_sistema: false,
+      os_gestao: false,
     },
   },
 };

@@ -92,6 +92,7 @@ export default function PermissionsEditor() {
     { id: 'config_equipe', label: 'Gerenciar Pessoas e Equipe' },
     { id: 'config_propriedade', label: 'Ajustar Dados da Fazenda' },
     { id: 'config_sistema', label: 'Alterar Parâmetros e Safras' },
+    { id: 'os_gestao', label: 'Confirmar/Cancelar Ordens de Serviço' },
   ];
 
   return (

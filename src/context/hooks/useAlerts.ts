@@ -46,7 +46,8 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
                 "Máquina": m.nome, 
                 "Banco": m.banco_alienacao, 
                 "Contrato": m.numero_contrato,
-                "Previsão Quitação": U.formatDate(m.data_final_alienacao) 
+                "Previsão Quitação": U.formatDate(m.data_final_alienacao),
+                "Registrado por": "Sistema (Automático)"
               },
               status: 'Pendente',
               maquina_id: m.id,
@@ -81,7 +82,8 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
                detalhes: { 
                  "Máquina": m.nome, 
                  "Apólice": m.apolice_seguro || 'Ñ Inform.', 
-                 "Vencimento": U.formatDate(m.vencimento_seguro) 
+                 "Vencimento": U.formatDate(m.vencimento_seguro),
+                 "Registrado por": "Sistema (Automático)"
                },
                status: 'Pendente',
                maquina_id: m.id,
@@ -105,7 +107,14 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
     if (estoqueAtual <= estoqueMinimo && estoqueMinimo > 0) {
       const ordens = (state.os || []);
       const descAlerta = `COMPRA DE DIESEL - Nível Crítico (${U.formatInt(estoqueAtual)} L)`;
-      if (!ordens.some((o: any) => (o.descricao.includes('COMPRA DE DIESEL') || o.descricao.includes('REESTOQUE DE DIESEL') || o.descricao.includes('COMPRA URGENTE DE DIESEL')) && o.status === 'Pendente')) {
+      
+      // Regra v122: Gera apenas 1 OS por vez (Pendente ou Confirmada)
+      const jaExiste = ordens.some((o: any) => 
+        (o.descricao.includes('COMPRA DE DIESEL') || o.descricao.includes('REESTOQUE DE DIESEL') || o.descricao.includes('COMPRA URGENTE DE DIESEL')) && 
+        (o.status === 'Pendente' || o.status === 'Confirmado')
+      );
+
+      if (!jaExiste) {
         await genericSave('os', {
           modulo: 'Abastecimento',
           descricao: descAlerta,
@@ -113,7 +122,8 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
             "Alerta": "Automático por Estoque Crítico",
             "Estoque Atual": `${U.formatInt(estoqueAtual)} L`, 
             "Mínimo Configurado": `${U.formatInt(estoqueMinimo)} L`,
-            "Prioridade": "URGENTE"
+            "Prioridade": "URGENTE",
+            "Registrado por": "Sistema (Automático)"
           },
           status: 'Pendente',
           data_abertura: U.todayIso()
@@ -150,7 +160,8 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
               "Máquina": m.nome, 
               "Horímetro Atual": U.formatValue(horimetroAtual), 
               "Próxima Revisão": U.formatValue(horimetroRevisao),
-              "Faltam": U.formatValue(horimetroRevisao - horimetroAtual) + " h/km"
+              "Faltam": U.formatValue(horimetroRevisao - horimetroAtual) + " h/km",
+              "Registrado por": "Sistema (Automático)"
             },
             status: 'Pendente',
             maquina_id: m.id,
@@ -183,7 +194,12 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
             await genericSave('os', {
               modulo: 'Administrativo',
               descricao: descAlerta,
-              detalhes: { "Colaborador": p.nome, "Data": U.formatDate(p.data_nascimento), "Mensagem": "Parabenizar colaborador!" },
+              detalhes: { 
+                "Colaborador": p.nome, 
+                "Data": U.formatDate(p.data_nascimento), 
+                "Mensagem": "Parabenizar colaborador!",
+                "Registrado por": "Sistema (Automático)"
+              },
               status: 'Pendente',
               data_abertura: hojeIso
             });
@@ -200,7 +216,12 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
             await genericSave('os', {
               modulo: 'Administrativo',
               descricao: descAlerta,
-              detalhes: { "Colaborador": p.nome, "Vencimento": U.formatDate(p.vencimento_cnh), "Ação": "Solicitar renovação!" },
+              detalhes: { 
+                "Colaborador": p.nome, 
+                "Vencimento": U.formatDate(p.vencimento_cnh), 
+                "Ação": "Solicitar renovação!",
+                "Registrado por": "Sistema (Automático)"
+              },
               status: 'Pendente',
               data_abertura: hojeIso
             });

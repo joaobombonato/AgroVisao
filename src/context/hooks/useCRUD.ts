@@ -102,6 +102,13 @@ export function useCRUD({ fazendaId, dispatch, state, addToQueue }: UseCRUDParam
       if (payload.descricao?.includes('HISTÓRICO') || payload.descricao?.includes('CONFERÊNCIA') || payload.modulo === 'Seguro') {
         payload.numero = `AUT-${payload.numero}`;
       }
+
+      // Rastreabilidade de quem registrou
+      const userName = state.userProfile?.full_name || state.session?.user?.email?.split('@')[0] || 'Usuário';
+      payload.detalhes = {
+        "Registrado por": userName,
+        ...payload.detalhes
+      };
     }
 
     const recordWithId = { ...payload, id: tempid };

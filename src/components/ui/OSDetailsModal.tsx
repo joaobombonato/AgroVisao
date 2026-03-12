@@ -5,8 +5,12 @@ import { useAppContext } from '../../context/AppContext';
 
 export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
     const [confirmCancel, setConfirmCancel] = useState(false);
-    const { dbAssets } = useAppContext();
+    const { state, dbAssets } = useAppContext();
+    const { permissions, userRole } = state;
     
+    // Regra v122: Apenas quem tem a permissão 'os_gestao' pode ver os botões de ação
+    const canManage = permissions?.[userRole]?.actions?.os_gestao !== false;
+
     if (!os) return null;
     const getStatusColor = (s:string) => s === 'Pendente' ? 'bg-yellow-500' : s === 'Confirmado' ? 'bg-green-500' : 'bg-red-500';
     return (
@@ -106,19 +110,23 @@ export const OSDetailsModal = ({ os, onClose, onUpdateStatus }: any) => {
                             <button onClick={onClose} className="flex-1 py-3 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 flex items-center justify-center gap-2 transition-colors">
                                 <ArrowLeftCircle className="w-5 h-5"/> Voltar
                             </button>
-                            {!confirmCancel ? (
-                                <button onClick={() => setConfirmCancel(true)} className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg font-bold hover:bg-red-200 flex items-center justify-center gap-2 transition-colors">
-                                    <X className="w-5 h-5"/> Cancelar
-                                </button>
-                            ) : (
-                                <button onClick={() => { onUpdateStatus(os.id, 'Cancelado'); onClose(); }} className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 flex items-center justify-center gap-2 transition-colors animate-in zoom-in duration-200">
-                                    <X className="w-5 h-5"/> Tem certeza?
-                                </button>
+                            {canManage && (
+                                !confirmCancel ? (
+                                    <button onClick={() => setConfirmCancel(true)} className="flex-1 py-3 bg-red-100 text-red-700 rounded-lg font-bold hover:bg-red-200 flex items-center justify-center gap-2 transition-colors">
+                                        <X className="w-5 h-5"/> Cancelar
+                                    </button>
+                                ) : (
+                                    <button onClick={() => { onUpdateStatus(os.id, 'Cancelado'); onClose(); }} className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 flex items-center justify-center gap-2 transition-colors animate-in zoom-in duration-200">
+                                        <X className="w-5 h-5"/> Tem certeza?
+                                    </button>
+                                )
                             )}
                         </div>
-                        <button onClick={() => { onUpdateStatus(os.id, 'Confirmado'); onClose(); }} className="w-full py-4 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-lg shadow-md">
-                            <Check className="w-6 h-6"/> Confirmar OS
-                        </button>
+                        {canManage && (
+                            <button onClick={() => { onUpdateStatus(os.id, 'Confirmado'); onClose(); }} className="w-full py-4 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-lg shadow-md">
+                                <Check className="w-6 h-6"/> Confirmar OS
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
