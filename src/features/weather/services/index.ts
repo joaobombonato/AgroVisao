@@ -42,7 +42,7 @@ export async function fetchMultiSourceWeather(lat: number, lng: number): Promise
       const isExpired = Date.now() - cached.timestamp > CACHE_TTL;
       
       if (!isExpired && cached.data && cached.data.length > 0) {
-        console.log(`[Cache] Usando dados climáticos memorizados para ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
+        // console.log(`[Cache] Usando dados climáticos memorizados para ${lat.toFixed(3)}, ${lng.toFixed(3)}`);
         return cached.data;
       }
     }

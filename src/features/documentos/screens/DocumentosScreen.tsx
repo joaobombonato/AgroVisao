@@ -300,7 +300,12 @@ export default function DocumentosScreen() {
                         .filter(name => {
                             const myName = userProfile?.full_name || '';
                             const myEmailPre = userProfile?.email?.split('@')[0] || '';
-                            return name && name !== myName && name !== myEmailPre && name !== 'Eu (Usuário)';
+                            const genericNames = ['Eu (Gestor)', 'Membro (Operador)', 'Membro (Consultor)', 'Membro (Gerente)', 'Usuário Atual', 'Eu (Usuário)'];
+                            return name && 
+                                   name !== myName && 
+                                   name !== myEmailPre && 
+                                   !genericNames.includes(name) &&
+                                   !name.includes('Membro (');
                         })} 
                         value={form.destinatario} 
                         onChange={(e:any) => setForm({...form, destinatario: e.target.value})} 

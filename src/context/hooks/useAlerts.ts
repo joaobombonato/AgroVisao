@@ -259,7 +259,7 @@ export function useAlerts({ fazendaId, state, genericSave, estoqueCalculations }
         
         let nomeExibicao = perfil?.full_name;
         if (!nomeExibicao) {
-          nomeExibicao = (state.session?.user?.id === m.user_id) ? "Eu (Gestor)" : `Membro (${m.role})`;
+          nomeExibicao = (state.session?.user?.email || '').split('@')[0] || `Usuário-${m.user_id.substring(0,5)}`;
         }
 
         const jaExiste = colaboradoresAtuais.some((c: any) => 
