@@ -11,7 +11,8 @@ import { FazendaLogoHeader } from './FazendaLogoHeader';
 
 
 export default function FazendaPerfilEditor() {
-  const { fazendaId, fazendaSelecionada, dispatch, fazendasDisponiveis, setFazendaSelecionada } = useAppContext();
+  const { fazendaId, fazendaSelecionada, dispatch, fazendasDisponiveis, setFazendaSelecionada, state } = useAppContext();
+  const rolePermissions = state?.rolePermissions;
   const [loading, setLoading] = useState(false);
 
   const { geocodeAddress, getCurrentLocation, loading: geocoding } = useGeocoding();
@@ -50,6 +51,8 @@ export default function FazendaPerfilEditor() {
 
   // Hook ZARC para dados oficiais
   const { zarcData, loading: zarcLoading } = useZarcData(formData.cidade);
+
+  const canEdit = rolePermissions?.actions?.config_propriedade !== false;
 
   useEffect(() => {
     if (fazendaSelecionada) {
@@ -126,6 +129,7 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleCurrentLocation = async () => {
+    if (!canEdit) return;
     const result = await getCurrentLocation();
     if (result) {
       setFormData(prev => ({ ...prev, latitude: result.lat, longitude: result.lng }));
@@ -134,6 +138,7 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleGeocode = async () => {
+    if (!canEdit) return;
     if (!formData.cidade || !formData.estado) {
       toast.error("Selecione Estado e Cidade primeiro.");
       return;
@@ -145,6 +150,7 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canEdit) return;
     const file = e.target.files?.[0];
     if (file) cropHandleUpload(file);
   };
@@ -156,7 +162,7 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleSave = async () => {
-    if (!fazendaId) return;
+    if (!fazendaId || !canEdit) return;
     setLoading(true);
 
     try {
@@ -207,6 +213,7 @@ export default function FazendaPerfilEditor() {
   };
 
   const handleAdjustExisting = async () => {
+    if (!canEdit) return;
     if (adjustConfig.rawImage) {
       setIsAdjusting(true);
       return;
@@ -248,6 +255,7 @@ export default function FazendaPerfilEditor() {
         logoUrl={formData.logo_url}
         onFileChange={handleImageUpload}
         onAdjustClick={handleAdjustExisting}
+        canEdit={canEdit}
       />
 
       {/* Formulário de Dados */}
@@ -260,7 +268,8 @@ export default function FazendaPerfilEditor() {
             <Building2 className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm font-semibold text-gray-700"
+              readOnly={!canEdit}
+              className={`w-full pl-10 pr-4 py-3 border-0 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm font-semibold ${!canEdit ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-700'}`}
               placeholder="Nome da fazenda"
               value={formData.nome || ''}
               onChange={e => setFormData({ ...formData, nome: e.target.value })}
@@ -275,7 +284,8 @@ export default function FazendaPerfilEditor() {
               <Ruler className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-semibold text-gray-700"
+                readOnly={!canEdit}
+                className={`w-full pl-10 pr-4 py-3 border-0 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-semibold ${!canEdit ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-700'}`}
                 placeholder="0.00"
                 value={formData.tamanho_ha || ''}
                 onChange={e => setFormData({ ...formData, tamanho_ha: e.target.value.replace('.', ',') })}
@@ -383,7 +393,8 @@ export default function FazendaPerfilEditor() {
             <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              className="w-full pl-10 pr-4 py-3 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-semibold text-gray-700"
+              readOnly={!canEdit}
+              className={`w-full pl-10 pr-4 py-3 border-0 rounded-2xl focus:ring-2 focus:ring-green-500 outline-none text-sm font-semibold ${!canEdit ? 'bg-gray-100 text-gray-500' : 'bg-gray-50 text-gray-700'}`}
               placeholder="Nome do responsável"
               value={formData.proprietario || ''}
               onChange={e => setFormData({ ...formData, proprietario: e.target.value })}
@@ -392,14 +403,16 @@ export default function FazendaPerfilEditor() {
         </div>
       </div>
 
-      <button
-        onClick={handleSave}
-        disabled={loading}
-        className="w-full bg-green-600 text-white font-bold py-4 rounded-[2rem] shadow-lg hover:bg-green-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"
-      >
-        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-        Salvar Configurações
-      </button>
+      {canEdit && (
+        <button
+          onClick={handleSave}
+          disabled={loading}
+          className="w-full bg-green-600 text-white font-bold py-4 rounded-[2rem] shadow-lg hover:bg-green-700 hover:shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"
+        >
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+          Salvar Configurações
+        </button>
+      )}
     </div>
   );
 }
