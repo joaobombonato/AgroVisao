@@ -16,6 +16,7 @@ const ROLES = [
     { name: 'Proprietário', desc: 'Acesso total e irrestrito (admin master).' }
 ];
 
+export default function EquipeEditor() {
     const { fazendaId, session, fazendaNome, rolePermissions, state } = useAppContext();
     const userRole = state?.userRole;
     const canManage = userRole !== 'Operador' && rolePermissions?.actions?.config_equipe !== false;
