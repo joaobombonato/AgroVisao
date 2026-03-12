@@ -2,7 +2,7 @@
 // CONSTANTES GLOBAIS
 // ==========================================
 
-export const APP_VERSION = "v4.7.119";
+export const APP_VERSION = "v4.7.120";
 
 export const DADOS_INICIAIS = {
   chuvas: [],
@@ -184,6 +184,36 @@ export const DEFAULT_PERMISSIONS: any = {
       config_financeiro: false,
       config_equipe: false,
       config_propriedade: true,
+      config_sistema: false,
+    },
+  },
+  Cozinha: {
+    screens: {
+      dashboard: false,
+      graficos: false,
+      config: false,
+      os: false,
+      refeicoes: true,
+      abastecimento: false,
+      recomendacoes: false,
+      estoque: false,
+      manutencao: false,
+      docs: false,
+      energia: false,
+      chuvas: false,
+      mapa: false,
+      relatorios: true,
+    },
+    actions: {
+      abastecimento_compra: false,
+      estoque_compra: false,
+      recomendacao_criar: false,
+      chuvas_registro: false,
+      mapa_edicao: false,
+      excluir_registros: false,
+      config_financeiro: false,
+      config_equipe: false,
+      config_propriedade: false,
       config_sistema: false,
     },
   },
