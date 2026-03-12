@@ -16,9 +16,9 @@ const ROLES = [
     { name: 'Proprietário', desc: 'Acesso total e irrestrito (admin master).' }
 ];
 
-export default function EquipeEditor() {
-    const { fazendaId, session, fazendaNome, rolePermissions } = useAppContext();
-    const canManage = rolePermissions?.actions?.config_equipe !== false;
+    const { fazendaId, session, fazendaNome, rolePermissions, state } = useAppContext();
+    const userRole = state?.userRole;
+    const canManage = userRole !== 'Operador' && rolePermissions?.actions?.config_equipe !== false;
     const [loading, setLoading] = useState(false);
     const [membros, setMembros] = useState<any[]>([]);
     const [convites, setConvites] = useState<any[]>([]);

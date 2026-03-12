@@ -54,16 +54,16 @@ export default function SettingsMenu({
             </div>
 
             {/* Setor de Propriedade */}
-            {rolePermissions?.actions?.config_propriedade !== false && (
-                <div className="space-y-3">
-                    <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Setor de Propriedade</h2>
-                    <MenuButton 
-                        icon={Building2} 
-                        title="Minha Fazenda" 
-                        desc={rolePermissions?.actions?.config_propriedade === false ? `${fazendaNome} (Somente Leitura)` : (fazendaNome || "Dados da propriedade")} 
-                        onClick={() => setView('fazenda')} 
-                        color="bg-blue-50"
-                    />
+            <div className="space-y-3">
+                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Setor de Propriedade</h2>
+                <MenuButton 
+                    icon={Building2} 
+                    title="Minha Fazenda" 
+                    desc={rolePermissions?.actions?.config_propriedade === false ? `${fazendaNome} (Somente Leitura)` : (fazendaNome || "Dados da propriedade")} 
+                    onClick={() => setView('fazenda')} 
+                    color="bg-blue-50"
+                />
+                {rolePermissions?.actions?.config_propriedade !== false && (
                     <MenuButton 
                         icon={ListPlus} 
                         title="Cadastros & Listas" 
@@ -71,8 +71,8 @@ export default function SettingsMenu({
                         onClick={() => setView('listas')} 
                         color="bg-indigo-50"
                     />
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Avançado */}
             {rolePermissions?.actions?.config_sistema !== false && (
