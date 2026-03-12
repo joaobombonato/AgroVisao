@@ -62,7 +62,7 @@ export default function PermissionsEditor() {
     setShowRestoreConfirm(false);
   };
 
-  const roles = ['Proprietário', 'Gerente', 'Administrativo', 'Operador', 'Consultor Agrícola'];
+  const roles = ['Proprietário', 'Gerente', 'Administrativo', 'Operador', 'Cozinha', 'Consultor Agrícola'];
   
   const screens = [
     { id: 'dashboard', label: 'Dashboard', icon: FileCog, color: 'yellow-600', bg: 'bg-yellow-50/50', border: 'border-yellow-100', text: 'text-yellow-800' },

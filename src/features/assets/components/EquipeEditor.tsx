@@ -12,6 +12,7 @@ const ROLES = [
     { name: 'Operador', desc: 'Apenas lançamentos básicos do dia a dia.' },
     { name: 'Gerente', desc: 'Gestão operacional da fazenda e equipe de campo.' },
     { name: 'Administrativo', desc: 'Foco em dados financeiros, documentos e administrativo.' },
+    { name: 'Cozinha', desc: 'Lançamento de refeições e consulta de relatórios.' },
     { name: 'Consultor Agrícola', desc: 'Foco em recomendações técnicas, laudos e satélite.' },
     { name: 'Proprietário', desc: 'Acesso total e irrestrito (admin master).' }
 ];
@@ -55,8 +56,8 @@ export default function EquipeEditor() {
             if (errConvites) throw errConvites;
             
             const sortedMembros = (membrosDb || []).sort((a, b) => {
-                const order: any = { 'Proprietário': 0, 'Administrativo': 1, 'Gerente': 2, 'Operador': 3, 'Consultor Agrícola': 4 };
-                return (order[a.role] ?? 5) - (order[b.role] ?? 5);
+                const order: any = { 'Proprietário': 0, 'Administrativo': 1, 'Gerente': 2, 'Cozinha': 3, 'Operador': 4, 'Consultor Agrícola': 5 };
+                return (order[a.role] ?? 6) - (order[b.role] ?? 6);
             });
 
             setMembros(sortedMembros);
