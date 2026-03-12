@@ -217,19 +217,21 @@ export default function EquipeEditor() {
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             
             {/* Alerta de Permissões */}
-            <div className={`border rounded-3xl p-4 flex gap-3 shadow-sm border-dashed ${canManage ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
-                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
-                    <Shield className={`w-6 h-6 ${canManage ? 'text-amber-600' : 'text-blue-600'}`} />
+            {canManage && (
+                <div className={`border rounded-3xl p-4 flex gap-3 shadow-sm border-dashed ${canManage ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'}`}>
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                        <Shield className={`w-6 h-6 ${canManage ? 'text-amber-600' : 'text-blue-600'}`} />
+                    </div>
+                    <div className="space-y-0.5">
+                        <p className={`text-[11px] font-black uppercase tracking-widest ${canManage ? 'text-amber-900' : 'text-blue-900'}`}>{canManage ? 'Atenção Administrativa' : 'Modo de Visualização'}</p>
+                        <p className={`text-[10px] leading-relaxed font-medium ${canManage ? 'text-amber-800' : 'text-blue-800'}`}>
+                            {canManage 
+                                ? "Antes de autorizar novos acessos, recomendamos revisar as Permissões para conferir o que cada cargo poderá visualizar." 
+                                : "Você tem acesso para visualizar a equipe da fazenda, mas não possui permissão para convidar ou remover membros."}
+                        </p>
+                    </div>
                 </div>
-                <div className="space-y-0.5">
-                    <p className={`text-[11px] font-black uppercase tracking-widest ${canManage ? 'text-amber-900' : 'text-blue-900'}`}>{canManage ? 'Atenção Administrativa' : 'Modo de Visualização'}</p>
-                    <p className={`text-[10px] leading-relaxed font-medium ${canManage ? 'text-amber-800' : 'text-blue-800'}`}>
-                        {canManage 
-                            ? "Antes de autorizar novos acessos, recomendamos revisar as Permissões para conferir o que cada cargo poderá visualizar." 
-                            : "Você tem acesso para visualizar a equipe da fazenda, mas não possui permissão para convidar ou remover membros."}
-                    </p>
-                </div>
-            </div>
+            )}
 
             {/* Form de Autorização */}
             {canManage && (
@@ -332,7 +334,7 @@ export default function EquipeEditor() {
             </div>
 
             {/* Rodapé de Convite Social */}
-            <InviteFooter fazendaNome={fazendaNome || ''} />
+            {canManage && <InviteFooter fazendaNome={fazendaNome || ''} />}
 
             {/* Modais */}
             <ConfirmModal

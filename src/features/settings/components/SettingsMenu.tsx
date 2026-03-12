@@ -53,35 +53,40 @@ export default function SettingsMenu({
                 )}
             </div>
 
-            <div className="space-y-3">
-                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Setor de Propriedade</h2>
-                <MenuButton 
-                    icon={Building2} 
-                    title="Minha Fazenda" 
-                    desc={rolePermissions?.actions?.config_propriedade === false ? `${fazendaNome} (Somente Leitura)` : (fazendaNome || "Dados da propriedade")} 
-                    onClick={() => setView('fazenda')} 
-                    color="bg-blue-50"
-                />
-                <MenuButton 
-                    icon={ListPlus} 
-                    title="Cadastros & Listas" 
-                    desc={rolePermissions?.actions?.config_propriedade === false ? "Visualizar Ativos (Somente Leitura)" : "Máquinas, Talhões, Safras, Produtos, etc."} 
-                    onClick={() => setView('listas')} 
-                    color="bg-indigo-50"
-                />
-            </div>
+            {/* Setor de Propriedade */}
+            {rolePermissions?.actions?.config_propriedade !== false && (
+                <div className="space-y-3">
+                    <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Setor de Propriedade</h2>
+                    <MenuButton 
+                        icon={Building2} 
+                        title="Minha Fazenda" 
+                        desc={rolePermissions?.actions?.config_propriedade === false ? `${fazendaNome} (Somente Leitura)` : (fazendaNome || "Dados da propriedade")} 
+                        onClick={() => setView('fazenda')} 
+                        color="bg-blue-50"
+                    />
+                    <MenuButton 
+                        icon={ListPlus} 
+                        title="Cadastros & Listas" 
+                        desc={rolePermissions?.actions?.config_propriedade === false ? "Visualizar Ativos (Somente Leitura)" : "Máquinas, Talhões, Safras, Produtos, etc."} 
+                        onClick={() => setView('listas')} 
+                        color="bg-indigo-50"
+                    />
+                </div>
+            )}
 
             {/* Avançado */}
-            <div className="space-y-3">
-                <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Sistema & Safra</h2>
-                <MenuButton 
-                    icon={Sliders} 
-                    title="Parâmetros Gerais" 
-                    desc={rolePermissions?.actions?.config_sistema === false ? "Configurações (Somente Leitura)" : "Safra Ativa, Energia, Diesel e Manutenção"} 
-                    onClick={() => setView('parametros')} 
-                    color="bg-teal-50"
-                />
-            </div>
+            {rolePermissions?.actions?.config_sistema !== false && (
+                <div className="space-y-3">
+                    <h2 className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Sistema & Safra</h2>
+                    <MenuButton 
+                        icon={Sliders} 
+                        title="Parâmetros Gerais" 
+                        desc={rolePermissions?.actions?.config_sistema === false ? "Configurações (Somente Leitura)" : "Safra Ativa, Energia, Diesel e Manutenção"} 
+                        onClick={() => setView('parametros')} 
+                        color="bg-teal-50"
+                    />
+                </div>
+            )}
 
             {/* Logout */}
             <div className="pt-4 border-t border-gray-100">
