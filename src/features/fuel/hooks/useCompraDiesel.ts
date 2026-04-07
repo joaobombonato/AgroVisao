@@ -45,6 +45,7 @@ export default function useCompraDiesel(onClose: () => void) {
     destinatario: ''
   });
   
+  const [isDateSuggested, setIsDateSuggested] = useState(false);
   const [showFrete, setShowFrete] = useState(false);
   const [loadingCNPJ, setLoadingCNPJ] = useState({ fuel: false, frete: false });
   const [showScanner, setShowScanner] = useState(false);
@@ -119,24 +120,45 @@ export default function useCompraDiesel(onClose: () => void) {
         const hint = scanTarget?.includes('Nfe') ? 'nfe' : 'boleto';
         const result = await processBarcode(code, hint as any);
         
-        if (scanTarget?.includes('Nfe')) {
-            if (result.type !== 'nfe') {
-                toast.error('O código lido não parece ser uma NF-e.');
-                return;
-            }
-            const nfe = result as NFeData;
-            const isDiesel = scanTarget === 'dieselNfe';
-            
-            setForm(prev => ({
-                ...prev,
-                data: nfe.dataEmissaoIso || prev.data,
-                [isDiesel ? 'cnpjFornecedor' : 'cnpjFornecedorFrete']: nfe.cnpjFormatado,
-                [isDiesel ? 'fornecedor' : 'fornecedorFrete']: nfe.emitente || nfe.fantasia || (isDiesel ? prev.fornecedor : prev.fornecedorFrete),
-                [isDiesel ? 'notaFiscal' : 'nfFrete']: nfe.numero,
-                [isDiesel ? 'chaveNfeDiesel' : 'chaveNfeFrete']: nfe.chave
-            }));
-            toast.success(`NF-e ${nfe.numero} detectada! Data: ${nfe.anoMes}`);
-        } else if (scanTarget?.includes('Boleto')) {
+            if (scanTarget?.includes('Nfe')) {
+                if (result.type !== 'nfe') {
+                    toast.error('O código lido não parece ser uma NF-e.');
+                    return;
+                }
+                const nfe = result as NFeData;
+                const isDiesel = scanTarget === 'dieselNfe';
+
+                // TRAVA DE DUPLICIDADE (CHAVE DE ACESSO)
+                const jaExiste = (dados?.compras || []).some((c: any) => 
+                    c.tipo === 'combustivel' && 
+                    c.chave_nfe_diesel === nfe.chave
+                );
+
+                if (jaExiste) {
+                    toast.error(`ESTA NOTA JÁ FOI LANÇADA ANTERIORMENTE! (NF: ${nfe.numero})`, { 
+                        duration: 6000,
+                        style: { background: '#fee2e2', color: '#991b1b', fontWeight: 'bold', border: '2px solid #ef4444' }
+                    });
+                    return; // Bloqueia o preenchimento se já existir
+                }
+                
+                setForm(prev => ({
+                    ...prev,
+                    data: nfe.dataEmissaoIso || prev.data,
+                    [isDiesel ? 'cnpjFornecedor' : 'cnpjFornecedorFrete']: nfe.cnpjFormatado,
+                    [isDiesel ? 'fornecedor' : 'fornecedorFrete']: nfe.emitente || nfe.fantasia || (isDiesel ? prev.fornecedor : prev.fornecedorFrete),
+                    notaFiscal: nfe.numero,
+                    chaveNfeDiesel: nfe.chave
+                }));
+                setIsDateSuggested(true);
+                toast.success(`NF-e ${nfe.numero} detectada! Data: ${nfe.anoMes}`);
+                // Aviso: código de barras NF-e só contém mês/ano, não o dia exato
+                toast('⚠️ Confira a DATA da nota! O código só informa o mês.', { 
+                  duration: 5000, 
+                  icon: '📅',
+                  style: { background: '#FEF3C7', color: '#92400E', fontWeight: 'bold', fontSize: '13px' }
+                });
+            } else if (scanTarget?.includes('Boleto')) {
             if (result.type !== 'boleto_bancario' && result.type !== 'boleto_convenio') {
                 toast.error('O código lido não parece ser um boleto.');
                 return;
@@ -248,6 +270,7 @@ export default function useCompraDiesel(onClose: () => void) {
     // State
     currentStep, setCurrentStep,
     form, setForm,
+    isDateSuggested, setIsDateSuggested,
     showFrete, setShowFrete,
     loadingCNPJ,
     showScanner, setShowScanner,

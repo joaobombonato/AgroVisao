@@ -47,6 +47,16 @@ export function parseNFeKey(code: string): NFeData {
   const ano = `20${anoMes.substring(0, 2)}`;
   const mes = anoMes.substring(2, 4);
   
+  // O código de barras da NF-e só contém mês/ano, não o dia.
+  // Se o mês/ano coincidir com o atual, usa o dia de hoje como sugestão.
+  // Caso contrário, mantém dia 01 (o usuário deve corrigir manualmente).
+  const hoje = new Date();
+  const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+  const anoAtual = String(hoje.getFullYear());
+  const diaDefault = (ano === anoAtual && mes === mesAtual) 
+    ? String(hoje.getDate()).padStart(2, '0') 
+    : '01';
+  
   return {
     type: 'nfe',
     chave: clean,
@@ -58,6 +68,6 @@ export function parseNFeKey(code: string): NFeData {
     modelo,
     serie: serie.replace(/^0+/, '') || '1',
     numero,
-    dataEmissaoIso: `${ano}-${mes}-01`,
+    dataEmissaoIso: `${ano}-${mes}-${diaDefault}`,
   };
 }

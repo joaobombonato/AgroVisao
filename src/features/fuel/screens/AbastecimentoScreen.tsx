@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Fuel, ChevronDown, Check, Gauge, Truck, ChevronUp, Factory, Plus, Wrench, AlertCircle } from 'lucide-react';
+import { Fuel, ChevronDown, Check, Gauge, Truck, ChevronUp, Factory, Plus, Wrench, AlertCircle, PackageOpen } from 'lucide-react';
 import { useAppContext, ACTIONS } from '../../../context/AppContext';
 import { PageHeader, Input, SearchableSelect } from '../../../components/ui/Shared';
 import { U, getOperationalDateLimits } from '../../../utils';
@@ -95,6 +95,42 @@ export default function AbastecimentoScreen() {
             min={getOperationalDateLimits().min}
           />
 
+          {/* TOGGLE: VIA BOMBA vs EXTERNO */}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Tipo de Abastecimento</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setForm({...form, isExterno: false, litrosManuais: ''})}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                  !form.isExterno 
+                    ? 'bg-red-600 text-white shadow-md scale-[1.02]' 
+                    : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <Fuel className="w-4 h-4" /> Via Bomba
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({...form, isExterno: true, bombaFinal: ''})}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                  form.isExterno 
+                    ? 'bg-orange-500 text-white shadow-md scale-[1.02]' 
+                    : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <PackageOpen className="w-4 h-4" /> Externo (Direto)
+              </button>
+            </div>
+            {form.isExterno && (
+              <p className="text-[10px] text-orange-600 mt-2 text-center font-medium">
+                ⚠️ Diesel que não passou pela bomba do tanque principal
+              </p>
+            )}
+          </div>
+
           <SearchableSelect 
             label="Máquina / Veículo" 
             placeholder="Buscar o Maquinas... Ex: Trator" 
@@ -153,78 +189,132 @@ export default function AbastecimentoScreen() {
             )}
           </div>
 
-          {/* LEITURAS BOMBA/HORÍMETRO */}
-          <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
-            <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 text-center">Leitura da Bomba</div>
-            
-            {/* BOMBA INICIAL (AUTO) */}
-            <div className="space-y-1">
-              <div className="flex justify-center items-center gap-1">
-                <label className="block text-xs font-bold text-gray-500 text-center">Inicial</label>
-                <span className="text-[10px] text-red-600 bg-red-100 px-1 rounded">Auto</span>
+          {/* LEITURAS BOMBA/HORÍMETRO - Condicional ao modo */}
+          {form.isExterno ? (
+            /* MODO EXTERNO: Litros manual + Horímetro */
+            <div className="space-y-4">
+              <div className="bg-orange-50 p-3 rounded-xl border-2 border-orange-200">
+                <div className="text-xs font-bold text-orange-600 uppercase tracking-widest text-center mb-2">Litros Abastecidos (Manual)</div>
+                <Input 
+                  label="" 
+                  mask="decimal"
+                  placeholder="Ex: 150,0"
+                  value={form.litrosManuais} 
+                  onChange={(e: any) => setForm({...form, litrosManuais: e.target.value})}
+                  required
+                />
               </div>
-              <div className="bg-red-50 border border-red-100 rounded-lg p-2 relative">
-                <div className="absolute left-2 top-2 w-4 h-4 text-red-400" />
-                <input 
-                  type="text" 
-                  value={U.formatValue(form.bombaInicial)} 
-                  readOnly
-                  className="w-full bg-transparent font-bold text-red-800 outline-none text-center" 
-                  placeholder="-" 
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 text-center">Leitura {getUnidadeMedida() === 'Km' ? 'Hodômetro' : 'Horímetro'}</div>
+                {/* HORÍMETRO ANTERIOR (AUTO) */}
+                <div className="space-y-1">
+                  <div className="flex justify-center items-center gap-1">
+                    <label className="block text-xs font-bold text-gray-500 text-center">Anterior</label>
+                    <span className="text-[10px] text-red-600 bg-red-100 px-1 rounded">Auto</span>
+                  </div>
+                  <div className="bg-red-50 border border-red-100 rounded-lg p-2 relative">
+                    <Gauge className="absolute left-2 top-2 w-4 h-4 text-red-400" />
+                    <input 
+                      type="text" 
+                      value={form.horimetroAnterior} 
+                      readOnly 
+                      className="w-full pl-6 bg-transparent font-bold text-red-800 outline-none text-center" 
+                      placeholder="-" 
+                    />
+                  </div>
+                </div>
+                {/* HORÍMETRO ATUAL */}
+                <div className="space-y-1">
+                  <Input 
+                    label="Atual" 
+                    mask="decimal"
+                    placeholder="Ex: 501,5"
+                    value={form.horimetroAtual} 
+                    onChange={(e: any) => setForm({...form, horimetroAtual: e.target.value})}
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* MODO VIA BOMBA (PADRÃO) */
+            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
+              <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 text-center">Leitura da Bomba</div>
+              
+              {/* BOMBA INICIAL (AUTO) */}
+              <div className="space-y-1">
+                <div className="flex justify-center items-center gap-1">
+                  <label className="block text-xs font-bold text-gray-500 text-center">Inicial</label>
+                  <span className="text-[10px] text-red-600 bg-red-100 px-1 rounded">Auto</span>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-lg p-2 relative">
+                  <div className="absolute left-2 top-2 w-4 h-4 text-red-400" />
+                  <input 
+                    type="text" 
+                    value={U.formatValue(form.bombaInicial)} 
+                    readOnly
+                    className="w-full bg-transparent font-bold text-red-800 outline-none text-center" 
+                    placeholder="-" 
+                  />
+                </div>
+              </div>
+              
+              {/* BOMBA FINAL */}
+              <div className="space-y-1">
+                <Input 
+                  label="Final" 
+                  mask="decimal"
+                  placeholder="Ex: 12.550,5"
+                  value={form.bombaFinal} 
+                  onChange={(e: any) => setForm({...form, bombaFinal: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 mt-2 text-center">Leitura {getUnidadeMedida() === 'Km' ? 'Hodômetro' : 'Horímetro'}</div>
+
+              {/* HORÍMETRO ANTERIOR (AUTO) */}
+              <div className="space-y-1">
+                <div className="flex justify-center items-center gap-1">
+                  <label className="block text-xs font-bold text-gray-500 text-center">Anterior</label>
+                  <span className="text-[10px] text-red-600 bg-red-100 px-1 rounded">Auto</span>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-lg p-2 relative">
+                  <Gauge className="absolute left-2 top-2 w-4 h-4 text-red-400" />
+                  <input 
+                    type="text" 
+                    value={form.horimetroAnterior} 
+                    readOnly 
+                    className="w-full pl-6 bg-transparent font-bold text-red-800 outline-none text-center" 
+                    placeholder="-" 
+                  />
+                </div>
+              </div>
+
+              {/* HORÍMETRO ATUAL */}
+              <div className="space-y-1">
+                <Input 
+                  label="Atual" 
+                  mask="decimal"
+                  placeholder="Ex: 501,5"
+                  value={form.horimetroAtual} 
+                  onChange={(e: any) => setForm({...form, horimetroAtual: e.target.value})}
+                  required 
                 />
               </div>
             </div>
-            
-            {/* BOMBA FINAL */}
-            <div className="space-y-1">
-              <Input 
-                label="Final" 
-                mask="decimal"
-                placeholder="Ex: 12.550,5"
-                value={form.bombaFinal} 
-                onChange={(e: any) => setForm({...form, bombaFinal: e.target.value})}
-                required
-              />
-            </div>
-
-            <div className="col-span-2 text-xs font-bold text-gray-500 uppercase tracking-widest border-b pb-1 mb-1 mt-2 text-center">Leitura {getUnidadeMedida() === 'Km' ? 'Hodômetro' : 'Horímetro'}</div>
-
-            {/* HORÍMETRO ANTERIOR (AUTO) */}
-            <div className="space-y-1">
-              <div className="flex justify-center items-center gap-1">
-                <label className="block text-xs font-bold text-gray-500 text-center">Anterior</label>
-                <span className="text-[10px] text-red-600 bg-red-100 px-1 rounded">Auto</span>
-              </div>
-              <div className="bg-red-50 border border-red-100 rounded-lg p-2 relative">
-                <Gauge className="absolute left-2 top-2 w-4 h-4 text-red-400" />
-                <input 
-                  type="text" 
-                  value={form.horimetroAnterior} 
-                  readOnly 
-                  className="w-full pl-6 bg-transparent font-bold text-red-800 outline-none text-center" 
-                  placeholder="-" 
-                />
-              </div>
-            </div>
-
-            {/* HORÍMETRO ATUAL */}
-            <div className="space-y-1">
-              <Input 
-                label="Atual" 
-                mask="decimal"
-                placeholder="Ex: 501,5"
-                value={form.horimetroAtual} 
-                onChange={(e: any) => setForm({...form, horimetroAtual: e.target.value})}
-                required 
-              />
-            </div>
-          </div>
+          )}
 
           {/* RESUMO CALCULADO */}
-          <div className="flex justify-between items-center bg-gray-800 text-white p-4 rounded-xl shadow-lg">
+          <div className={`flex justify-between items-center ${form.isExterno ? 'bg-orange-900' : 'bg-gray-800'} text-white p-4 rounded-xl shadow-lg`}>
+            {form.isExterno && (
+              <div className="absolute top-2 right-2">
+                <span className="text-[9px] bg-orange-500 text-white px-1.5 py-0.5 rounded font-bold">EXTERNO</span>
+              </div>
+            )}
             <div className="text-center">
-              <p className="text-[10px] text-gray-400 uppercase font-bold">Litros</p>
-              <p className="text-xl font-bold text-red-400">{litrosCalculados} <span className="text-xs text-gray-500">L</span></p>
+              <p className="text-[10px] text-gray-400 uppercase font-bold">Litros{form.isExterno ? ' (Manual)' : ''}</p>
+              <p className={`text-xl font-bold ${form.isExterno ? 'text-orange-400' : 'text-red-400'}`}>{litrosCalculados} <span className="text-xs text-gray-500">L</span></p>
             </div>
             <div className="text-center">
               <p className="text-[10px] text-gray-400 uppercase font-bold">Média Consumo</p>
@@ -237,8 +327,8 @@ export default function AbastecimentoScreen() {
             </div>
           </div>
 
-          <button type="submit" className="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700 transition-colors shadow-md flex items-center justify-center gap-2">
-            <Check className="w-5 h-5"/> Confirmar Abastecimento
+          <button type="submit" className={`w-full ${form.isExterno ? 'bg-orange-500 hover:bg-orange-600' : 'bg-red-600 hover:bg-red-700'} text-white py-3 rounded-lg font-bold transition-colors shadow-md flex items-center justify-center gap-2`}>
+            <Check className="w-5 h-5"/> {form.isExterno ? 'Confirmar Abastecimento Externo' : 'Confirmar Abastecimento'}
           </button>
         </form>
       </div>
@@ -251,25 +341,17 @@ export default function AbastecimentoScreen() {
         {(() => {
           const recentes = [...(dados?.abastecimentos || [])]
             .sort((a, b) => {
-              // 1. Tentar Ordem Absoluta por Leitura da Bomba (Independente da data digitada)
-              const ba = U.parseDecimal(a.bomba_final || a.bombaFinal || 0);
-              const bb = U.parseDecimal(b.bomba_final || b.bombaFinal || 0);
-              if (ba > 0 && bb > 0 && bb !== ba) return bb - ba;
-
-              // 2. Fallback para Data se bomba for 0 ou igual
-              const da = a.data_operacao || a.data || '';
-              const db = b.data_operacao || b.data || '';
-              if (db !== da) return db.localeCompare(da);
+              // Ordenação por ORDEM DE REGISTRO (created_at desc) — mais recente primeiro
+              const ca = a.created_at || '';
+              const cb = b.created_at || '';
+              if (cb !== ca) return cb.localeCompare(ca);
               
+              // Fallback: ID (UUID v4 não é sequencial, mas garante estabilidade)
               return String(b.id || '').localeCompare(String(a.id || ''));
             })
             .filter((v, i, arr) => {
                const idV = v.id;
-               const pumpV = U.parseDecimal(v.bomba_final || v.bombaFinal || 0);
-               return arr.findIndex(t => 
-                  t.id === idV || 
-                  (t.maquina === v.maquina && U.parseDecimal(t.bomba_final || t.bombaFinal || 0) === pumpV && pumpV > 0)
-               ) === i;
+               return arr.findIndex(t => t.id === idV) === i;
             })
             .slice(0, 5);
 
@@ -286,7 +368,12 @@ export default function AbastecimentoScreen() {
                       const details = [brand, model].filter(Boolean).join(' - ');
                       return (
                         <>
-                          <span className="font-bold text-gray-800">{r.maquina}</span>
+                    <span className="font-bold text-gray-800">
+                      {r.maquina}
+                      {(r.tipo === 'externo' || (r.obs || '').includes('[EXTERNO]')) && (
+                        <span className="ml-1 text-[9px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold">EXT</span>
+                      )}
+                    </span>
                           {details && <span className="text-[10px] text-gray-500 truncate">{details}</span>}
                           <span className="text-[10px] text-gray-400">{U.formatDate(r.data_operacao || r.data)}</span>
                         </>

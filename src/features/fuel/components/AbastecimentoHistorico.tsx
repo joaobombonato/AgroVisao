@@ -52,12 +52,15 @@ export function AbastecimentoHistorico() {
 
         return String(b.id || '').localeCompare(String(a.id || ''));
       })
-      .filter((v, i, arr) => 
-        arr.findIndex(t => 
-           t.id === v.id || 
-           (t.maquina === v.maquina && (t.bomba_final || t.bombaFinal) === (v.bomba_final || v.bombaFinal))
-        ) === i
-      );
+       .filter((v, i, arr) => {
+         // Registros externos não devem colidir na deduplicação por bomba
+         const isExterno = v.tipo === 'externo' || (v.obs || '').includes('[EXTERNO]');
+         if (isExterno) return arr.findIndex(t => t.id === v.id) === i;
+         return arr.findIndex(t => 
+            t.id === v.id || 
+            (t.maquina === v.maquina && (t.bomba_final || t.bombaFinal) === (v.bomba_final || v.bombaFinal))
+         ) === i;
+       });
   }, [dados.abastecimentos, filterData, filterText]);
 
   return (
@@ -104,7 +107,12 @@ export function AbastecimentoHistorico() {
                     {U.formatDate(item.data_operacao || item.data).slice(0,5)}
                   </td>
                   <td className="px-2 py-2 text-center text-gray-700 text-xs">
-                    <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">{item.maquina}</div>
+                    <div className="font-bold truncate max-w-[80px] sm:max-w-none mx-auto">
+                      {item.maquina}
+                      {(item.tipo === 'externo' || (item.obs || '').includes('[EXTERNO]')) && (
+                        <span className="ml-1 text-[8px] bg-orange-100 text-orange-700 px-1 py-0.5 rounded font-bold">EXT</span>
+                      )}
+                    </div>
                     <div className="text-[9px] text-gray-400">
                       {(() => {
                         const maq = (dados?.maquinas || []).find((m: any) => m.nome === item.maquina);
@@ -122,9 +130,11 @@ export function AbastecimentoHistorico() {
                   </td>
                   <td className="px-2 py-2 text-center text-xs text-gray-700">
                     {(() => {
+                        const isExt = item.tipo === 'externo' || (item.obs || '').includes('[EXTERNO]');
+                        if (isExt) return <span className="text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">EXT</span>;
                         const val = (item as any).bomba_final || (item as any).bombaFinal || 0;
                         const n = U.parseDecimal(val);
-                        return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 }); // Sem decimais para bomba no histórico
+                        return n.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
                     })()}
                   </td>
                   <td className="px-2 py-2 text-center">

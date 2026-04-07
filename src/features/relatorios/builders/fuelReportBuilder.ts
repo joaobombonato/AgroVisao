@@ -12,6 +12,9 @@ export function buildAbastData(dados: any, ativos: any, dateStart: string, dateE
   // Deduplicação: remove registros fantasma duplicados do state local (sync retry)
   const seen = new Set<string>();
   const abastecimentosRaw = abastecimentosFiltered.filter((a: any) => {
+    // Registros externos (bomba=0) não participam de deduplicação por bomba
+    const isExterno = a.tipo === 'externo' || (a.obs || '').includes('[EXTERNO]');
+    if (isExterno) return true;
     const key = `${a.maquina}|${a.bomba_inicial || a.bombaInicial}|${a.bomba_final || a.bombaFinal}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -42,48 +45,55 @@ export function buildAbastData(dados: any, ativos: any, dateStart: string, dateE
 
   // Timeline unificada
   type TimelineEvent = { date: string; type: 'entrada' | 'saida'; qtd: number; ref: any };
-
   const timeline: TimelineEvent[] = [
     ...compras.map((c: any) => ({ date: c.data, type: 'entrada' as const, qtd: U.parseDecimal(c.litros || 0), ref: c })),
     ...abastecimentosRaw.map((a: any) => ({ date: a.data_operacao || a.data, type: 'saida' as const, qtd: U.parseDecimal(a.litros || a.qtd || 0), ref: a }))
   ];
+
+  // ORDENAÇÃO DE CÁLCULO: Cronologia ascendente para bater o saldo
   timeline.sort((a, b) => {
     const dateCmp = a.date.localeCompare(b.date);
     if (dateCmp !== 0) return dateCmp;
-    // Mesma data: ordena por bomba_inicial (marcador sequencial da bomba de combustível)
-    const bombaA = U.parseDecimal(
-      a.ref?.bomba_inicial || a.ref?.bombaInicial || 0,
-    );
-    const bombaB = U.parseDecimal(
-      b.ref?.bomba_inicial || b.ref?.bombaInicial || 0,
-    );
-    return bombaA - bombaB;
+    
+    // Mesma data: Entradas sempre antes de Saídas
+    if (a.type !== b.type) return a.type === 'entrada' ? -1 : 1;
+
+    // Mesmo tipo e data: Usa a data de registro (created_at) como desempate
+    const ca = a.ref?.created_at || a.ref?.createdAt || '';
+    const cb = b.ref?.created_at || b.ref?.createdAt || '';
+    if (ca && cb && ca !== cb) return ca.localeCompare(cb);
+
+    // Backup final: bomba inicial ou id
+    const ba = U.parseDecimal(a.ref?.bomba_inicial || a.ref?.bombaInicial || 0);
+    const bb = U.parseDecimal(b.ref?.bomba_inicial || b.ref?.bombaInicial || 0);
+    if (ba !== bb) return ba - bb;
+
+    return String(a.ref?.id || '').localeCompare(String(b.ref?.id || ''));
   });
 
   // Processamento do Saldo
   let saldoAtual = estoqueInicial;
   const registrosComSaldo: any[] = [];
 
-  timeline.forEach(event => {
+  timeline.forEach((event, index) => {
     if (event.type === 'entrada') {
       saldoAtual += event.qtd;
-      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: true });
+      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: true, sortIndex: index });
     } else {
       saldoAtual -= event.qtd;
-      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: false });
+      registrosComSaldo.push({ ...event.ref, saldoCalculado: saldoAtual, isEntrada: false, sortIndex: index });
     }
   });
 
-  // Ordenação final (descendente cronológica + bomba)
+  // ORDENAÇÃO DE EXIBIÇÃO: Cronologia descendente (Mais recentes no topo)
   const registros = [...registrosComSaldo].sort((a, b) => {
     const da = a.data_operacao || a.data || '';
     const db = b.data_operacao || b.data || '';
     const dateCmp = db.localeCompare(da);
     if (dateCmp !== 0) return dateCmp;
 
-    const ba = U.parseDecimal(a.bomba_inicial || a.bombaInicial || 0);
-    const bb = U.parseDecimal(b.bomba_inicial || b.bombaInicial || 0);
-    return bb - ba;
+    // Mesma data: O que foi calculado por último deve vir primeiro (topo)
+    return (b.sortIndex || 0) - (a.sortIndex || 0);
   });
 
   const columns = ['Data', 'Bomba Inicial', 'Bomba Final', 'Estoque Final', 'Máquina (Marca/Modelo)', 'Litros', 'Início (KM/H)', 'Final (KM/H)', 'Média', 'Custo R$'];
@@ -102,6 +112,7 @@ export function buildAbastData(dados: any, ativos: any, dateStart: string, dateE
     }
 
     const isAjuste = r.maquina === "AJUSTE DE ESTOQUE" || r.maquina === "TROCA DE BOMBA";
+    const isExterno = r.tipo === 'externo' || (r.obs || '').includes('[EXTERNO]');
 
     const maq = maquinas.find((m: any) => m.nome === r.maquina || m.identificacao === r.maquina);
     const brand = maq?.fabricante || '';
@@ -112,17 +123,19 @@ export function buildAbastData(dados: any, ativos: any, dateStart: string, dateE
     const formattedMedia = U.formatMedia(r.media);
     const mediaStr = (formattedMedia === '-' || isAjuste) ? '-' : `${formattedMedia}${suffix}`;
 
+    const maqLabel = isExterno ? `${maqFull} [EXTERNO]` : (isAjuste ? `** ${r.maquina} **` : maqFull);
+
     return [
       U.formatDate(r.data_operacao || r.data),
-      U.formatInt(r.bomba_inicial || r.bombaInicial || 0),
-      U.formatInt(r.bomba_final || r.bombaFinal || 0),
+      (isAjuste || isExterno) ? (isExterno ? 'EXT' : '-') : U.formatInt(r.bomba_inicial || r.bombaInicial || 0),
+      (isAjuste || isExterno) ? (isExterno ? 'EXT' : '-') : U.formatInt(r.bomba_final || r.bombaFinal || 0),
       U.formatInt(r.saldoCalculado),
-      isAjuste ? `** ${r.maquina} **` : maqFull,
+      maqLabel,
       U.formatHorimetro(r.litros || r.qtd || 0),
-      isAjuste ? '-' : U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
-      isAjuste ? '-' : U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
+      (isAjuste || isExterno) ? '-' : U.formatHorimetro(r.horimetro_anterior || r.horimetroAnterior || 0),
+      (isAjuste || isExterno) ? '-' : U.formatHorimetro(r.horimetro_atual || r.horimetroAtual || 0),
       mediaStr,
-      isAjuste ? '-' : `R$ ${U.formatValue(r.custo || 0)}`
+      (isAjuste || isExterno) ? (isExterno ? `R$ ${U.formatValue(r.custo || 0)}` : '-') : `R$ ${U.formatValue(r.custo || 0)}`
     ];
   });
 

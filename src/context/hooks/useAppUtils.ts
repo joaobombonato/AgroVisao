@@ -30,6 +30,11 @@ export function useAppUtils({ state }: UseAppUtilsParams) {
     const chaveSnake = filtroChave.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     
     const listaFiltrada = lista.filter((item: any) => {
+      // Registros externos (bomba=0) não devem ser considerados ao buscar última bomba
+      if (modulo === 'abastecimentos' && filtroChave === 'bombaFinal' && filtroValor === '*') {
+        const isExterno = item.tipo === 'externo' || (item.obs || '').includes('[EXTERNO]');
+        if (isExterno) return false;
+      }
       if (filtroValor === '*') return true;
       return item[filtroChave] === filtroValor || item[chaveSnake] === filtroValor;
     });

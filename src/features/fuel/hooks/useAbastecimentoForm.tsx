@@ -26,6 +26,8 @@ interface AbastecimentoFormState {
   obs: string;
   tanqueCheio: boolean;
   centroCusto: string;
+  isExterno: boolean;
+  litrosManuais: string;
 }
 
 export function useAbastecimentoForm() {
@@ -42,7 +44,9 @@ export function useAbastecimentoForm() {
     horimetroAtual: '',
     obs: '',
     tanqueCheio: true,
-    centroCusto: ''
+    centroCusto: '',
+    isExterno: false,
+    litrosManuais: ''
   });
 
   const [showObs, setShowObs] = useState(false);
@@ -77,6 +81,14 @@ export function useAbastecimentoForm() {
 
   // Cálculos dinâmicos
   const litrosCalculados = useMemo(() => {
+    // MODO EXTERNO: litros informados manualmente
+    if (form.isExterno) {
+      if (!form.litrosManuais) return '0,00';
+      const val = U.parseDecimal(form.litrosManuais);
+      return val > 0 ? val.toFixed(2).replace('.', ',') : '0,00';
+    }
+
+    // MODO BOMBA (padrão): calcula pela diferença da bomba
     // Se a bomba final ainda não foi preenchida, não calcula nada (UX)
     if (!form.bombaFinal) return '0,00';
 
@@ -90,24 +102,10 @@ export function useAbastecimentoForm() {
       return (f - i).toFixed(2).replace('.', ',');
     } else {
       // Virada de bomba
-      const MODULO = 100000000; // Assumindo virada de 100M? Ou 1M? Geralmente bombas viram em 1M ou 10M, mas aqui ta 100M
-      // Só assumir virada se a diferença for grande negativaE o usuário confirmar (na validação do submit).
-      // Mas para DISPLAY, mostrar o cálculo da virada pode assustar se for só erro de digitação.
-      // Vamos mostrar a virada APENAS se a diferença for compatível com uma virada lógica ou se o usuário explicitamente permitir?
-      // Por simplicidade e UX: Se for menor, mostra negativo ou zero? Não, o user falou que aparece numero gigante.
-      
-      // UX Decision: Se for menor, mostra 0,00 ou valor negativo explicito?
-      // O Screenshot mostra 99milhoes. É o calculo de virada atuando.
-      // Vamos manter o cálculo de virada mas SO SE o valor final tiver um tamanho razoável?
-      // Melhor: Se a diferença for absurda, mostra erro?
-      
-      // Vamos manter a lógica original MAS com a proteção do !form.bombaFinal acima.
-      // O problema do print era que "Ex: 12.550,5" é placeholder, e o value era vazio.
-      // Com o check !form.bombaFinal acima, isso resolve 100% do caso do print.
-      
+      const MODULO = 100000000;
       return ((MODULO + f) - i).toFixed(2).replace('.', ',');
     }
-  }, [form.bombaInicial, form.bombaFinal]);
+  }, [form.bombaInicial, form.bombaFinal, form.isExterno, form.litrosManuais]);
 
   const getUnidadeMedida = () => {
     const maquinaObj = (ativos?.maquinas || []).find((m: any) => m.nome === form.maquina);
@@ -244,7 +242,9 @@ export function useAbastecimentoForm() {
     }
 
     if (!form.maquina || U.parseDecimal(litrosCalculados) <= 0) {
-      toast.error("Verifique os dados da Bomba e Máquina");
+      toast.error(form.isExterno 
+        ? "Verifique a Máquina e os Litros informados" 
+        : "Verifique os dados da Bomba e Máquina");
       return;
     }
 
@@ -263,49 +263,55 @@ export function useAbastecimentoForm() {
        return;
     }
 
-    // Validação Sequencial Estrita (Bomba) - Exceto virada
-    const bFinal = U.parseDecimal(form.bombaFinal);
-    const bInicial = U.parseDecimal(form.bombaInicial);
-    // Se a diferença for negativa e não parecer virada (ex: diferença pequena negativa), bloqueia
-    // Virada geralmente é uma diferença grande negativa que se torna positiva com o módulo
-    if (bFinal < bInicial) {
-        const diff = bInicial - bFinal;
-        if (diff < 500000) { // Se a diferença for menor que 500k, provavelmente não é virada de 1M, é erro de digitação
-             if (!window.confirm(`A leitura final (${bFinal}) é menor que a inicial (${bInicial}). É uma virada de bomba?`)) {
-                 return;
-             }
-        }
+    // Validação Sequencial Estrita (Bomba) - Apenas no modo via bomba
+    if (!form.isExterno) {
+      const bFinal = U.parseDecimal(form.bombaFinal);
+      const bInicial = U.parseDecimal(form.bombaInicial);
+      if (bFinal < bInicial) {
+          const diff = bInicial - bFinal;
+          if (diff < 500000) {
+               if (!window.confirm(`A leitura final (${bFinal}) é menor que a inicial (${bInicial}). É uma virada de bomba?`)) {
+                   return;
+               }
+          }
+      }
     }
 
-    const novo = {
+    const novo: any = {
       data_operacao: form.data,
       maquina: form.maquina,
       combustivel: form.combustivel,
       qtd: U.parseDecimal(litrosCalculados),
-      litros: U.parseDecimal(litrosCalculados), // Campo obrigatório no banco (SaaS)
+      litros: U.parseDecimal(litrosCalculados),
       media: U.parseDecimal(mediaConsumo === 'N/A' ? '0' : mediaConsumo),
       custo: custoEstimado || 0,
       safra_id: ativos.parametros?.safraAtiva || null,
-      obs: form.obs,
+      obs: form.isExterno ? `[EXTERNO] ${form.obs || ''}`.trim() : form.obs,
       centro_custo: form.centroCusto,
       
       // Campos mapeados para snake_case (banco de dados)
-      bomba_inicial: U.parseDecimal(form.bombaInicial),
-      bomba_final: U.parseDecimal(form.bombaFinal),
+      bomba_inicial: form.isExterno ? 0 : U.parseDecimal(form.bombaInicial),
+      bomba_final: form.isExterno ? 0 : U.parseDecimal(form.bombaFinal),
       horimetro_anterior: U.parseDecimal(form.horimetroAnterior),
       horimetro_atual: U.parseDecimal(form.horimetroAtual),
       
-      // id: REMOVIDO PARA GERAR UUID AUTOMÁTICO
+      // Flag para identificar abastecamento externo
+      tipo: form.isExterno ? 'externo' : 'bomba',
     };
 
     // Detalhes da OS
-    const descOS = `Abastecimento: ${form.maquina} (${litrosCalculados}L)`;
+    const tipoLabel = form.isExterno ? '[EXTERNO] ' : '';
+    const descOS = `${tipoLabel}Abastecimento: ${form.maquina} (${litrosCalculados}L)`;
     const maqInfo = (ativos?.maquinas || []).find((m: any) => m.nome === form.maquina);
     const maqLabel = [form.maquina, maqInfo?.fabricante, maqInfo?.descricao].filter(Boolean).join(' - ');
     const detalhesOS: any = {
       "Máquina": maqLabel,
-      "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}`,
+      ...(form.isExterno 
+        ? { "Tipo": "Abastecimento Externo (Direto)" }
+        : { "Bomba": `${form.bombaInicial} -> ${form.bombaFinal}` }
+      ),
       "Horímetro": `${form.horimetroAnterior} -> ${form.horimetroAtual}`,
+      "Litros": `${litrosCalculados}L${form.isExterno ? ' (Manual)' : ''}`,
       "Consumo": `${mediaConsumo} L/h (Média)`,
       "Custo": `R$ ${U.formatValue(custoEstimado || 0)}`,
       "Obs": form.obs || '-'
@@ -362,7 +368,9 @@ export function useAbastecimentoForm() {
       horimetroAnterior: '',
       horimetroAtual: '',
       obs: '',
-      tanqueCheio: true
+      tanqueCheio: true,
+      isExterno: false,
+      litrosManuais: ''
     }));
     setShowObs(false);
     toast.success('Abastecimento registrado!');

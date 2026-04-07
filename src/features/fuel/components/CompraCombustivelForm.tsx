@@ -40,6 +40,8 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
     openScanner,
     handleScanSuccess,
     handlePhotoSuccess,
+    isDateSuggested,
+    setIsDateSuggested,
     enviar
   } = useCompraDiesel(onClose);
 
@@ -147,7 +149,29 @@ export function CompraCombustivelForm({ onClose }: CompraCombustivelFormProps) {
                 )}
                 
                 <div className="bg-white p-4 rounded-xl border shadow-sm space-y-3">
-                    <Input label="Data da Compra *" type="date" value={form.data} onChange={(e: any) => setForm({ ...form, data: e.target.value })} required />
+                    <div className="relative">
+                        <Input 
+                            label="Data da Compra *" 
+                            type="date" 
+                            value={form.data} 
+                            onChange={(e: any) => {
+                                setForm({ ...form, data: e.target.value });
+                                setIsDateSuggested(false); // Remove destaque ao editar
+                            }} 
+                            className={isDateSuggested ? "border-orange-500 bg-orange-50 ring-2 ring-orange-200 animate-pulse font-bold" : ""}
+                            required 
+                        />
+                        {isDateSuggested && (
+                            <div className="absolute -top-1 right-0">
+                                <span className="bg-orange-500 text-white text-[9px] px-2 py-0.5 rounded-full font-black animate-bounce shadow-sm">CONFIRME O DIA!</span>
+                            </div>
+                        )}
+                        {isDateSuggested && (
+                            <p className="text-[10px] text-orange-700 font-bold mt-1 px-1 flex items-center gap-1">
+                                ⚠️ O código de barras só fornece mês/ano.
+                            </p>
+                        )}
+                    </div>
                     
                     <div className="p-3 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 space-y-3">
                         <Input label="CNPJ (Auto-Busca Razão)" mask="cnpj" placeholder="Ex: 00.000.000/0001-00" value={form.cnpjFornecedor} onChange={(e: any) => setForm({ ...form, cnpjFornecedor: e.target.value })} onBlur={() => handleLookup('fuel')} />
