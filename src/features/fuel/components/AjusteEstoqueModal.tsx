@@ -34,8 +34,8 @@ export function AjusteEstoqueModal({ onClose }: AjusteEstoqueModalProps) {
         const novoAjuste = {
             data_operacao: ajusteForm.data,
             maquina: "AJUSTE DE ESTOQUE",
-            bombaFinal: 0,
-            horimetroAtual: 0,
+            bomba_final: 0,
+            horimetro_atual: 0,
             qtd: ajusteForm.qtd,
             litros: U.parseDecimal(ajusteForm.qtd), // Campo obrigatório no banco (SaaS)
             media: 0,
